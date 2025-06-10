@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.ContactController"
+            prefHeight="400.0" prefWidth="600.0">
+
+    <VBox spacing="20" alignment="CENTER" layoutX="50" layoutY="30" prefWidth="500">
+        <Label text="Contact Support" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
+        <Label text="If you experience issues, please contact our support team."
+               wrapText="true"
+               style="-fx-font-size: 16px;" />
+        <Label text="Phone: +972 40 444 6160" style="-fx-font-size: 18px;" />
+        <Label text="Email: support@lilachstore.com" style="-fx-font-size: 18px;" />
+
+        <HBox spacing="15" alignment="CENTER">
+            <Button text="Home" onAction="#goHome" />
+            <Button text="Catalog" onAction="#goCatalog" />
+        </HBox>
+    </VBox>
+
+</AnchorPane>

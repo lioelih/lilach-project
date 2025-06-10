@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController"
+      spacing="10" alignment="TOP_CENTER" prefWidth="800" prefHeight="600">
+
+    <HBox spacing="10" alignment="CENTER">
+        <Button fx:id="homeButton" text="Home" />
+        <Button fx:id="refreshButton" text="Refresh" />
+    </HBox>
+
+    <TableView fx:id="productTable" prefWidth="750" prefHeight="500">
+        <columns>
+            <TableColumn fx:id="nameColumn" text="Name" prefWidth="180"/>
+            <TableColumn fx:id="typeColumn" text="Type" prefWidth="180"/>
+            <TableColumn fx:id="priceColumn" text="Price" prefWidth="120"/>
+            <TableColumn fx:id="imageColumn" text="Image" prefWidth="250"/>
+        </columns>
+    </TableView>
+
+</VBox>
+
