@@ -32,6 +32,16 @@ public class RegisterController {
             String password = passwordField.getText();
 
             try (Connection conn = DBUtil.getConnection()) {
+                String checkQuery = "SELECT * FROM users WHERE username = ? OR email = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
+                checkStmt.setString(1, username);
+                checkStmt.setString(2, email);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (rs.next()) {
+                    showAlert("User Already Exists");
+                    return;
+                }
                 String query = "INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, 'USER')";
                 PreparedStatement stmt = conn.prepareStatement(query);
                 stmt.setString(1, username);
@@ -50,6 +60,8 @@ public class RegisterController {
     }
     private void showAlert(String message) {
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }

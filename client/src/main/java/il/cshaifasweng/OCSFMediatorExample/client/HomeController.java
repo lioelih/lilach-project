@@ -3,6 +3,9 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class HomeController {
 
@@ -40,8 +43,17 @@ public class HomeController {
         }
 
         logoutButton.setOnAction(e -> {
+            try (Connection conn = DBUtil.getConnection()) {
+                PreparedStatement stmt = conn.prepareStatement("UPDATE users SET is_logged_in = FALSE WHERE username = ?");
+                stmt.setString(1, SceneController.loggedUsername);
+                stmt.executeUpdate();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+
             SceneController.loggedUsername = null;
             SceneController.switchScene("home");
+
         });
     }
 }

@@ -28,11 +28,22 @@ public class LoginController {
                 PreparedStatement stmt = conn.prepareStatement(query);
                 stmt.setString(1, username);
                 stmt.setString(2, password);
-
                 ResultSet rs = stmt.executeQuery();
+
                 if (rs.next()) {
+                    boolean isLoggedIn = rs.getBoolean("is_logged_in");
+                    if (isLoggedIn) {
+                        showAlert("User already logged in on another device.");
+                        return;
+                    }
+
+                    // Mark user as logged in
+                    PreparedStatement update = conn.prepareStatement("UPDATE users SET is_logged_in = TRUE WHERE username = ?");
+                    update.setString(1, username);
+                    update.executeUpdate();
+
                     SceneController.loggedUsername = username;
-                    SceneController.switchScene("home");  // Go to home, not catalog
+                    SceneController.switchScene("home");
                 } else {
                     showAlert("Invalid credentials");
                 }
@@ -43,6 +54,8 @@ public class LoginController {
     }
     private void showAlert(String message) {
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }

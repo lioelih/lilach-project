@@ -9,6 +9,9 @@ import javafx.scene.control.TextInputDialog;
 import javafx.stage.Stage;
 import java.util.*;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -32,6 +35,18 @@ public class App extends Application {
 
         SceneController.setMainStage(stage);
         SceneController.switchScene("home"); // Sets our scene to Home after opening the connection
+        stage.setOnCloseRequest(e -> {
+            try (Connection conn = DBUtil.getConnection()) {
+                if (SceneController.loggedUsername != null) {
+                    PreparedStatement stmt = conn.prepareStatement("UPDATE users SET is_logged_in = FALSE WHERE username = ?");
+                    stmt.setString(1, SceneController.loggedUsername);
+                    stmt.executeUpdate();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        });
+
     }
 
     static void setRoot(String fxml) throws IOException {
