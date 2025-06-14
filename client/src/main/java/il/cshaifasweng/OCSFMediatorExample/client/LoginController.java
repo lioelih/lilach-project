@@ -31,13 +31,20 @@ public class LoginController {
 
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
-                    SceneController.switchScene("catalog");
+                    SceneController.loggedUsername = username;
+                    SceneController.switchScene("home");  // Go to home, not catalog
                 } else {
-                    System.out.println("Invalid credentials");
+                    showAlert("Invalid credentials");
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         });
     }
+    private void showAlert(String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
 }

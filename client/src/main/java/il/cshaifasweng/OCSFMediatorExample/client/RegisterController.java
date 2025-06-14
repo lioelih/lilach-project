@@ -48,4 +48,10 @@ public class RegisterController {
             }
         });
     }
+    private void showAlert(String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
 }
