@@ -23,25 +23,16 @@ public class LoginController {
             String username = usernameField.getText();
             String password = passwordField.getText();
 
+            if (!isValidInput(username, password)) return;
+
             try (Connection conn = DBUtil.getConnection()) {
                 String query = "SELECT * FROM users WHERE username = ? AND password = ?";
                 PreparedStatement stmt = conn.prepareStatement(query);
                 stmt.setString(1, username);
                 stmt.setString(2, password);
+
                 ResultSet rs = stmt.executeQuery();
-
                 if (rs.next()) {
-                    boolean isLoggedIn = rs.getBoolean("is_logged_in");
-                    if (isLoggedIn) {
-                        showAlert("User already logged in on another device.");
-                        return;
-                    }
-
-                    // Mark user as logged in
-                    PreparedStatement update = conn.prepareStatement("UPDATE users SET is_logged_in = TRUE WHERE username = ?");
-                    update.setString(1, username);
-                    update.executeUpdate();
-
                     SceneController.loggedUsername = username;
                     SceneController.switchScene("home");
                 } else {
@@ -52,6 +43,23 @@ public class LoginController {
             }
         });
     }
+
+    private boolean isValidInput(String username, String password) {
+        if (username.isBlank() || password.isBlank()) {
+            showAlert("Username and password are required.");
+            return false;
+        }
+        if (username.contains(" ")) {
+            showAlert("Username cannot contain spaces.");
+            return false;
+        }
+        if (password.length() < 4 || password.length() > 16) {
+            showAlert("Password must be at least 4 characters long and at most 16 characters.");
+            return false;
+        }
+        return true;
+    }
+
     private void showAlert(String message) {
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
         alert.setTitle("Error");
@@ -59,5 +67,4 @@ public class LoginController {
         alert.setContentText(message);
         alert.showAndWait();
     }
-
 }
