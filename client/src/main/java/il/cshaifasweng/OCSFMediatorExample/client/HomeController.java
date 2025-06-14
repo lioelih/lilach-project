@@ -12,9 +12,17 @@ public class HomeController {
     private Button contactButton;
 
     @FXML
+    private Button loginButton;
+
+    @FXML
+    private Button registerButton;
+
+    @FXML
     public void initialize()
     { // Just front page stuff :D
         catalogButton.setOnAction(e -> SceneController.switchScene("catalog"));
         contactButton.setOnAction(e -> SceneController.switchScene("contact"));
+        loginButton.setOnAction(e -> SceneController.switchScene("login"));
+        registerButton.setOnAction(e -> SceneController.switchScene("register"));
     }
 }
