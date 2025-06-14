@@ -20,6 +20,7 @@ public class CatalogController {
 
     @FXML private Button homeButton;
     @FXML private Button refreshButton;
+    @FXML private Button addProductButton;
     @FXML private TableView<Product> productTable;
     @FXML private TableColumn<Product, String> nameColumn;
     @FXML private TableColumn<Product, String> typeColumn;
@@ -64,6 +65,20 @@ public class CatalogController {
         homeButton.setOnAction(e -> { // Sends us to home
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
+        });
+
+        addProductButton.setOnAction(e -> { // Sends us to add product page
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_product_page.fxml"));
+                Scene scene = new Scene(loader.load());
+                Stage stage = new Stage();
+                stage.setTitle("Add Product");
+                stage.setScene(scene);
+                stage.show();
+            }
+            catch (IOException err) {
+                err.printStackTrace();
+            }
         });
 
         refreshButton.setOnAction(e -> { // Refreshes the catalog by sending another "GET_CATALOG"

@@ -32,16 +32,7 @@ public class SimpleServer extends AbstractServer {
 				client.sendToClient(catalog);
 				System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
 			}
-			else if (msgString.startsWith("UPDATE_PRICE")) {
-				String[] parts = msgString.split(":");
-				int id = Integer.parseInt(parts[1]);
-				double newPrice = Double.parseDouble(parts[2]);
 
-				updateProductPrice(id, newPrice);
-
-				List<Product> updatedCatalog = fetchCatalog();
-				client.sendToClient(updatedCatalog);
-			}
 			else if (msgString.startsWith("add client")) {
 				SubscribedClient connection = new SubscribedClient(client);
 				SubscribersList.add(connection);
@@ -52,10 +43,17 @@ public class SimpleServer extends AbstractServer {
 			}
 		}
 		else if (msg instanceof Product product) {
-			updateFullProduct(product);
-			client.sendToClient("Product updated successfully");
-			List<Product> updatedCatalog = fetchCatalog();
-			client.sendToClient(updatedCatalog);
+			if (product.getId() <= 0) {
+				saveNewProduct(product);
+				client.sendToClient("Product added successfully");
+				client.sendToClient(fetchCatalog());
+			}
+			else {
+				updateFullProduct(product);
+				client.sendToClient("Product updated successfully");
+				List<Product> updatedCatalog = fetchCatalog();
+				client.sendToClient(updatedCatalog);
+			}
 		}
 	}
 
@@ -70,6 +68,14 @@ public class SimpleServer extends AbstractServer {
 				dbProduct.setImage(updatedProduct.getImage());
 				session.update(dbProduct);
 			}
+			session.getTransaction().commit();
+		}
+	}
+
+	private void saveNewProduct(Product product) {
+		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+			session.beginTransaction();
+			session.save(product); // Hibernate will auto-generate the ID
 			session.getTransaction().commit();
 		}
 	}
