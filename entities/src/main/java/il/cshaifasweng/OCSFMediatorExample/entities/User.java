@@ -30,11 +30,16 @@ public class User implements Serializable {
     public enum Role {
         USER, WORKER, MANAGER, ADMIN
     }
+    @Column(name = "is_logged_in")
+    private boolean loggedIn;
 
     public User() {}
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+
+    public boolean isLoggedIn() { return loggedIn; }
+    public void setLoggedIn(boolean loggedIn) { this.loggedIn = loggedIn; }
 
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }

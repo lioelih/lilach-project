@@ -10,6 +10,7 @@
     <Label text="Register" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
     <TextField fx:id="usernameField" promptText="Username"/>
     <TextField fx:id="emailField" promptText="Email"/>
+    <TextField fx:id="phoneNumberField" promptText="Phone Number"/>
     <TextField fx:id="nameField" promptText="Full Name"/>
     <PasswordField fx:id="passwordField" promptText="Password"/>
     <Button fx:id="submitButton" text="Register"/>

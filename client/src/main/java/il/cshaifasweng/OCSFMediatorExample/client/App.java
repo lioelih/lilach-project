@@ -1,10 +1,12 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
+import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.TextInputDialog;
 import javafx.stage.Stage;
 import java.util.*;
@@ -12,6 +14,8 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
+import il.cshaifasweng.OCSFMediatorExample.entities.RegisterResponse;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -36,17 +40,15 @@ public class App extends Application {
         SceneController.setMainStage(stage);
         SceneController.switchScene("home"); // Sets our scene to Home after opening the connection
         stage.setOnCloseRequest(e -> {
-            try (Connection conn = DBUtil.getConnection()) {
+            try {
                 if (SceneController.loggedUsername != null) {
-                    PreparedStatement stmt = conn.prepareStatement("UPDATE users SET is_logged_in = FALSE WHERE username = ?");
-                    stmt.setString(1, SceneController.loggedUsername);
-                    stmt.executeUpdate();
+                    client.sendToServer(new LogoutRequest(SceneController.loggedUsername));
                 }
-            } catch (SQLException ex) {
+                client.sendToServer("remove client");
+            } catch (IOException ex) {
                 ex.printStackTrace();
             }
         });
-
     }
 
     static void setRoot(String fxml) throws IOException {
@@ -98,6 +100,34 @@ public class App extends Application {
                 .map(input -> input.split(":"))
                 .filter(arr -> arr.length == 2)
                 .orElse(null);
+    }
+
+    @Subscribe
+    public void onLoginResponse(LoginResponse response) {
+        System.out.println("APP: onLoginResponse triggered: " + response.message);
+        Platform.runLater(() -> {
+            if (response.success) {
+                SceneController.switchScene("home");
+            }
+            else{
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setHeaderText(null);
+                alert.setContentText("Login failed, User does not exist.");
+                alert.showAndWait();
+            }
+        });
+    }
+
+    @Subscribe
+    public void onRegisterResponse(RegisterResponse response) {
+        System.out.println("App received RegisterResponse: " + response.message);
+        Platform.runLater(() -> {
+            if (response.success) {
+                SceneController.switchScene("login");
+            }
+            // Do nothing if register fails
+        });
     }
 }
 

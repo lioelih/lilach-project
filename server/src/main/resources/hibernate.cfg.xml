@@ -17,5 +17,7 @@
 
         <!-- Thy noble entity -->
         <mapping class="il.cshaifasweng.OCSFMediatorExample.entities.Product"/>
+        <mapping class="il.cshaifasweng.OCSFMediatorExample.entities.User"/>
+
     </session-factory>
 </hibernate-configuration>
