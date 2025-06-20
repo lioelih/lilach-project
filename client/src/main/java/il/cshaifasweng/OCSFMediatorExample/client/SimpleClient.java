@@ -1,6 +1,8 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import il.cshaifasweng.OCSFMediatorExample.entities.RegisterResponse;
 import org.greenrobot.eventbus.EventBus;
 
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
@@ -27,6 +29,13 @@ public class SimpleClient extends AbstractClient {
 				List<Product> products = (List<Product>) list;
 				EventBus.getDefault().post(new CatalogEvent(products));
 			}
+		}
+		else if (msg instanceof LoginResponse) {
+			System.out.println("CLIENT: Got LoginResponse: " + ((LoginResponse) msg).message);
+			EventBus.getDefault().post((LoginResponse) msg);
+		}
+		else if (msg instanceof RegisterResponse) {
+			EventBus.getDefault().post((RegisterResponse) msg);
 		}
 	}
 

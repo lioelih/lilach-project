@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
@@ -27,6 +28,7 @@ public class HibernateUtil {
             Configuration configuration = new Configuration();
             configuration.configure(); // looks for hibernate.cfg.xml
             configuration.addAnnotatedClass(Product.class); // link entity
+            configuration.addAnnotatedClass(User.class);
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();
             sessionFactory = configuration.buildSessionFactory(serviceRegistry);

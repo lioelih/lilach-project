@@ -9,6 +9,7 @@ import java.io.IOException;
 
 public class SceneController {
     public static Stage mainStage;
+    public static String loggedUsername = null;
 
     public static void setMainStage(Stage stage) {
         mainStage = stage;
