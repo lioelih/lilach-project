@@ -1,11 +1,16 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
-import il.cshaifasweng.OCSFMediatorExample.entities.Product;
-import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
+import il.cshaifasweng.OCSFMediatorExample.entities.*;
+import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import org.hibernate.Session;
+import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
+import org.hibernate.Session;
+import org.hibernate.query.Query;
+
+import java.io.IOException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -63,6 +68,63 @@ public class SimpleServer extends AbstractServer {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		else if (msg instanceof LoginRequest request) {
+			System.out.println("SERVER: Received LoginRequest from user: " + request.username);
+			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+				Query<User> query = session.createQuery(
+						"FROM User WHERE username = :username AND password = :password", User.class);
+				query.setParameter("username", request.username);
+				query.setParameter("password", request.password);
+				List<User> users = query.list();
+				boolean exists = !users.isEmpty();
+				String msgText = exists ? "Login successful" : "Invalid credentials";
+				LoginResponse response = new LoginResponse(exists, msgText);
+
+				System.out.println("SERVER: Sending LoginResponse with success=" + exists + ", message=" + msgText);
+				client.sendToClient(response); // Make sure this line is reached!
+			}
+			catch (Exception e) {
+				System.out.println("SERVER ERROR WHILE HANDLING LOGIN:");
+				e.printStackTrace();
+			}
+		}
+
+
+		else if (msg instanceof RegisterRequest request) {
+			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+				Query<?> check = session.createQuery("FROM User WHERE username = :username OR email = :email");
+				check.setParameter("username", request.username);
+				check.setParameter("email", request.email);
+				if (!check.list().isEmpty()) {
+					client.sendToClient(new RegisterResponse(false, "User already exists"));
+					return;
+				}
+
+				session.beginTransaction();
+				User newUser = new User();
+				newUser.setUsername(request.username);
+				newUser.setEmail(request.email);
+				newUser.setPhoneNumber(request.phoneNumber);
+				newUser.setFullName(request.fullName);
+				newUser.setPassword(request.password);
+				newUser.setRole(User.Role.USER);
+				session.persist(newUser);
+				session.getTransaction().commit();
+
+				client.sendToClient(new RegisterResponse(true, "Registration successful"));
+			}
+		}
+		else if (msg instanceof LogoutRequest logout) {
+			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+				session.beginTransaction();
+				Query query = session.createQuery("UPDATE User SET loggedIn = false WHERE username = :username");
+				query.setParameter("username", logout.username);
+				query.executeUpdate();
+				session.getTransaction().commit();
+			}
+		}
+
+
 	}
 
 	private void updateFullProduct(Product updatedProduct) {
