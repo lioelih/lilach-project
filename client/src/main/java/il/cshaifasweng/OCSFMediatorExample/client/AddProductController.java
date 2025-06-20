@@ -8,7 +8,7 @@ import javafx.scene.input.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 
 public class AddProductController {
@@ -19,11 +19,11 @@ public class AddProductController {
     @FXML private Button addButton;
     @FXML private ImageView imageDrop;
 
-    private File droppedImageFile = null;  // holds image until saved
+    private File droppedImageFile = null; // holds the file temporarily
 
     @FXML
     public void initialize() {
-        imageDrop.setImage(new Image("/image/drag_drop.png"));
+        imageDrop.setImage(new Image("/image/drag_drop.png")); // placeholder image
 
         imageDrop.setOnDragOver(event -> {
             if (event.getGestureSource() != imageDrop && event.getDragboard().hasFiles()) {
@@ -42,7 +42,7 @@ public class AddProductController {
             if (db.hasFiles()) {
                 File file = db.getFiles().get(0);
                 if (file.getName().toLowerCase().endsWith(".png")) {
-                    droppedImageFile = file; // store for later save
+                    droppedImageFile = file;
                     imageDrop.setImage(new Image(file.toURI().toString()));
                     success = true;
                 } else {
@@ -60,9 +60,9 @@ public class AddProductController {
     private void handleAddProduct() {
         String name = nameField.getText().trim();
         String type = typeField.getText().trim();
-        String price = priceField.getText().trim();
+        String priceStr = priceField.getText().trim();
 
-        if (name.isEmpty() || type.isEmpty() || price.isEmpty()) {
+        if (name.isEmpty() || type.isEmpty() || priceStr.isEmpty()) {
             showAlert("Please fill in all fields.");
             return;
         }
@@ -72,32 +72,32 @@ public class AddProductController {
             return;
         }
 
+        double price;
         try {
-            saveImage(name, droppedImageFile);
-            System.out.println("Image saved as: " + name + ".png");
-            // Proceed to save product in database (if you want)
+            price = Double.parseDouble(priceStr);
+        } catch (NumberFormatException e) {
+            showAlert("Price must be a valid number.");
+            return;
+        }
 
+        byte[] imageBytes;
+        try {
+            imageBytes = Files.readAllBytes(droppedImageFile.toPath());
         } catch (IOException e) {
-            showAlert("Failed to save image.");
+            showAlert("Failed to read image file.");
+            return;
         }
 
         try {
-            SimpleClient.getClient().sendToServer(new Product(name, type, Double.parseDouble(price),"/image/" + name + ".png")); // send new product
+            Product product = new Product(name, type, price, imageBytes);
+            SimpleClient.getClient().sendToServer(product);
+
             Alert alert = new Alert(Alert.AlertType.INFORMATION, "Product Added!");
             alert.showAndWait();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+            showAlert("Failed to send product to server.");
         }
-
-    }
-
-    private void saveImage(String productName, File sourceFile) throws IOException {
-        File destDir = new File("client/src/main/resources/image");
-        if (!destDir.exists()) destDir.mkdirs();
-
-        File destFile = new File(destDir, productName + ".png");
-
-        Files.copy(sourceFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
     private void showAlert(String message) {

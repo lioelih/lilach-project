@@ -26,19 +26,18 @@ public class SimpleServer extends AbstractServer {
 				Warning warning = new Warning("Warning from server!");
 				client.sendToClient(warning);
 				System.out.format("Sent warning to client %s\n", client.getInetAddress().getHostAddress());
-			}
-			else if (msgString.equals("GET_CATALOG")) {
+
+			} else if (msgString.equals("GET_CATALOG")) {
 				List<Product> catalog = fetchCatalog();
 				client.sendToClient(catalog);
 				System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-			}
 
-			else if (msgString.startsWith("add client")) {
+			} else if (msgString.startsWith("add client")) {
 				SubscribedClient connection = new SubscribedClient(client);
 				SubscribersList.add(connection);
 				client.sendToClient("client added successfully");
-			}
-			else if (msgString.startsWith("remove client")) {
+
+			} else if (msgString.startsWith("remove client")) {
 				SubscribersList.removeIf(subscribedClient -> subscribedClient.getClient().equals(client));
 			}
 		}
@@ -47,13 +46,22 @@ public class SimpleServer extends AbstractServer {
 				saveNewProduct(product);
 				client.sendToClient("Product added successfully");
 				client.sendToClient(fetchCatalog());
-			}
-			else {
+
+			} else {
 				updateFullProduct(product);
 				client.sendToClient("Product updated successfully");
-				List<Product> updatedCatalog = fetchCatalog();
-				client.sendToClient(updatedCatalog);
+				client.sendToClient(fetchCatalog());
 			}
+		}
+	}
+
+	private void saveNewProduct(Product product) {
+		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+			session.beginTransaction();
+			session.save(product); // image is saved as BLOB via JPA automatically
+			session.getTransaction().commit();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -62,32 +70,15 @@ public class SimpleServer extends AbstractServer {
 			session.beginTransaction();
 			Product dbProduct = session.get(Product.class, updatedProduct.getId());
 			if (dbProduct != null) {
-				dbProduct.setPrice(updatedProduct.getPrice());
 				dbProduct.setName(updatedProduct.getName());
 				dbProduct.setType(updatedProduct.getType());
-				dbProduct.setImage(updatedProduct.getImage());
+				dbProduct.setPrice(updatedProduct.getPrice());
+				dbProduct.setImage(updatedProduct.getImage()); // also updates BLOB
 				session.update(dbProduct);
 			}
 			session.getTransaction().commit();
-		}
-	}
-
-	private void saveNewProduct(Product product) {
-		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-			session.beginTransaction();
-			session.save(product); // Hibernate will auto-generate the ID
-			session.getTransaction().commit();
-		}
-	}
-
-
-	public void sendToAllClients(String message) {
-		for (SubscribedClient subscribedClient : SubscribersList) {
-			try {
-				subscribedClient.getClient().sendToClient(message);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -97,15 +88,13 @@ public class SimpleServer extends AbstractServer {
 		}
 	}
 
-	private void updateProductPrice(int id, double newPrice) {
-		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-			session.beginTransaction();
-			Product product = session.get(Product.class, id);
-			if (product != null) {
-				product.setPrice(newPrice);
-				session.update(product);
+	public void sendToAllClients(String message) {
+		for (SubscribedClient subscribedClient : SubscribersList) {
+			try {
+				subscribedClient.getClient().sendToClient(message);
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			session.getTransaction().commit();
 		}
 	}
 }
