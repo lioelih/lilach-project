@@ -13,6 +13,7 @@ import javafx.util.Callback;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -20,20 +21,24 @@ public class CatalogController {
 
     @FXML private Button homeButton;
     @FXML private Button refreshButton;
+    @FXML private Button addProductButton;
     @FXML private TableView<Product> productTable;
     @FXML private TableColumn<Product, String> nameColumn;
     @FXML private TableColumn<Product, String> typeColumn;
     @FXML private TableColumn<Product, Double> priceColumn;
-    @FXML private TableColumn<Product, String> imageColumn;
+    @FXML private TableColumn<Product, byte[]> imageColumn;
 
     @FXML
-    public void initialize() { // Initialization of the catalog
+    public void initialize() {
         EventBus.getDefault().register(this);
 
+        // Set up column bindings
         nameColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getName()));
         typeColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getType()));
         priceColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getPrice()));
-        imageColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getImage())); // Sets each variable with the given data type from the database
+
+        // Set up image column (image is stored as byte[])
+        imageColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getImage()));
 
         imageColumn.setCellFactory(col -> new TableCell<>() {
             private final ImageView imageView = new ImageView();
@@ -41,32 +46,48 @@ public class CatalogController {
                 imageView.setFitHeight(60);
                 imageView.setFitWidth(100);
                 imageView.setPreserveRatio(true);
-            } // Loads each image individually with the given ratio
+            }
 
             @Override
-            protected void updateItem(String path, boolean empty) { // Updates an item (usually for display)
-                super.updateItem(path, empty);
-                if (empty || path == null || path.isEmpty()) {
+            protected void updateItem(byte[] imageData, boolean empty) {
+                super.updateItem(imageData, empty);
+                if (empty || imageData == null || imageData.length == 0) {
                     setGraphic(null);
                 } else {
                     try {
-                        imageView.setImage(new Image(path, true));
+                        Image image = new Image(new ByteArrayInputStream(imageData));
+                        imageView.setImage(image);
                         setGraphic(imageView);
                     } catch (Exception e) {
                         setGraphic(null);
+                        e.printStackTrace();
                     }
                 }
             }
         });
 
-        addViewButtonColumn(); // << Add this column
+        addViewButtonColumn();
 
-        homeButton.setOnAction(e -> { // Sends us to home
+        // Buttons
+        homeButton.setOnAction(e -> {
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
         });
 
-        refreshButton.setOnAction(e -> { // Refreshes the catalog by sending another "GET_CATALOG"
+        addProductButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_product_page.fxml"));
+                Scene scene = new Scene(loader.load());
+                Stage stage = new Stage();
+                stage.setTitle("Add Product");
+                stage.setScene(scene);
+                stage.show();
+            } catch (IOException err) {
+                err.printStackTrace();
+            }
+        });
+
+        refreshButton.setOnAction(e -> {
             try {
                 SimpleClient.getClient().sendToServer("GET_CATALOG");
             } catch (Exception ex) {
@@ -74,14 +95,14 @@ public class CatalogController {
             }
         });
 
-        try { // Displays catalog on initialization
+        try {
             SimpleClient.getClient().sendToServer("GET_CATALOG");
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void addViewButtonColumn() { // Made for the View of product and its description
+    private void addViewButtonColumn() {
         TableColumn<Product, Void> actionCol = new TableColumn<>("Action");
         actionCol.setPrefWidth(100);
 
@@ -107,17 +128,16 @@ public class CatalogController {
     }
 
     @Subscribe
-    public void onCatalogReceived(CatalogEvent event) { // Will take a List received from the server, then split it into products using @Subscribe
+    public void onCatalogReceived(CatalogEvent event) {
         updateCatalog(event.getProducts());
     }
 
-    public void updateCatalog(List<Product> products) { // Updates the Catalog
-        Platform.runLater(() -> {
-            productTable.getItems().setAll(products);
-        });
+    @Subscribe
+    public void updateCatalog(List<Product> products) {
+        Platform.runLater(() -> productTable.getItems().setAll(products));
     }
 
-    private void openProductPage(Product product) { //Our Product_View window
+    private void openProductPage(Product product) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("product_view.fxml"));
             Scene scene = new Scene(loader.load());

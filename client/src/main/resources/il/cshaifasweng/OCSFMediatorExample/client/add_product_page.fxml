@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="TOP_CENTER" prefHeight="500" prefWidth="600" spacing="15" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.AddProductController">
+
+    <Label fx:id="nameLabel" style="-fx-font-size: 24px; -fx-font-weight: bold;" text="Name:" />
+   <TextField fx:id="nameField" />
+    <Label fx:id="typeLabel" style="-fx-font-size: 18px;" text="Type:" />
+   <TextField fx:id="typeField" />
+    <ImageView fx:id="imageDrop" fitHeight="400" fitWidth="600" preserveRatio="true" />
+
+    <Label style="-fx-font-size: 16px;" text="Price:" />
+    <TextField fx:id="priceField" prefWidth="100" />
+
+    <Button fx:id="addButton" text="Add Item" />
+   <Label fx:id="errorMsg" textFill="RED" />
+</VBox>

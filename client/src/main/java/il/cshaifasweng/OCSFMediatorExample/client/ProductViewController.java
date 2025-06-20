@@ -5,14 +5,21 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 public class ProductViewController {
 
     @FXML
-    private Label nameLabel;
+    private TextField nameField;
 
     @FXML
-    private Label typeLabel;
+    private TextField typeField;
 
     @FXML
     private ImageView imageView;
@@ -21,31 +28,89 @@ public class ProductViewController {
     private TextField priceField;
 
     @FXML
-    private Button updatePriceButton;
+    private Button updateButton;
 
-    private Product product;
+
+    private File droppedImageFile = null; // holds the file temporarily
+
 
     public void setProduct(Product product) {
-        this.product = product;
 
-        nameLabel.setText("Name: " + product.getName());
-        typeLabel.setText("Type: " + product.getType());
+        nameField.setText(product.getName());
+        typeField.setText(product.getType());
         priceField.setText(String.format("%.2f", product.getPrice()));
 
         try {
-            if (product.getImage() != null && !product.getImage().isEmpty()) {
-                imageView.setImage(new Image(product.getImage(), true));
+            byte[] imageBytes = product.getImage();
+            if (imageBytes != null && imageBytes.length > 0) {
+                Image image = new Image(new ByteArrayInputStream(imageBytes));
+                imageView.setImage(image);
+            } else {
+                imageView.setImage(null);
             }
         } catch (Exception e) {
             imageView.setImage(null);
+            e.printStackTrace();
         }
 
-        updatePriceButton.setOnAction(e -> { // This will help us update the price whenever we view page
+        imageView.setOnDragOver(event -> {
+            if (event.getGestureSource() != imageView && event.getDragboard().hasFiles()) {
+                event.acceptTransferModes(TransferMode.COPY);
+            }
+            event.consume();
+        });
+
+        imageView.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+
+            if (db.hasFiles()) {
+                File file = db.getFiles().get(0);
+                if (file.getName().toLowerCase().endsWith(".png")) {
+                    droppedImageFile = file;
+                    imageView.setImage(new Image(file.toURI().toString()));
+                    success = true;
+                } else {
+                    showAlert("Only PNG files are allowed.");
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+
+        updateButton.setOnAction(e -> {
             try {
-                double newPrice = Double.parseDouble(priceField.getText());
-                product.setPrice(newPrice);
-                SimpleClient.getClient().sendToServer(product); // send updated product
-                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Price updated!");
+                String newName = nameField.getText().trim();
+                String newType = typeField.getText().trim();
+                String stringPrice = priceField.getText().trim();
+                if (newName.isEmpty() || newType.isEmpty() || stringPrice.isEmpty()) {
+                    showAlert("Please fill in all fields.");
+                    return;
+                }
+
+                if (droppedImageFile == null) {
+                    showAlert("Please drag and drop a PNG image.");
+                    return;
+                }
+                double newPrice;
+                try {
+                    newPrice = Double.parseDouble(stringPrice);
+                } catch (NumberFormatException err) {
+                    showAlert("Price must be a valid number.");
+                    return;
+                }
+
+                byte[] newImage;
+                try {
+                    newImage = Files.readAllBytes(droppedImageFile.toPath());
+                } catch (IOException err) {
+                    showAlert("Failed to read image file.");
+                    return;
+                }
+                product.updateProduct(newName,newType,newPrice,newImage);
+
+                SimpleClient.getClient().sendToServer(product);
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Product updated!");
                 alert.showAndWait();
             } catch (NumberFormatException ex) {
                 new Alert(Alert.AlertType.ERROR, "Invalid price format!").showAndWait();
@@ -53,5 +118,13 @@ public class ProductViewController {
                 ex.printStackTrace();
             }
         });
+    }
+
+    private void showAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Input Error");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }
