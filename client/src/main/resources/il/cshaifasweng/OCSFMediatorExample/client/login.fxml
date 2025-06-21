@@ -8,6 +8,7 @@
 
 <VBox alignment="TOP_CENTER" spacing="10" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.LoginController">
     <Label text="Login" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <Button fx:id="backButton" text="Back to Home" />
     <TextField fx:id="usernameField" promptText="Username"/>
     <PasswordField fx:id="passwordField" promptText="Password"/>
     <Button fx:id="submitButton" text="Login"/>

@@ -30,8 +30,11 @@ public class LoginController {
     private Button submitButton;
 
     @FXML
-    public void initialize() {
+    private Button backButton;
 
+    @FXML
+    public void initialize() {
+        backButton.setOnAction(e -> SceneController.switchScene("home"));
         submitButton.setOnAction(event -> {
             String username = usernameField.getText();
             String password = passwordField.getText();

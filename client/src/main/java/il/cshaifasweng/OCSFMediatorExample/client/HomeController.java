@@ -27,6 +27,10 @@ public class HomeController {
     private Button registerButton;
 
     @FXML
+    private Button vipButton;
+
+
+    @FXML
     public void initialize()
     { // Just front page stuff :D
         welcomeLabel.setText("");
@@ -35,6 +39,7 @@ public class HomeController {
         contactButton.setOnAction(e -> SceneController.switchScene("contact"));
         loginButton.setOnAction(e -> SceneController.switchScene("login"));
         registerButton.setOnAction(e -> SceneController.switchScene("register"));
+        vipButton.setOnAction(e -> SceneController.switchScene("vip"));
 
         if (loggedIn) {
             loginButton.setVisible(false);

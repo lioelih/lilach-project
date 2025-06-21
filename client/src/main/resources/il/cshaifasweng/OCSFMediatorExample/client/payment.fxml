@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<AnchorPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.PaymentController">
+
+    <VBox spacing="10.0" alignment="CENTER" layoutX="50.0" layoutY="30.0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0">
+        <Label text="Payment Information" style="-fx-font-size: 18;" />
+
+        <TextField fx:id="idNumberField" promptText="Identification Number (9 digits)" maxWidth="250"/>
+
+        <TextField fx:id="cardNumberField" promptText="Credit Card Number (16 digits)" maxWidth="250"/>
+
+        <TextField fx:id="expDateField" promptText="Expiration Date (MM/YY)" maxWidth="250"/>
+
+        <TextField fx:id="cvvField" promptText="Security Code (CVV)" maxWidth="250"/>
+
+        <HBox spacing="15">
+            <Button fx:id="confirmButton" text="Confirm Payment"/>
+            <Button fx:id="cancelButton" text="Cancel"/>
+        </HBox>
+    </VBox>
+</AnchorPane>

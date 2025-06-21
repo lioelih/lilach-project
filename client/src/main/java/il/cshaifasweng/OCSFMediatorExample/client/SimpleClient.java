@@ -1,12 +1,9 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
-import il.cshaifasweng.OCSFMediatorExample.entities.Product;
-import il.cshaifasweng.OCSFMediatorExample.entities.RegisterResponse;
+import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import org.greenrobot.eventbus.EventBus;
 
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
-import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
 
 import java.util.List;
 
@@ -37,6 +34,16 @@ public class SimpleClient extends AbstractClient {
 		else if (msg instanceof RegisterResponse) {
 			EventBus.getDefault().post((RegisterResponse) msg);
 		}
+		else if (msg instanceof FetchUserResponse) {
+			FetchUserResponse response = (FetchUserResponse) msg;
+			System.out.println("CLIENT: Received FetchUserResponse for " + response.getUser().getUsername());
+			EventBus.getDefault().post(response);
+		}
+		else if (msg instanceof PaymentPrefillResponse) {
+			System.out.println("CLIENT: Received PaymentPrefillResponse, posting to EventBus.");
+			EventBus.getDefault().post((PaymentPrefillResponse) msg);
+		}
+
 	}
 
 
