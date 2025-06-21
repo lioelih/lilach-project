@@ -15,22 +15,40 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class CatalogController {
 
     @FXML private Button homeButton;
     @FXML private Button refreshButton;
     @FXML private Button addProductButton;
+    @FXML private Button filterButton;
+    @FXML private TextField stringSearchField;
+    @FXML private TextField minPrice;
+    @FXML private TextField maxPrice;
+    @FXML private ComboBox<String> typeBox;
     @FXML private TableView<Product> productTable;
     @FXML private TableColumn<Product, String> nameColumn;
     @FXML private TableColumn<Product, String> typeColumn;
     @FXML private TableColumn<Product, Double> priceColumn;
     @FXML private TableColumn<Product, byte[]> imageColumn;
 
+    private List<Product> products;
+
     @FXML
     public void initialize() {
         EventBus.getDefault().register(this);
+
+        //set the min max value in filter to only accept integers
+        minPrice.setTextFormatter(new TextFormatter<>(change -> {
+            return change.getControlNewText().matches("\\d*") ? change : null;
+        }));
+
+        maxPrice.setTextFormatter(new TextFormatter<>(change -> {
+            return change.getControlNewText().matches("\\d*") ? change : null;
+        }));
 
         // Set up column bindings
         nameColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getName()));
@@ -90,9 +108,27 @@ public class CatalogController {
         refreshButton.setOnAction(e -> {
             try {
                 SimpleClient.getClient().sendToServer("GET_CATALOG");
+
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
+        });
+
+        filterButton.setOnAction(e -> {
+            List<Product> filteredProducts = new ArrayList<>(products);
+            if(!Objects.equals(typeBox.getValue(), "All Types")) {
+                filteredProducts.removeIf(product -> !Objects.equals(product.getType(), typeBox.getValue()));
+            }
+            if(!Objects.equals(minPrice.getText(), "")) {
+                filteredProducts.removeIf(product -> Double.parseDouble(minPrice.getText()) > product.getPrice());
+            }
+            if(!Objects.equals(maxPrice.getText(), "")) {
+                filteredProducts.removeIf(product -> Double.parseDouble(maxPrice.getText()) < product.getPrice());
+            }
+            if(!Objects.equals(stringSearchField.getText(),"")) {
+                filteredProducts.removeIf(product -> !product.getName().toLowerCase().contains(stringSearchField.getText().toLowerCase()));
+            }
+            productTable.getItems().setAll(filteredProducts);
         });
 
         try {
@@ -130,9 +166,23 @@ public class CatalogController {
     @Subscribe
     public void onCatalogReceived(CatalogEvent event) {
         updateCatalog(event.getProducts());
+        products = event.getProducts();
+
+        // set up filer section
+        if (!typeBox.getItems().contains("All Types")) {
+            typeBox.getItems().add("All Types");
+        }
+        typeBox.setValue("All Types");
+        for(Product product : products) {
+            if (!typeBox.getItems().contains(product.getType())) {
+                typeBox.getItems().add(product.getType());
+            }
+        }
+        minPrice.setText("");
+        maxPrice.setText("");
+        stringSearchField.setText("");
     }
 
-    @Subscribe
     public void updateCatalog(List<Product> products) {
         Platform.runLater(() -> productTable.getItems().setAll(products));
     }
