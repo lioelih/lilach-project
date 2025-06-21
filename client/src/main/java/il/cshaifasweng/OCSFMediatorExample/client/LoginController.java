@@ -43,7 +43,6 @@ public class LoginController {
 
             try {
                 SimpleClient.getClient().sendToServer(new LoginRequest(username, password));
-                SceneController.loggedUsername = username;
                 System.out.println("Login button clicked, sending LoginRequest for: " + username);
             } catch (IOException e) {
                 e.printStackTrace();

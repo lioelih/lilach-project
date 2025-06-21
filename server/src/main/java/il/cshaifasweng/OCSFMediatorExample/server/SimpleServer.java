@@ -87,18 +87,29 @@ public class SimpleServer extends AbstractServer {
 				query.setParameter("username", request.username);
 				query.setParameter("password", request.password);
 				List<User> users = query.list();
-				boolean exists = !users.isEmpty();
-				String msgText = exists ? "Login successful" : "Invalid credentials";
-				LoginResponse response = new LoginResponse(exists, msgText);
 
-				System.out.println("SERVER: Sending LoginResponse with success=" + exists + ", message=" + msgText);
-				client.sendToClient(response); // Make sure this line is reached!
+				LoginResponse response;
+
+				if (users.isEmpty()) {
+					response = new LoginResponse(false, "Invalid credentials");
+				} else {
+					User user = users.get(0);
+					if (!user.isActive()) {
+						response = new LoginResponse(false, "Account is inactive");
+					} else {
+						response = new LoginResponse(true, "Login successful", user.getUsername());
+					}
+				}
+
+				System.out.println("SERVER: Sending LoginResponse with success=" + response.success + ", message=" + response.message);
+				client.sendToClient(response);
 			}
 			catch (Exception e) {
 				System.out.println("SERVER ERROR WHILE HANDLING LOGIN:");
 				e.printStackTrace();
 			}
 		}
+
 
 
 		else if (msg instanceof RegisterRequest request) {
@@ -138,27 +149,25 @@ public class SimpleServer extends AbstractServer {
 		else if (msg instanceof PaymentInfoRequest request) {
 			System.out.println("SERVER: Received PaymentInfoRequest from " + request.getUsername());
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-				User user = session.createQuery("FROM User WHERE username = :username", User.class)
-						.setParameter("username", request.getUsername())
-						.uniqueResult();
+				Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
+				query.setParameter("username", request.getUsername());
+				List<User> users = query.list();
 
-				if (user != null) {
+				if (!users.isEmpty()) {
+					User user = users.get(0);
 					session.beginTransaction();
+
 					user.setIdentificationNumber(request.getIdNumber());
 					user.setCreditCardNumber(request.getCardNumber());
 					user.setCreditCardExpiration(request.getExpDate());
 					user.setCreditCardSecurityCode(request.getCvv());
+
 					session.merge(user);
 					session.getTransaction().commit();
-
-					client.sendToClient(new PaymentInfoResponse(true, "Payment details updated."));
-					System.out.println("SERVER: Payment info updated for " + user.getUsername());
+					client.sendToClient(new PaymentInfoResponse(true, "Payment info saved."));
 				} else {
 					client.sendToClient(new PaymentInfoResponse(false, "User not found."));
 				}
-			} catch (Exception e) {
-				e.printStackTrace();
-				client.sendToClient(new PaymentInfoResponse(false, "An error occurred."));
 			}
 		}
 		else if (msg instanceof VIPPaymentRequest request) {
@@ -170,24 +179,17 @@ public class SimpleServer extends AbstractServer {
 
 				if (!users.isEmpty()) {
 					User user = users.get(0);
-
 					session.beginTransaction();
 
 					if (user.isVIP() && user.getVipCanceled()) {
-						// User had canceled but is reactivating before expiration
-						user.setVipCanceled(false);
-						System.out.println("SERVER: VIP reactivation without new charge.");
+						user.setVipCanceled(false); // just un-cancel
 					} else if (!user.isVIP()) {
-						// First-time subscription
 						user.setVIP(true);
 						user.setVipExpirationDate(LocalDate.now().plusMonths(12));
 						user.setVipCanceled(false);
 						user.setActive(true);
 					}
-					user.setIdentificationNumber(request.getIdNumber());
-					user.setCreditCardNumber(request.getCardNumber());
-					user.setCreditCardExpiration(request.getExpDate());
-					user.setCreditCardSecurityCode(request.getCvv());
+
 					session.merge(user);
 					session.getTransaction().commit();
 					client.sendToClient(new PaymentInfoResponse(true, "VIP subscription processed."));

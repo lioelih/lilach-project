@@ -84,13 +84,24 @@ public class VIPController {
             PaymentController controller = loader.getController();
 
             controller.setOnSuccess(() -> {
-                // Extract data from PaymentController
                 String idNumber = controller.getIdNumber();
                 String cardNumber = controller.getCardNumber();
                 String expDate = controller.getExpDate();
                 String cvv = controller.getCVV();
 
                 try {
+                    // First: update payment info
+                    PaymentInfoRequest infoRequest = new PaymentInfoRequest(
+                            SceneController.loggedUsername,
+                            idNumber,
+                            cardNumber,
+                            expDate,
+                            cvv,
+                            false // false: not marking this as VIP activation
+                    );
+                    SimpleClient.getClient().sendToServer(infoRequest);
+
+                    // Then: send VIP activation request
                     VIPPaymentRequest vipRequest = new VIPPaymentRequest(
                             SceneController.loggedUsername,
                             idNumber,
