@@ -22,6 +22,7 @@ public class RegisterController {
 
     @FXML
     private TextField usernameField;
+
     @FXML
     private TextField emailField;
     @FXML
@@ -30,6 +31,7 @@ public class RegisterController {
     private TextField nameField;
     @FXML
     private PasswordField passwordField;
+
     @FXML
     private ComboBox<String> branchComboBox;
     @FXML
@@ -56,7 +58,6 @@ public class RegisterController {
             }
         });
     }
-
 
     private boolean isValidInput(String username, String email, String phoneNumber, String fullName, String password,String branch) {
         if (username.isBlank() || password.isBlank() || email.isBlank() || fullName.isBlank()) {

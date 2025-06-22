@@ -8,13 +8,14 @@
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="il.cshaifasweng.OCSFMediatorExample.client.ProductViewController"
       alignment="TOP_CENTER" spacing="15" prefWidth="600" prefHeight="500">
-
-    <Label fx:id="nameLabel" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
-    <Label fx:id="typeLabel" style="-fx-font-size: 18px;" />
+    <Label style="-fx-font-size: 24px; -fx-font-weight: bold;" text="Name:" />
+    <TextField fx:id="nameField" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
+    <Label style="-fx-font-size: 18px;" text="Type:" />
+    <TextField fx:id="typeField" style="-fx-font-size: 18px;" />
     <ImageView fx:id="imageView" fitWidth="300" fitHeight="200" preserveRatio="true" />
 
     <Label text="Price:" style="-fx-font-size: 16px;" />
     <TextField fx:id="priceField" prefWidth="100" />
 
-    <Button fx:id="updatePriceButton" text="Update Price" />
+    <Button fx:id="updateButton" text="Update Product" />
 </VBox>

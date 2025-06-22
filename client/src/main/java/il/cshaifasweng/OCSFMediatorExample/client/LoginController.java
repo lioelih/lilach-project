@@ -5,6 +5,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
 import java.sql.*;
+
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.PasswordField;
@@ -17,6 +18,7 @@ import il.cshaifasweng.OCSFMediatorExample.entities.LoginRequest;
 import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
 
 import java.io.IOException;
+
 
 public class LoginController {
 
@@ -39,6 +41,7 @@ public class LoginController {
             String username = usernameField.getText();
             String password = passwordField.getText();
 
+
             if (!isValidInput(username, password)) return;
 
             try {
@@ -49,8 +52,6 @@ public class LoginController {
             }
         });
     }
-
-
 
     private boolean isValidInput(String username, String password) {
         if (username.isBlank() || password.isBlank()) {

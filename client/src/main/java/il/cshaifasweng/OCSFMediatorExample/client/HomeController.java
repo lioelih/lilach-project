@@ -41,6 +41,8 @@ public class HomeController {
         registerButton.setOnAction(e -> SceneController.switchScene("register"));
         vipButton.setOnAction(e -> SceneController.switchScene("vip"));
 
+
+
         if (loggedIn) {
             loginButton.setVisible(false);
             registerButton.setVisible(false);
