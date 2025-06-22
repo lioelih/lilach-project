@@ -1,18 +1,14 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
-import il.cshaifasweng.OCSFMediatorExample.entities.LogoutRequest;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import org.hibernate.Session;
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
-import org.hibernate.Session;
 import org.hibernate.query.Query;
-import java.time.LocalDate;
-import java.io.IOException;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -22,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 public class SimpleServer extends AbstractServer {
 	private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
 	private ScheduledExecutorService scheduler;
+
 	public SimpleServer(int port) {
 		super(port);
 		scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -34,37 +31,25 @@ public class SimpleServer extends AbstractServer {
 	@Override
 	protected void handleMessageFromClient(Object msg, ConnectionToClient client) throws IOException {
 		if (msg instanceof String msgString) {
-
 			if (msgString.startsWith("#warning")) {
 				Warning warning = new Warning("Warning from server!");
 				client.sendToClient(warning);
 				System.out.format("Sent warning to client %s\n", client.getInetAddress().getHostAddress());
-			}
-			else if (msgString.equals("GET_CATALOG")) {
+
+			} else if (msgString.equals("GET_CATALOG")) {
 				List<Product> catalog = fetchCatalog();
 				client.sendToClient(catalog);
 				System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-			}
-			else if (msgString.startsWith("UPDATE_PRICE")) {
-				String[] parts = msgString.split(":");
-				int id = Integer.parseInt(parts[1]);
-				double newPrice = Double.parseDouble(parts[2]);
 
-				updateProductPrice(id, newPrice);
-
-				List<Product> updatedCatalog = fetchCatalog();
-				client.sendToClient(updatedCatalog);
-			}
-			else if (msgString.startsWith("add client")) {
+			} else if (msgString.startsWith("add client")) {
 				SubscribedClient connection = new SubscribedClient(client);
 				SubscribersList.add(connection);
 				client.sendToClient("client added successfully");
-			}
-			else if (msgString.startsWith("remove client")) {
+
+			} else if (msgString.startsWith("remove client")) {
 				SubscribersList.removeIf(subscribedClient -> subscribedClient.getClient().equals(client));
 			}
-		}
-		else if (msg instanceof FetchUserRequest request) {
+		} else if (msg instanceof FetchUserRequest request) {
 			System.out.println("Sending FetchUserRequest");
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				User user = session.createQuery("FROM User WHERE username = :username", User.class)
@@ -72,14 +57,17 @@ public class SimpleServer extends AbstractServer {
 						.uniqueResult();
 				client.sendToClient(new FetchUserResponse(user));
 			}
-		}
-		else if (msg instanceof Product product) {
-			updateFullProduct(product);
-			client.sendToClient("Product updated successfully");
-			List<Product> updatedCatalog = fetchCatalog();
-			client.sendToClient(updatedCatalog);
-		}
-		else if (msg instanceof LoginRequest request) {
+		} else if (msg instanceof Product product) {
+			if (product.getId() <= 0) {
+				saveNewProduct(product);
+				client.sendToClient("Product added successfully");
+				client.sendToClient(fetchCatalog());
+			} else {
+				updateFullProduct(product);
+				client.sendToClient("Product updated successfully");
+				client.sendToClient(fetchCatalog());
+			}
+		} else if (msg instanceof LoginRequest request) {
 			System.out.println("SERVER: Received LoginRequest from user: " + request.username);
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				Query<User> query = session.createQuery(
@@ -103,16 +91,11 @@ public class SimpleServer extends AbstractServer {
 
 				System.out.println("SERVER: Sending LoginResponse with success=" + response.success + ", message=" + response.message);
 				client.sendToClient(response);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				System.out.println("SERVER ERROR WHILE HANDLING LOGIN:");
 				e.printStackTrace();
 			}
-		}
-
-
-
-		else if (msg instanceof RegisterRequest request) {
+		} else if (msg instanceof RegisterRequest request) {
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				Query<?> check = session.createQuery("FROM User WHERE username = :username OR email = :email");
 				check.setParameter("username", request.username);
@@ -136,8 +119,7 @@ public class SimpleServer extends AbstractServer {
 
 				client.sendToClient(new RegisterResponse(true, "Registration successful"));
 			}
-		}
-		else if (msg instanceof LogoutRequest logout) {
+		} else if (msg instanceof LogoutRequest logout) {
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				session.beginTransaction();
 				Query query = session.createQuery("UPDATE User SET loggedIn = false WHERE username = :username");
@@ -145,8 +127,7 @@ public class SimpleServer extends AbstractServer {
 				query.executeUpdate();
 				session.getTransaction().commit();
 			}
-		}
-		else if (msg instanceof PaymentInfoRequest request) {
+		} else if (msg instanceof PaymentInfoRequest request) {
 			System.out.println("SERVER: Received PaymentInfoRequest from " + request.getUsername());
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
@@ -169,8 +150,7 @@ public class SimpleServer extends AbstractServer {
 					client.sendToClient(new PaymentInfoResponse(false, "User not found."));
 				}
 			}
-		}
-		else if (msg instanceof VIPPaymentRequest request) {
+		} else if (msg instanceof VIPPaymentRequest request) {
 			System.out.println("SERVER: Received VIPPaymentRequest from " + request.getUsername());
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
@@ -182,7 +162,7 @@ public class SimpleServer extends AbstractServer {
 					session.beginTransaction();
 
 					if (user.isVIP() && user.getVipCanceled()) {
-						user.setVipCanceled(false); // just un-cancel
+						user.setVipCanceled(false);
 					} else if (!user.isVIP()) {
 						user.setVIP(true);
 						user.setVipExpirationDate(LocalDate.now().plusMonths(12));
@@ -197,8 +177,7 @@ public class SimpleServer extends AbstractServer {
 					client.sendToClient(new PaymentInfoResponse(false, "User not found."));
 				}
 			}
-		}
-		else if (msg instanceof CancelVIPRequest request) {
+		} else if (msg instanceof CancelVIPRequest request) {
 			System.out.println("SERVER: Received CancelVIPRequest from " + request.getUsername());
 
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -207,7 +186,7 @@ public class SimpleServer extends AbstractServer {
 						.uniqueResult();
 
 				if (user != null) {
-					user.setVipCanceled(true); // flag it for expiration handling
+					user.setVipCanceled(true);
 					session.beginTransaction();
 					session.merge(user);
 					session.getTransaction().commit();
@@ -217,8 +196,7 @@ public class SimpleServer extends AbstractServer {
 					System.out.println("SERVER: User not found for cancellation: " + request.getUsername());
 				}
 			}
-		}
-		else if (msg instanceof PaymentPrefillRequest request) {
+		} else if (msg instanceof PaymentPrefillRequest request) {
 			System.out.println("SERVER: Received PaymentPrefillRequest from " + request.getUsername());
 			try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 				User user = session.createQuery("FROM User WHERE username = :username", User.class)
@@ -240,10 +218,6 @@ public class SimpleServer extends AbstractServer {
 				client.sendToClient(new PaymentPrefillResponse("", "", "", ""));
 			}
 		}
-
-
-
-
 	}
 
 	private void updateFullProduct(Product updatedProduct) {
@@ -251,20 +225,31 @@ public class SimpleServer extends AbstractServer {
 			session.beginTransaction();
 			Product dbProduct = session.get(Product.class, updatedProduct.getId());
 			if (dbProduct != null) {
-				dbProduct.setPrice(updatedProduct.getPrice());
 				dbProduct.setName(updatedProduct.getName());
 				dbProduct.setType(updatedProduct.getType());
+				dbProduct.setPrice(updatedProduct.getPrice());
 				dbProduct.setImage(updatedProduct.getImage());
 				session.update(dbProduct);
 			}
 			session.getTransaction().commit();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void saveNewProduct(Product product) {
+		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+			session.beginTransaction();
+			session.save(product);
+			session.getTransaction().commit();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
 	public void expireVIPAccountsIfNeeded() {
 		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 			session.beginTransaction();
-
 			List<User> users = session.createQuery(
 					"FROM User WHERE isVIP = true AND vipCanceled = true", User.class
 			).list();
@@ -285,6 +270,7 @@ public class SimpleServer extends AbstractServer {
 			e.printStackTrace();
 		}
 	}
+
 	public void sendToAllClients(String message) {
 		for (SubscribedClient subscribedClient : SubscribersList) {
 			try {
@@ -301,18 +287,6 @@ public class SimpleServer extends AbstractServer {
 		}
 	}
 
-	private void updateProductPrice(int id, double newPrice) {
-		try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-			session.beginTransaction();
-			Product product = session.get(Product.class, id);
-			if (product != null) {
-				product.setPrice(newPrice);
-				session.update(product);
-			}
-			session.getTransaction().commit();
-		}
-	}
-
 	@Override
 	protected void serverStopped() {
 		if (scheduler != null && !scheduler.isShutdown()) {
@@ -320,5 +294,4 @@ public class SimpleServer extends AbstractServer {
 		}
 		System.out.println("Server stopped. Scheduler shut down.");
 	}
-
 }
