@@ -1,9 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Button;
+import javafx.scene.control.*;
 
 import java.sql.*;
 
@@ -12,7 +10,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
-import javafx.scene.control.Alert;
 
 import il.cshaifasweng.OCSFMediatorExample.client.SimpleClient;
 import il.cshaifasweng.OCSFMediatorExample.entities.RegisterRequest;
@@ -36,22 +33,25 @@ public class RegisterController {
     private PasswordField passwordField;
 
     @FXML
+    private ComboBox<String> branchComboBox;
+    @FXML
     private Button submitButton;
-
+    @FXML
+    private Button backButton;
     @FXML
     public void initialize() {
-
+        backButton.setOnAction(e -> SceneController.switchScene("home"));
         submitButton.setOnAction(event -> {
             String username = usernameField.getText();
             String email = emailField.getText();
             String phoneNumber = phoneNumberField.getText();
             String fullName = nameField.getText();
             String password = passwordField.getText();
-
-            if (!isValidInput(username, email,phoneNumber, fullName, password)) return;
+            String branch = branchComboBox.getValue();
+            if (!isValidInput(username, email,phoneNumber, fullName, password,branch)) return;
 
             try {
-                RegisterRequest request = new RegisterRequest(username, email, phoneNumber, fullName, password);
+                RegisterRequest request = new RegisterRequest(username, email, phoneNumber, fullName, password, branch);
                 SimpleClient.getClient().sendToServer(request);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -59,7 +59,7 @@ public class RegisterController {
         });
     }
 
-    private boolean isValidInput(String username, String email, String phoneNumber, String fullName, String password) {
+    private boolean isValidInput(String username, String email, String phoneNumber, String fullName, String password,String branch) {
         if (username.isBlank() || password.isBlank() || email.isBlank() || fullName.isBlank()) {
             showAlert("All fields are required.");
             return false;
@@ -82,6 +82,10 @@ public class RegisterController {
         }
         if (phoneNumber == null || !phoneNumber.matches("\\d{10}")) {
             showAlert("Phone number must be exactly 10 digits.");
+            return false;
+        }
+        if (branch == null || branch.isBlank()) {
+            showAlert("You must select a branch.");
             return false;
         }
         return true;

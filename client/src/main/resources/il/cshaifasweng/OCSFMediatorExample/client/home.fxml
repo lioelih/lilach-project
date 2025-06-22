@@ -9,6 +9,7 @@
 
     <Button fx:id="catalogButton" text="Catalog" />
     <Button fx:id="contactButton" text="Contact Support" />
+    <Button fx:id="vipButton" layoutX="100" layoutY="300" text="VIP Subscription" />
     <Button fx:id="loginButton" text="Login" />
     <Button fx:id="registerButton" text="Register" />
     <Button fx:id="logoutButton" text="Logout" visible="false"/>

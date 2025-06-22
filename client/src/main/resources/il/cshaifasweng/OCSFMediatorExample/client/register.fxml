@@ -5,13 +5,25 @@
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.VBox?>
-
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
 <VBox alignment="TOP_CENTER" spacing="10" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.RegisterController">
     <Label text="Register" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <Button fx:id="backButton" text="Back to Home" />
     <TextField fx:id="usernameField" promptText="Username"/>
     <TextField fx:id="emailField" promptText="Email"/>
     <TextField fx:id="phoneNumberField" promptText="Phone Number"/>
     <TextField fx:id="nameField" promptText="Full Name"/>
     <PasswordField fx:id="passwordField" promptText="Password"/>
+    <ComboBox fx:id="branchComboBox" promptText="Select Branch">
+        <items>
+            <FXCollections fx:factory="observableArrayList">
+                <String fx:value="Jerusalem" />
+                <String fx:value="Haifa" />
+                <String fx:value="Tel-Aviv" />
+            </FXCollections>
+        </items>
+    </ComboBox>
     <Button fx:id="submitButton" text="Register"/>
 </VBox>

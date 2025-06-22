@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+
+<AnchorPane prefHeight="400" prefWidth="500" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/23.0.1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.VIPController">
+
+    <VBox alignment="CENTER" spacing="15" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="20.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="20.0">
+
+        <Label style="-fx-font-size: 20px; -fx-font-weight: bold;" text="🌟 Become a VIP Member!" />
+
+        <TextArea editable="false" maxHeight="180" maxWidth="450" wrapText="true">
+            <text>
+                VIP Benefits:
+                - Shop from ALL branches (Haifa, Tel-Aviv, Jerusalem)
+                - Exclusive access to limited-time flowers
+                - Priority support
+
+                Only 100 NIS/month!
+                Cancel anytime. VIP ends at the next renewal date.VIP Benefits: - Shop from ALL branches (Haifa, Tel-Aviv, Jerusalem) - 10% Discount on all purchases - Priority support Only 100 NIS/month! Cancel anytime. VIP ends at the next renewal date.</text>
+        </TextArea>
+
+        <Button fx:id="subscribeButton" text="Subscribe Now!" />
+        <Button fx:id="cancelVipButton" text="Cancel VIP" visible="false" />
+        <Button fx:id="backButton" text="Back to Home" />
+
+    </VBox>
+</AnchorPane>

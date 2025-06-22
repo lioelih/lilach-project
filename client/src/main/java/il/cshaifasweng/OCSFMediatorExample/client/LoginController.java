@@ -32,8 +32,11 @@ public class LoginController {
     private Button submitButton;
 
     @FXML
-    public void initialize() {
+    private Button backButton;
 
+    @FXML
+    public void initialize() {
+        backButton.setOnAction(e -> SceneController.switchScene("home"));
         submitButton.setOnAction(event -> {
             String username = usernameField.getText();
             String password = passwordField.getText();
@@ -43,7 +46,6 @@ public class LoginController {
 
             try {
                 SimpleClient.getClient().sendToServer(new LoginRequest(username, password));
-                SceneController.loggedUsername = username;
                 System.out.println("Login button clicked, sending LoginRequest for: " + username);
             } catch (IOException e) {
                 e.printStackTrace();

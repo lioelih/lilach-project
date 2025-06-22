@@ -107,13 +107,18 @@ public class App extends Application {
         System.out.println("APP: onLoginResponse triggered: " + response.message);
         Platform.runLater(() -> {
             if (response.success) {
+                // ✅ Only set the username here when we know the login was successful
+                SceneController.loggedUsername = response.username;
                 SceneController.switchScene("home");
-            }
-            else{
+            } else {
+                String errorMessage = response.message.equals("Account is inactive")
+                        ? "Login failed: This account is inactive. Please contact support."
+                        : "Login failed: User does not exist or credentials are incorrect.";
+
                 Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error");
+                alert.setTitle("Login Error");
                 alert.setHeaderText(null);
-                alert.setContentText("Login failed, User does not exist.");
+                alert.setContentText(errorMessage);
                 alert.showAndWait();
             }
         });
