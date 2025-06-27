@@ -3,52 +3,48 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="TOP_CENTER" prefHeight="663.0" prefWidth="877.0" spacing="10" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController">
+<VBox alignment="TOP_CENTER" prefHeight="663.0" prefWidth="877.0" spacing="10"
+      xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController">
 
     <HBox alignment="CENTER" spacing="10">
         <Button fx:id="homeButton" text="Home" />
         <Button fx:id="refreshButton" text="Refresh" />
         <Button fx:id="addProductButton" text="Add Product" />
     </HBox>
-   <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="20.0">
-      <children>
-         <HBox alignment="CENTER" prefHeight="100.0" prefWidth="220.0">
-            <children>
-               <Label prefHeight="18.0" prefWidth="81.0" text="Search Name:" />
-               <TextField fx:id="stringSearchField" promptText="Enter Product Name" />
-            </children>
-         </HBox>
-         <HBox alignment="CENTER" prefHeight="150.0" prefWidth="187.0">
-            <children>
-               <Label text="Type:" />
-               <ComboBox fx:id="typeBox" prefHeight="26.0" prefWidth="116.0" />
-            </children>
-         </HBox>
-         <HBox alignment="CENTER" prefHeight="100.0" prefWidth="262.0">
-            <children>
-               <Label text="Price from:" />
-               <TextField fx:id="minPrice" prefHeight="26.0" prefWidth="95.0" promptText="Minimum Price" />
-               <Label text="to:" />
-               <TextField fx:id="maxPrice" prefHeight="26.0" prefWidth="95.0" promptText="Maximum Price" />
-            </children>
-         </HBox>
-         <Button fx:id="filterButton" mnemonicParsing="false" text="Filter" />
-      </children>
-   </HBox>
 
-    <TableView fx:id="productTable" prefHeight="500.0" prefWidth="846.0">
-        <columns>
-            <TableColumn fx:id="nameColumn" prefWidth="180" text="Name" />
-            <TableColumn fx:id="typeColumn" prefWidth="180" text="Type" />
-            <TableColumn fx:id="priceColumn" prefWidth="120" text="Price" />
-            <TableColumn fx:id="imageColumn" prefWidth="250" text="Image" />
-        </columns>
-    </TableView>
+    <HBox alignment="CENTER" spacing="20">
+        <HBox alignment="CENTER" prefWidth="220">
+            <children>
+                <Label text="Search Name:" />
+                <TextField fx:id="stringSearchField" promptText="Enter Product Name" />
+            </children>
+        </HBox>
+        <HBox alignment="CENTER" prefWidth="187">
+            <children>
+                <Label text="Type:" />
+                <ComboBox fx:id="typeBox" prefHeight="26.0" prefWidth="116.0" />
+            </children>
+        </HBox>
+        <HBox alignment="CENTER" prefWidth="262">
+            <children>
+                <Label text="Price from:" />
+                <TextField fx:id="minPrice" prefWidth="95.0" promptText="Minimum Price" />
+                <Label text="to:" />
+                <TextField fx:id="maxPrice" prefWidth="95.0" promptText="Maximum Price" />
+            </children>
+        </HBox>
+        <Button fx:id="filterButton" text="Filter" />
+    </HBox>
+
+    <ScrollPane fitToWidth="true" prefHeight="500.0" prefWidth="846.0" >
+        <TilePane fx:id="productGrid" hgap="20" vgap="20" prefColumns="3" tileAlignment="TOP_LEFT" />
+    </ScrollPane>
 
 </VBox>

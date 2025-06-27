@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.List;
 
 @Entity
 @Table(name = "products")
@@ -14,16 +15,19 @@ public class Product implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int product_id;
+
     private String product_name;
     private String product_type;
     private double product_price;
+
     @Lob
     @Column(name = "product_image", columnDefinition = "MEDIUMBLOB")
     private byte[] product_image;
 
-    public Product() {
-        // Hibernate requires a default constructor
-    }
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SaleProduct> saleProducts;
+
+    public Product() {}
 
     public Product(int product_id, String product_name, String product_type, double product_price, byte[] product_image) {
         this.product_id = product_id;
@@ -76,6 +80,15 @@ public class Product implements Serializable {
         this.product_image = product_image;
     }
 
+    // ✅ Getter/Setter for the new sales relationship
+    public List<SaleProduct> getSaleProducts() {
+        return saleProducts;
+    }
+
+    public void setSaleProducts(List<SaleProduct> saleProducts) {
+        this.saleProducts = saleProducts;
+    }
+
     //method for updating product details
     public void updateProduct(String product_name, String product_type, double product_price, byte[] product_image) {
         this.product_name = product_name;
@@ -87,7 +100,6 @@ public class Product implements Serializable {
     @Override
     public String toString() {
         return String.format("ID: %d | Name: %s | Type: %s | Price: %.2f | Image: %s",
-                product_id, product_name, product_type, product_price, product_image.length);
+                product_id, product_name, product_type, product_price, product_image != null ? product_image.length : 0);
     }
-
 }
