@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
+import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
@@ -36,20 +37,18 @@ public class SimpleServer extends AbstractServer {
                 client.sendToClient(warning);
                 System.out.format("Sent warning to client %s\n", client.getInetAddress().getHostAddress());
 
-            } else if (msgString.equals("GET_CATALOG")) {
-                List<Product> catalog = fetchCatalog();
-                client.sendToClient(catalog);
-                System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-
-            } else if (msgString.startsWith("add client")) {
+            }
+            else if (msgString.startsWith("add client")) {
                 SubscribedClient connection = new SubscribedClient(client);
                 SubscribersList.add(connection);
                 client.sendToClient("client added successfully");
 
-            } else if (msgString.startsWith("remove client")) {
+            }
+            else if (msgString.startsWith("remove client")) {
                 SubscribersList.removeIf(subscribedClient -> subscribedClient.getClient().equals(client));
             }
-        } else if (msg instanceof FetchUserRequest request) {
+        }
+        else if (msg instanceof FetchUserRequest request) {
             System.out.println("Sending FetchUserRequest");
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 User user = session.createQuery("FROM User WHERE username = :username", User.class)
@@ -57,17 +56,8 @@ public class SimpleServer extends AbstractServer {
                         .uniqueResult();
                 client.sendToClient(new FetchUserResponse(user));
             }
-        } else if (msg instanceof Product product) {
-            if (product.getId() <= 0) {
-                saveNewProduct(product);
-                client.sendToClient("Product added successfully");
-                client.sendToClient(fetchCatalog());
-            } else {
-                updateFullProduct(product);
-                client.sendToClient("Product updated successfully");
-                client.sendToClient(fetchCatalog());
-            }
-        } else if (msg instanceof LoginRequest request) {
+        }
+        else if (msg instanceof LoginRequest request) {
             System.out.println("SERVER: Received LoginRequest from user: " + request.username);
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 Query<User> query = session.createQuery(
@@ -95,7 +85,8 @@ public class SimpleServer extends AbstractServer {
                 System.out.println("SERVER ERROR WHILE HANDLING LOGIN:");
                 e.printStackTrace();
             }
-        } else if (msg instanceof RegisterRequest request) {
+        }
+        else if (msg instanceof RegisterRequest request) {
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 Query<?> check = session.createQuery("FROM User WHERE username = :username OR email = :email");
                 check.setParameter("username", request.username);
@@ -119,7 +110,8 @@ public class SimpleServer extends AbstractServer {
 
                 client.sendToClient(new RegisterResponse(true, "Registration successful"));
             }
-        } else if (msg instanceof LogoutRequest logout) {
+        }
+        else if (msg instanceof LogoutRequest logout) {
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 session.beginTransaction();
                 Query query = session.createQuery("UPDATE User SET loggedIn = false WHERE username = :username");
@@ -127,7 +119,8 @@ public class SimpleServer extends AbstractServer {
                 query.executeUpdate();
                 session.getTransaction().commit();
             }
-        } else if (msg instanceof PaymentInfoRequest request) {
+        }
+        else if (msg instanceof PaymentInfoRequest request) {
             System.out.println("SERVER: Received PaymentInfoRequest from " + request.getUsername());
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
@@ -150,7 +143,8 @@ public class SimpleServer extends AbstractServer {
                     client.sendToClient(new PaymentInfoResponse(false, "User not found."));
                 }
             }
-        } else if (msg instanceof VIPPaymentRequest request) {
+        }
+        else if (msg instanceof VIPPaymentRequest request) {
             System.out.println("SERVER: Received VIPPaymentRequest from " + request.getUsername());
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
@@ -177,7 +171,8 @@ public class SimpleServer extends AbstractServer {
                     client.sendToClient(new PaymentInfoResponse(false, "User not found."));
                 }
             }
-        } else if (msg instanceof CancelVIPRequest request) {
+        }
+        else if (msg instanceof CancelVIPRequest request) {
             System.out.println("SERVER: Received CancelVIPRequest from " + request.getUsername());
 
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -196,7 +191,8 @@ public class SimpleServer extends AbstractServer {
                     System.out.println("SERVER: User not found for cancellation: " + request.getUsername());
                 }
             }
-        } else if (msg instanceof PaymentPrefillRequest request) {
+        }
+        else if (msg instanceof PaymentPrefillRequest request) {
             System.out.println("SERVER: Received PaymentPrefillRequest from " + request.getUsername());
             try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                 User user = session.createQuery("FROM User WHERE username = :username", User.class)
@@ -216,6 +212,44 @@ public class SimpleServer extends AbstractServer {
             } catch (Exception e) {
                 e.printStackTrace();
                 client.sendToClient(new PaymentPrefillResponse("", "", "", ""));
+            }
+        }
+        else if (msg instanceof Msg massage) {
+            switch (massage.getAction()) {
+                case "GET_CATALOG": {
+                    List<Product> catalog = fetchCatalog();
+                    massage = new Msg("SENT_CATALOG", fetchCatalog());
+                    client.sendToClient(massage);
+                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
+                    break;
+                }
+                case "UPDATE_PRODUCT": {
+                    Product product = (Product) massage.getData();
+                    updateFullProduct(product);
+                    List<Product> catalog = fetchCatalog();
+                    massage = new Msg("PRODUCT_UPDATED", fetchCatalog());
+                    client.sendToClient(massage);
+                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
+                    break;
+                }
+                case "ADD_PRODUCT": {
+                    Product product = (Product) massage.getData();
+                    saveNewProduct(product);
+                    List<Product> catalog = fetchCatalog();
+                    massage = new Msg("PRODUCT_ADDED", fetchCatalog());
+                    client.sendToClient(massage);
+                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
+                    break;
+                }
+                case "DELETE_PRODUCT": {
+                    Product product = (Product) massage.getData();
+                    deleteProduct(product.getId());
+                    List<Product> catalog = fetchCatalog();
+                    massage = new Msg("PRODUCT_DELETED", fetchCatalog());
+                    client.sendToClient(massage);
+                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
+                    break;
+                }
             }
         }
     }
@@ -241,6 +275,22 @@ public class SimpleServer extends AbstractServer {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
             session.save(product);
+            session.getTransaction().commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteProduct(int productId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            session.beginTransaction();
+            Product dbProduct = session.get(Product.class, productId);
+            if (dbProduct != null) {
+                session.delete(dbProduct);
+                System.out.println("Product deleted successfully.");
+            } else {
+                System.out.println("Product not found.");
+            }
             session.getTransaction().commit();
         } catch (Exception e) {
             e.printStackTrace();

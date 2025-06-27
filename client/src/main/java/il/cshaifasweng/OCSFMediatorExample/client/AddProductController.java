@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.Msg;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -24,7 +25,6 @@ public class AddProductController {
     @FXML
     public void initialize() {
         imageDrop.setImage(new Image("/image/drag_drop.png")); // placeholder image
-
         imageDrop.setOnDragOver(event -> {
             if (event.getGestureSource() != imageDrop && event.getDragboard().hasFiles()) {
                 File file = event.getDragboard().getFiles().get(0);
@@ -34,7 +34,6 @@ public class AddProductController {
             }
             event.consume();
         });
-
         imageDrop.setOnDragDropped(event -> {
             Dragboard db = event.getDragboard();
             boolean success = false;
@@ -49,7 +48,6 @@ public class AddProductController {
                     showAlert("Only PNG files are allowed.");
                 }
             }
-
             event.setDropCompleted(success);
             event.consume();
         });
@@ -66,12 +64,10 @@ public class AddProductController {
             showAlert("Please fill in all fields.");
             return;
         }
-
         if (droppedImageFile == null) {
             showAlert("Please drag and drop a PNG image.");
             return;
         }
-
         double price;
         try {
             price = Double.parseDouble(priceStr);
@@ -79,7 +75,6 @@ public class AddProductController {
             showAlert("Price must be a valid number.");
             return;
         }
-
         byte[] imageBytes;
         try {
             imageBytes = Files.readAllBytes(droppedImageFile.toPath());
@@ -87,15 +82,13 @@ public class AddProductController {
             showAlert("Failed to read image file.");
             return;
         }
-
         try {
             Product product = new Product(name, type, price, imageBytes);
-            SimpleClient.getClient().sendToServer(product);
-
+            Msg massage = new Msg("ADD_PRODUCT", product);
+            SimpleClient.getClient().sendToServer(massage);
             Alert alert = new Alert(Alert.AlertType.INFORMATION, "Product Added!");
             alert.showAndWait();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
             showAlert("Failed to send product to server.");
         }
     }
