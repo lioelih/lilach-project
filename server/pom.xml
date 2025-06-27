@@ -37,7 +37,13 @@
 			<artifactId>hibernate-core</artifactId>
 			<version>6.6.1.Final</version>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>il.cshaifasweng</groupId>
+            <artifactId>communication</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
 
 	<build>
 		<plugins>
