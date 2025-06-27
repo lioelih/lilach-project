@@ -4,35 +4,18 @@ import javafx.fxml.FXML;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
-import java.sql.*;
-
 import javafx.application.Platform;
-import javafx.fxml.FXML;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Button;
 import javafx.scene.control.Alert;
-
-import il.cshaifasweng.OCSFMediatorExample.client.SimpleClient;
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginRequest;
-import il.cshaifasweng.OCSFMediatorExample.entities.LoginResponse;
+import il.cshaifasweng.Msg;
 
 import java.io.IOException;
 
-
 public class LoginController {
 
-    @FXML
-    private TextField usernameField;
-
-    @FXML
-    private PasswordField passwordField;
-
-    @FXML
-    private Button submitButton;
-
-    @FXML
-    private Button backButton;
+    @FXML private TextField usernameField;
+    @FXML private PasswordField passwordField;
+    @FXML private Button submitButton;
+    @FXML private Button backButton;
 
     @FXML
     public void initialize() {
@@ -41,12 +24,10 @@ public class LoginController {
             String username = usernameField.getText();
             String password = passwordField.getText();
 
-
             if (!isValidInput(username, password)) return;
 
             try {
-                SimpleClient.getClient().sendToServer(new LoginRequest(username, password));
-                System.out.println("Login button clicked, sending LoginRequest for: " + username);
+                SimpleClient.getClient().sendToServer(new Msg("LOGIN", new String[]{username, password}));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -63,12 +44,11 @@ public class LoginController {
             return false;
         }
         if (password.length() < 4 || password.length() > 16) {
-            showAlert("Password must be at least 4 characters long and at most 16 characters.");
+            showAlert("Password must be 4–16 characters.");
             return false;
         }
         return true;
     }
-
 
     private void showAlert(String message) {
         Platform.runLater(() -> {

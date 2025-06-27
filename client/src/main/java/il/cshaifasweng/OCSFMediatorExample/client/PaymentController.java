@@ -1,15 +1,16 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.Msg;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
-import javafx.application.Platform;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
 import java.io.IOException;
 import java.util.function.UnaryOperator;
-import org.greenrobot.eventbus.*;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.KeyEvent;
-import il.cshaifasweng.OCSFMediatorExample.entities.*;
 
 public class PaymentController {
 
@@ -33,94 +34,79 @@ public class PaymentController {
         }
         setupExpirationField();
         setupCardNumberField();
-        if (SceneController.loggedUsername != null) {
-            try {
-                SimpleClient.getClient().sendToServer(new PaymentPrefillRequest(SceneController.loggedUsername));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        setupCVVField();
+        try {
+            SimpleClient.getClient().sendToServer(new Msg("PAYMENT_PREFILL", SceneController.loggedUsername));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
         confirmButton.setOnAction(e -> {
             if (!validateFields()) return;
+
             try {
-                PaymentInfoRequest request = new PaymentInfoRequest(
+                String[] paymentData = new String[]{
                         SceneController.loggedUsername,
                         getIdNumber(),
                         getCardNumber(),
                         getExpDate(),
-                        getCVV(),
-                        true
-                );
-                SimpleClient.getClient().sendToServer(request);
+                        getCVV()
+                };
+                SimpleClient.getClient().sendToServer(new Msg("PAYMENT_INFO", paymentData));
+
+                if (onSuccess != null) onSuccess.run();
+                closeWindow();
             } catch (Exception ex) {
                 ex.printStackTrace();
-                showAlert("Failed to send payment info to server.", Alert.AlertType.ERROR);
-                return;
             }
-
-            showAlert("Purchase Successful!", Alert.AlertType.INFORMATION);
-            if (onSuccess != null) onSuccess.run();
-            closeWindow();
         });
 
         cancelButton.setOnAction(e -> closeWindow());
     }
 
+    @Subscribe
+    public void handlePrefillData(Msg msg) {
+        if (!"PAYMENT_PREFILL".equals(msg.getAction())) return;
+
+        String[] data = (String[]) msg.getData();
+
+        Platform.runLater(() -> {
+            idNumberField.setText(data[0] != null ? data[0] : "");
+            cardNumberField.setText(formatCard(data[1] != null ? data[1] : ""));
+            expDateField.setText(data[2] != null ? data[2] : "");
+            cvvField.setText(data[3] != null ? data[3] : "");
+        });
+    }
+
     private void setupCardNumberField() {
         cardNumberField.setTextFormatter(new TextFormatter<>(change -> {
             String newText = change.getControlNewText();
-
-            // Strip all non-digits
             String digits = newText.replaceAll("\\D", "");
             if (digits.length() > 16) digits = digits.substring(0, 16);
 
-            // Format: add space every 4 digits
             StringBuilder formatted = new StringBuilder();
             for (int i = 0; i < digits.length(); i++) {
                 if (i > 0 && i % 4 == 0) formatted.append(" ");
                 formatted.append(digits.charAt(i));
             }
 
-            // If the formatted result is same as current, keep caret/selection
             if (formatted.toString().equals(change.getControlText())) return change;
 
-            int anchor = change.getAnchor();
-            int caret = change.getCaretPosition();
-
-            // Set full replacement
             change.setText(formatted.toString());
             change.setRange(0, change.getControlText().length());
-
-            // Adjust caret and anchor (based on digits before them)
-            int rawCaret = 0;
-            for (int i = 0, count = 0; i < formatted.length(); i++) {
-                if (Character.isDigit(formatted.charAt(i))) {
-                    count++;
-                }
-                if (count == caret) {
-                    rawCaret = i + 1;
-                    break;
-                }
-            }
-
-            final int finalCaret = Math.min(rawCaret, formatted.length());
-            Platform.runLater(() -> cardNumberField.positionCaret(finalCaret));
             return change;
         }));
 
-        // Handle BACK_SPACE + space deletion
         cardNumberField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode().toString().equals("BACK_SPACE")) {
+            if ("BACK_SPACE".equals(event.getCode().toString())) {
                 int caret = cardNumberField.getCaretPosition();
                 if (caret > 0 && cardNumberField.getText().charAt(caret - 1) == ' ') {
                     event.consume();
                     Platform.runLater(() -> {
                         String digits = cardNumberField.getText().replaceAll("\\D", "");
-                        if (digits.length() > 0) {
+                        if (!digits.isEmpty()) {
                             StringBuilder updated = new StringBuilder(digits.substring(0, digits.length() - 1));
                             cardNumberField.setText(formatCard(updated.toString()));
-                            cardNumberField.positionCaret(Math.max(0, cardNumberField.getText().length()));
+                            cardNumberField.positionCaret(cardNumberField.getText().length());
                         }
                     });
                 }
@@ -128,9 +114,15 @@ public class PaymentController {
         });
     }
 
-
-
-
+    private void setupCVVField() {
+        cvvField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("\\d{0,3}")) {
+                return change;
+            }
+            return null;
+        }));
+    }
 
     private void setupExpirationField() {
         UnaryOperator<TextFormatter.Change> filter = change -> {
@@ -139,6 +131,7 @@ public class PaymentController {
             if (text.matches("\\d{2}/\\d{0,2}")) return change;
             return null;
         };
+
         TextFormatter<String> formatter = new TextFormatter<>(filter);
         expDateField.setTextFormatter(formatter);
 
@@ -162,70 +155,22 @@ public class PaymentController {
         return sb.toString();
     }
 
-
     private boolean validateFields() {
-        if (idNumberField.getText().length() != 9 || !idNumberField.getText().matches("\\d+")) {
-            showAlert("Invalid identification number.", Alert.AlertType.ERROR);
-            return false;
-        }
-        if (!cardNumberField.getText().replaceAll(" ", "").matches("\\d{16}")) {
-            showAlert("Invalid credit card number.", Alert.AlertType.ERROR);
-            return false;
-        }
-        if (!expDateField.getText().matches("\\d{2}/\\d{2}")) {
-            showAlert("Invalid expiration date format.", Alert.AlertType.ERROR);
-            return false;
-        }
-        if (!cvvField.getText().matches("\\d{3,4}")) {
-            showAlert("Invalid CVV.", Alert.AlertType.ERROR);
-            return false;
-        }
+        if (idNumberField.getText().length() != 9 || !idNumberField.getText().matches("\\d+")) return false;
+        if (!cardNumberField.getText().replaceAll(" ", "").matches("\\d{16}")) return false;
+        if (!expDateField.getText().matches("\\d{2}/\\d{2}")) return false;
+        if (!cvvField.getText().matches("\\d{3,4}")) return false;
         return true;
-    }
-
-    private void showAlert(String msg, Alert.AlertType type) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(type);
-            alert.setTitle(type == Alert.AlertType.ERROR ? "Error" : "Success");
-            alert.setHeaderText(null);
-            alert.setContentText(msg);
-            alert.showAndWait();
-        });
     }
 
     private void closeWindow() {
         Stage stage = (Stage) confirmButton.getScene().getWindow();
+        EventBus.getDefault().unregister(this);
         stage.close();
     }
 
-    public String getIdNumber() {
-        return idNumberField.getText();
-    }
-
-    public String getCardNumber() {
-        return cardNumberField.getText().replaceAll(" ", "");
-    }
-
-    public String getExpDate() {
-        return expDateField.getText();
-    }
-
-    public String getCVV() {
-        return cvvField.getText();
-    }
-
-    @Subscribe
-    public void handlePrefill(PaymentPrefillResponse response) {
-        System.out.println("CLIENT: Received PaymentPrefillResponse, filling fields...");
-        Platform.runLater(() -> {
-            idNumberField.setText(response.getIdNumber());
-            cardNumberField.setText(formatCard(response.getCardNumber()));
-            expDateField.setText(response.getExpDate());
-            cvvField.setText(response.getCvv());
-        });
-    }
-
-    public void onClose() {
-        EventBus.getDefault().unregister(this);
-    }
+    public String getIdNumber() { return idNumberField.getText(); }
+    public String getCardNumber() { return cardNumberField.getText().replaceAll(" ", ""); }
+    public String getExpDate() { return expDateField.getText(); }
+    public String getCVV() { return cvvField.getText(); }
 }

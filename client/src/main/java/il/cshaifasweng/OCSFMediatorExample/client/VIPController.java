@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import il.cshaifasweng.OCSFMediatorExample.entities.*;
+import il.cshaifasweng.Msg;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,7 +16,7 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
 
-public class VIPController {
+public class VIPController  {
 
     @FXML private Button subscribeButton;
     @FXML private Button cancelVipButton;
@@ -28,51 +29,72 @@ public class VIPController {
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }
-        backButton.setOnAction(e -> SceneController.switchScene("home"));
+
+        backButton.setOnAction(e -> {
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("home");
+            });
         subscribeButton.setOnAction(e -> openPaymentWindow());
+
         if (SceneController.loggedUsername == null) {
             subscribeButton.setDisable(true);
             cancelVipButton.setDisable(true);
             return;
         }
+
         try {
-            SimpleClient.getClient().sendToServer(new FetchUserRequest(SceneController.loggedUsername));
+            SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername));
         } catch (IOException e) {
             e.printStackTrace();
         }
+        cancelVipButton.setOnAction(e -> {
+            try {
+                SimpleClient.getClient().sendToServer(new Msg("CANCEL_VIP", SceneController.loggedUsername));
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
     }
 
     @Subscribe
-    public void handleUserResponse(FetchUserResponse response) {
-        System.out.println("Received user response: " + response);
+    public void handleUserFetched(Msg msg) {
+        if (!"FETCH_USER".equals(msg.getAction())) return;
+
+        this.user = (User) msg.getData();
+
         Platform.runLater(() -> {
-            this.user = response.getUser();
+            boolean isVipAndActive = user != null && user.isVIP() && !user.getVipCanceled();
+            subscribeButton.setDisable(isVipAndActive);
+            cancelVipButton.setVisible(isVipAndActive);
+        });
+    }
 
-            if (user != null && user.isVIP() && !user.getVipCanceled()) {
-                subscribeButton.setDisable(true);
-                cancelVipButton.setVisible(true);
-            } else {
-                subscribeButton.setDisable(false);
-                cancelVipButton.setVisible(false);
-            }
+    @Subscribe
+    public void handleVipActivated(Msg msg) {
+        if (!"VIP_ACTIVATED".equals(msg.getAction())) return;
 
-            subscribeButton.setOnAction(e -> openPaymentWindow());
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("VIP Activated");
+            alert.setHeaderText(null);
+            alert.setContentText("You are now a VIP Member!");
+            alert.showAndWait();
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("home");
+        });
+    }
 
-            cancelVipButton.setOnAction(e -> {
-                try {
-                    SimpleClient.getClient().sendToServer(new CancelVIPRequest(user.getUsername()));
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("VIP Cancelled");
-                    alert.setHeaderText(null);
-                    alert.setContentText("VIP will be deactivated after your current period ends.");
-                    alert.showAndWait();
-                    cancelVipButton.setDisable(true);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            });
+    @Subscribe
+    public void handleVipCancelled(Msg msg) {
+        if (!"VIP_CANCELLED".equals(msg.getAction())) return;
 
-            backButton.setOnAction(e -> SceneController.switchScene("home"));
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("VIP Cancelled");
+            alert.setHeaderText(null);
+            alert.setContentText("VIP will be deactivated after current period ends.");
+            alert.showAndWait();
+            cancelVipButton.setDisable(true);
         });
     }
 
@@ -82,42 +104,9 @@ public class VIPController {
             Parent root = loader.load();
 
             PaymentController controller = loader.getController();
-
             controller.setOnSuccess(() -> {
-                String idNumber = controller.getIdNumber();
-                String cardNumber = controller.getCardNumber();
-                String expDate = controller.getExpDate();
-                String cvv = controller.getCVV();
-
                 try {
-                    // First: update payment info
-                    PaymentInfoRequest infoRequest = new PaymentInfoRequest(
-                            SceneController.loggedUsername,
-                            idNumber,
-                            cardNumber,
-                            expDate,
-                            cvv,
-                            false // false: not marking this as VIP activation
-                    );
-                    SimpleClient.getClient().sendToServer(infoRequest);
-
-                    // Then: send VIP activation request
-                    VIPPaymentRequest vipRequest = new VIPPaymentRequest(
-                            SceneController.loggedUsername,
-                            idNumber,
-                            cardNumber,
-                            expDate,
-                            cvv
-                    );
-                    SimpleClient.getClient().sendToServer(vipRequest);
-
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("VIP Status Added!");
-                    alert.setHeaderText(null);
-                    alert.setContentText("Thank you for subscribing to VIP!");
-                    alert.showAndWait();
-                    SceneController.switchScene("home");
-
+                    SimpleClient.getClient().sendToServer(new Msg("ACTIVATE_VIP", SceneController.loggedUsername));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -129,14 +118,9 @@ public class VIPController {
             stage.setScene(new Scene(root));
             stage.showAndWait();
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-
-    // Optional: unregister from EventBus if this controller gets destroyed
-    public void onClose() {
-        EventBus.getDefault().unregister(this);
-    }
 }
