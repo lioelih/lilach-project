@@ -1,5 +1,8 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import Events.CatalogEvent;
+import Events.WarningEvent;
+import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -40,12 +43,16 @@ public class CatalogController {
     @FXML
     public void initialize() {
         EventBus.getDefault().register(this);
-
+        try {
+            Msg msg = new Msg("GET_CATALOG",null);
+            SimpleClient.getClient().sendToServer(msg);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
         //set the min max value in filter to only accept integers
         minPrice.setTextFormatter(new TextFormatter<>(change -> {
             return change.getControlNewText().matches("\\d*") ? change : null;
         }));
-
         maxPrice.setTextFormatter(new TextFormatter<>(change -> {
             return change.getControlNewText().matches("\\d*") ? change : null;
         }));
@@ -57,7 +64,6 @@ public class CatalogController {
 
         // Set up image column (image is stored as byte[])
         imageColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getImage()));
-
         imageColumn.setCellFactory(col -> new TableCell<>() {
             private final ImageView imageView = new ImageView();
             {
@@ -65,13 +71,13 @@ public class CatalogController {
                 imageView.setFitWidth(100);
                 imageView.setPreserveRatio(true);
             }
-
             @Override
             protected void updateItem(byte[] imageData, boolean empty) {
                 super.updateItem(imageData, empty);
                 if (empty || imageData == null || imageData.length == 0) {
                     setGraphic(null);
-                } else {
+                }
+                else {
                     try {
                         Image image = new Image(new ByteArrayInputStream(imageData));
                         imageView.setImage(image);
@@ -107,8 +113,8 @@ public class CatalogController {
 
         refreshButton.setOnAction(e -> {
             try {
-                SimpleClient.getClient().sendToServer("GET_CATALOG");
-
+                Msg msg = new Msg("GET_CATALOG", null);
+                SimpleClient.getClient().sendToServer(msg);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -130,61 +136,48 @@ public class CatalogController {
             }
             productTable.getItems().setAll(filteredProducts);
         });
-
-        try {
-            SimpleClient.getClient().sendToServer("GET_CATALOG");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     private void addViewButtonColumn() {
         TableColumn<Product, Void> actionCol = new TableColumn<>("Action");
         actionCol.setPrefWidth(100);
-
         Callback<TableColumn<Product, Void>, TableCell<Product, Void>> cellFactory = param -> new TableCell<>() {
             private final Button viewBtn = new Button("View");
-
             {
                 viewBtn.setOnAction(e -> {
                     Product product = getTableView().getItems().get(getIndex());
                     openProductPage(product);
                 });
             }
-
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : viewBtn);
             }
         };
-
         actionCol.setCellFactory(cellFactory);
         productTable.getColumns().add(actionCol);
     }
 
     @Subscribe
     public void onCatalogReceived(CatalogEvent event) {
-        updateCatalog(event.getProducts());
         products = event.getProducts();
-
-        // set up filer section
-        if (!typeBox.getItems().contains("All Types")) {
-            typeBox.getItems().add("All Types");
-        }
-        typeBox.setValue("All Types");
-        for(Product product : products) {
-            if (!typeBox.getItems().contains(product.getType())) {
-                typeBox.getItems().add(product.getType());
+        Platform.runLater(() -> {
+            productTable.getItems().setAll(products);
+            // set up filer section
+            if (!typeBox.getItems().contains("All Types")) {
+                typeBox.getItems().add("All Types");
             }
-        }
-        minPrice.setText("");
-        maxPrice.setText("");
-        stringSearchField.setText("");
-    }
-
-    public void updateCatalog(List<Product> products) {
-        Platform.runLater(() -> productTable.getItems().setAll(products));
+            typeBox.setValue("All Types");
+            for (Product product : products) {
+                if (!typeBox.getItems().contains(product.getType())) {
+                    typeBox.getItems().add(product.getType());
+                }
+            }
+            minPrice.setText("");
+            maxPrice.setText("");
+            stringSearchField.setText("");
+        });
     }
 
     private void openProductPage(Product product) {
@@ -207,4 +200,5 @@ public class CatalogController {
     private void onClose() {
         EventBus.getDefault().unregister(this);
     }
+
 }

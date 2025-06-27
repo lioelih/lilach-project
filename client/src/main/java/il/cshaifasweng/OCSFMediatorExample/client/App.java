@@ -60,22 +60,6 @@ public class App extends Application {
         return fxmlLoader.load();
     }
 
-    @Subscribe // Opens Catalog upon request
-    public void onCatalogReceived(List<Product> catalog) {
-        Platform.runLater(() -> {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("catalog.fxml")); // Opens catalog
-            try {
-                Parent root = loader.load();
-                CatalogController controller = loader.getController();
-                controller.updateCatalog(catalog);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-
-
     @Override
     public void stop() throws Exception {
         // TODO Auto-generated method stub

@@ -1,10 +1,11 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import Events.CatalogEvent;
+import Events.WarningEvent;
+import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import org.greenrobot.eventbus.EventBus;
-
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
-
 import java.util.List;
 
 public class SimpleClient extends AbstractClient {
@@ -19,12 +20,29 @@ public class SimpleClient extends AbstractClient {
 	protected void handleMessageFromServer(Object msg) {
 		if (msg instanceof Warning) {
 			EventBus.getDefault().post(new WarningEvent((Warning) msg));
-		} else if (msg instanceof List<?>) { // When receiving a list from server, send an event bus of a CatalogEvent class
-			List<?> list = (List<?>) msg;
-			if (!list.isEmpty() && list.get(0) instanceof Product) {
-				@SuppressWarnings("unchecked")
-				List<Product> products = (List<Product>) list;
-				EventBus.getDefault().post(new CatalogEvent(products));
+		}
+		else if (msg instanceof Msg massage) {
+			switch (massage.getAction()) {
+				case "SENT_CATALOG": {
+					CatalogEvent event = new CatalogEvent("SENT_CATALOG", (List<Product>) massage.getData());
+					EventBus.getDefault().post(event);
+				}
+				case "PRODUCT_UPDATED": {
+					CatalogEvent event = new CatalogEvent("PRODUCT_UPDATED", (List<Product>) massage.getData());
+					EventBus.getDefault().post(event);
+				}
+				case "PRODUCT_ADDED": {
+					CatalogEvent event = new CatalogEvent("PRODUCT_ADDED", (List<Product>) massage.getData());
+					EventBus.getDefault().post(event);
+				}
+				case "PRODUCT_DELETED": {
+					CatalogEvent event = new CatalogEvent("PRODUCT_DELETED", (List<Product>) massage.getData());
+					EventBus.getDefault().post(event);
+				}
+				default: {
+					WarningEvent event = new WarningEvent(new Warning("Catalog wont load"));
+					EventBus.getDefault().post(event);
+				}
 			}
 		}
 		else if (msg instanceof LoginResponse) {

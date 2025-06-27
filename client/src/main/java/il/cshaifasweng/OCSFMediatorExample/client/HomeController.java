@@ -40,9 +40,6 @@ public class HomeController {
         loginButton.setOnAction(e -> SceneController.switchScene("login"));
         registerButton.setOnAction(e -> SceneController.switchScene("register"));
         vipButton.setOnAction(e -> SceneController.switchScene("vip"));
-
-
-
         if (loggedIn) {
             loginButton.setVisible(false);
             registerButton.setVisible(false);
@@ -53,15 +50,12 @@ public class HomeController {
             logoutButton.setVisible(false);
             welcomeLabel.setText("");
         }
-
         logoutButton.setOnAction(e -> {
             try {
                 SimpleClient.getClient().sendToServer(new LogoutRequest(SceneController.loggedUsername));
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
-
-
             SceneController.loggedUsername = null;
             SceneController.switchScene("home");
 

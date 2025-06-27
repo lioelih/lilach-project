@@ -1,4 +1,4 @@
-package il.cshaifasweng.OCSFMediatorExample.client;
+package Events;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.Warning;
 public class WarningEvent { // Kept from TicTacToe

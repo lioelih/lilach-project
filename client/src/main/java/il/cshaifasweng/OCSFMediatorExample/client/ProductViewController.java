@@ -1,5 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import Events.WarningEvent;
+import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -7,11 +9,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Optional;
 
 public class ProductViewController {
 
@@ -29,6 +33,10 @@ public class ProductViewController {
 
     @FXML
     private Button updateButton;
+
+    @FXML
+    private Button deleteButton;
+
 
 
     private File droppedImageFile = null; // holds the file temporarily
@@ -87,11 +95,6 @@ public class ProductViewController {
                     showAlert("Please fill in all fields.");
                     return;
                 }
-
-                if (droppedImageFile == null) {
-                    showAlert("Please drag and drop a PNG image.");
-                    return;
-                }
                 double newPrice;
                 try {
                     newPrice = Double.parseDouble(stringPrice);
@@ -102,20 +105,40 @@ public class ProductViewController {
 
                 byte[] newImage;
                 try {
-                    newImage = Files.readAllBytes(droppedImageFile.toPath());
+                    if (droppedImageFile == null) newImage = product.getImage();
+                    else newImage = Files.readAllBytes(droppedImageFile.toPath());
                 } catch (IOException err) {
                     showAlert("Failed to read image file.");
                     return;
                 }
                 product.updateProduct(newName,newType,newPrice,newImage);
 
-                SimpleClient.getClient().sendToServer(product);
+                Msg msg = new Msg("UPDATE_PRODUCT", product);
+                SimpleClient.getClient().sendToServer(msg);
                 Alert alert = new Alert(Alert.AlertType.INFORMATION, "Product updated!");
                 alert.showAndWait();
-            } catch (NumberFormatException ex) {
-                new Alert(Alert.AlertType.ERROR, "Invalid price format!").showAndWait();
             } catch (Exception ex) {
                 ex.printStackTrace();
+            }
+        });
+
+        deleteButton.setOnAction(e -> {
+            try {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText("Are you sure?");
+                alert.setContentText("Do you really want to delete" + product.getName() + "from the store?");
+
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    Msg msg = new Msg("DELETE_PRODUCT", product);
+                    SimpleClient.getClient().sendToServer(msg);
+                } else {
+                    // User clicked Cancel
+                    System.out.println("Cancelled.");
+                }
+            } catch (IOException err) {
+                err.printStackTrace();
             }
         });
     }
@@ -127,4 +150,5 @@ public class ProductViewController {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
 }
