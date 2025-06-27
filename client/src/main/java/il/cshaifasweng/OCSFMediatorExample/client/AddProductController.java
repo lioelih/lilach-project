@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import javafx.stage.Stage;
 
 public class AddProductController {
 
@@ -88,6 +89,8 @@ public class AddProductController {
             SimpleClient.getClient().sendToServer(massage);
             Alert alert = new Alert(Alert.AlertType.INFORMATION, "Product Added!");
             alert.showAndWait();
+            Stage stage = (Stage) addButton.getScene().getWindow();
+            stage.close();
         } catch (IOException e) {
             showAlert("Failed to send product to server.");
         }
