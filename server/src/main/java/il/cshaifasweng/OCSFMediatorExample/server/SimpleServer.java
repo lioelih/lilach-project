@@ -33,226 +33,202 @@ public class SimpleServer extends AbstractServer {
     protected void handleMessageFromClient(Object msg, ConnectionToClient client) throws IOException {
         if (msg instanceof String msgString) {
             if (msgString.startsWith("#warning")) {
-                Warning warning = new Warning("Warning from server!");
-                client.sendToClient(warning);
-                System.out.format("Sent warning to client %s\n", client.getInetAddress().getHostAddress());
-
-            }
-            else if (msgString.startsWith("add client")) {
-                SubscribedClient connection = new SubscribedClient(client);
-                SubscribersList.add(connection);
+                client.sendToClient(new Warning("Warning from server!"));
+            } else if (msgString.equals("add client")) {
+                SubscribersList.add(new SubscribedClient(client));
                 client.sendToClient("client added successfully");
-
+            } else if (msgString.equals("remove client")) {
+                SubscribersList.removeIf(sc -> sc.getClient().equals(client));
             }
-            else if (msgString.startsWith("remove client")) {
-                SubscribersList.removeIf(subscribedClient -> subscribedClient.getClient().equals(client));
-            }
-        }
-        else if (msg instanceof FetchUserRequest request) {
-            System.out.println("Sending FetchUserRequest");
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                User user = session.createQuery("FROM User WHERE username = :username", User.class)
-                        .setParameter("username", request.getUsername())
-                        .uniqueResult();
-                client.sendToClient(new FetchUserResponse(user));
-            }
-        }
-        else if (msg instanceof LoginRequest request) {
-            System.out.println("SERVER: Received LoginRequest from user: " + request.username);
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                Query<User> query = session.createQuery(
-                        "FROM User WHERE username = :username AND password = :password", User.class);
-                query.setParameter("username", request.username);
-                query.setParameter("password", request.password);
-                List<User> users = query.list();
+        } else if (msg instanceof Msg massage) {
+            String action = massage.getAction();
+            Object data = massage.getData();
 
-                LoginResponse response;
+            switch (action) {
+                case "LOGIN" -> {
+                    String[] credentials = (String[]) data;
+                    String username = credentials[0];
+                    String password = credentials[1];
 
-                if (users.isEmpty()) {
-                    response = new LoginResponse(false, "Invalid credentials");
-                } else {
-                    User user = users.get(0);
-                    if (!user.isActive()) {
-                        response = new LoginResponse(false, "Account is inactive");
-                    } else {
-                        response = new LoginResponse(true, "Login successful", user.getUsername());
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        Query<User> query = session.createQuery("FROM User WHERE username = :u AND password = :p", User.class);
+                        query.setParameter("u", username);
+                        query.setParameter("p", password);
+                        List<User> users = query.list();
+
+                        if (users.isEmpty()) {
+                            client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
+                        } else {
+                            User user = users.get(0);
+                            if (!user.isActive()) {
+                                client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
+                            } else {
+                                client.sendToClient(new Msg("LOGIN_SUCCESS", user.getUsername()));
+                            }
+                        }
                     }
                 }
 
-                System.out.println("SERVER: Sending LoginResponse with success=" + response.success + ", message=" + response.message);
-                client.sendToClient(response);
-            } catch (Exception e) {
-                System.out.println("SERVER ERROR WHILE HANDLING LOGIN:");
-                e.printStackTrace();
-            }
-        }
-        else if (msg instanceof RegisterRequest request) {
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                Query<?> check = session.createQuery("FROM User WHERE username = :username OR email = :email");
-                check.setParameter("username", request.username);
-                check.setParameter("email", request.email);
-                if (!check.list().isEmpty()) {
-                    client.sendToClient(new RegisterResponse(false, "User already exists"));
-                    return;
-                }
+                case "REGISTER" -> {
+                    String[] regData = (String[]) data;
+                    String username = regData[0], email = regData[1], fullName = regData[2],
+                            phoneNumber = regData[3], password = regData[4], branch = regData[5];
 
-                session.beginTransaction();
-                User newUser = new User();
-                newUser.setUsername(request.username);
-                newUser.setEmail(request.email);
-                newUser.setPhoneNumber(request.phoneNumber);
-                newUser.setFullName(request.fullName);
-                newUser.setPassword(request.password);
-                newUser.setRole(User.Role.USER);
-                newUser.setBranch(request.branch);
-                session.persist(newUser);
-                session.getTransaction().commit();
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        Query<User> check = session.createQuery("FROM User WHERE username = :u OR email = :e");
+                        check.setParameter("u", username);
+                        check.setParameter("e", email);
 
-                client.sendToClient(new RegisterResponse(true, "Registration successful"));
-            }
-        }
-        else if (msg instanceof LogoutRequest logout) {
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                session.beginTransaction();
-                Query query = session.createQuery("UPDATE User SET loggedIn = false WHERE username = :username");
-                query.setParameter("username", logout.username);
-                query.executeUpdate();
-                session.getTransaction().commit();
-            }
-        }
-        else if (msg instanceof PaymentInfoRequest request) {
-            System.out.println("SERVER: Received PaymentInfoRequest from " + request.getUsername());
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
-                query.setParameter("username", request.getUsername());
-                List<User> users = query.list();
+                        if (!check.list().isEmpty()) {
+                            client.sendToClient(new Msg("REGISTER_FAILED", "User already exists"));
+                            return;
+                        }
 
-                if (!users.isEmpty()) {
-                    User user = users.get(0);
-                    session.beginTransaction();
+                        User newUser = new User();
+                        newUser.setUsername(username);
+                        newUser.setEmail(email);
+                        newUser.setPhoneNumber(phoneNumber);
+                        newUser.setFullName(fullName);
+                        newUser.setPassword(password);
+                        newUser.setBranch(branch);
+                        newUser.setRole(User.Role.USER);
+                        newUser.setActive(true);
 
-                    user.setIdentificationNumber(request.getIdNumber());
-                    user.setCreditCardNumber(request.getCardNumber());
-                    user.setCreditCardExpiration(request.getExpDate());
-                    user.setCreditCardSecurityCode(request.getCvv());
+                        session.beginTransaction();
+                        session.persist(newUser);
+                        session.getTransaction().commit();
 
-                    session.merge(user);
-                    session.getTransaction().commit();
-                    client.sendToClient(new PaymentInfoResponse(true, "Payment info saved."));
-                } else {
-                    client.sendToClient(new PaymentInfoResponse(false, "User not found."));
-                }
-            }
-        }
-        else if (msg instanceof VIPPaymentRequest request) {
-            System.out.println("SERVER: Received VIPPaymentRequest from " + request.getUsername());
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                Query<User> query = session.createQuery("FROM User WHERE username = :username", User.class);
-                query.setParameter("username", request.getUsername());
-                List<User> users = query.list();
-
-                if (!users.isEmpty()) {
-                    User user = users.get(0);
-                    session.beginTransaction();
-
-                    if (user.isVIP() && user.getVipCanceled()) {
-                        user.setVipCanceled(false);
-                    } else if (!user.isVIP()) {
-                        user.setVIP(true);
-                        user.setVipExpirationDate(LocalDate.now().plusMonths(12));
-                        user.setVipCanceled(false);
-                        user.setActive(true);
+                        client.sendToClient(new Msg("REGISTER_SUCCESS", null));
                     }
-
-                    session.merge(user);
-                    session.getTransaction().commit();
-                    client.sendToClient(new PaymentInfoResponse(true, "VIP subscription processed."));
-                } else {
-                    client.sendToClient(new PaymentInfoResponse(false, "User not found."));
                 }
-            }
-        }
-        else if (msg instanceof CancelVIPRequest request) {
-            System.out.println("SERVER: Received CancelVIPRequest from " + request.getUsername());
 
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                User user = session.createQuery("FROM User WHERE username = :username", User.class)
-                        .setParameter("username", request.getUsername())
-                        .uniqueResult();
-
-                if (user != null) {
-                    user.setVipCanceled(true);
-                    session.beginTransaction();
-                    session.merge(user);
-                    session.getTransaction().commit();
-
-                    System.out.println("SERVER: VIP successfully cancelled for " + user.getUsername());
-                } else {
-                    System.out.println("SERVER: User not found for cancellation: " + request.getUsername());
+                case "LOGOUT" -> {
+                    String username = (String) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+                        Query query = session.createQuery("UPDATE User SET loggedIn = false WHERE username = :u");
+                        query.setParameter("u", username);
+                        query.executeUpdate();
+                        session.getTransaction().commit();
+                    }
                 }
-            }
-        }
-        else if (msg instanceof PaymentPrefillRequest request) {
-            System.out.println("SERVER: Received PaymentPrefillRequest from " + request.getUsername());
-            try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                User user = session.createQuery("FROM User WHERE username = :username", User.class)
-                        .setParameter("username", request.getUsername())
-                        .uniqueResult();
 
-                if (user != null) {
-                    client.sendToClient(new PaymentPrefillResponse(
-                            user.getIdentificationNumber(),
-                            user.getCreditCardNumber(),
-                            user.getCreditCardExpiration(),
-                            user.getCreditCardSecurityCode()
-                    ));
-                } else {
-                    client.sendToClient(new PaymentPrefillResponse("", "", "", ""));
+                case "FETCH_USER" -> {
+                    String username = (String) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
+                        client.sendToClient(new Msg("FETCH_USER", user));
+                    }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                client.sendToClient(new PaymentPrefillResponse("", "", "", ""));
-            }
-        }
-        else if (msg instanceof Msg massage) {
-            switch (massage.getAction()) {
-                case "GET_CATALOG": {
+
+                case "PAYMENT_INFO" -> {
+                    String[] pData = (String[]) data;
+                    String username = pData[0], id = pData[1], card = pData[2],
+                            exp = pData[3], cvv = pData[4];
+
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
+
+                        if (user != null) {
+                            session.beginTransaction();
+                            user.setIdentificationNumber(id);
+                            user.setCreditCardNumber(card);
+                            user.setCreditCardExpiration(exp);
+                            user.setCreditCardSecurityCode(cvv);
+                            session.merge(user);
+                            session.getTransaction().commit();
+                            client.sendToClient(new Msg("PAYMENT_INFO", "Saved"));
+                        } else {
+                            client.sendToClient(new Msg("PAYMENT_INFO", "User not found"));
+                        }
+                    }
+                }
+
+                case "PAYMENT_PREFILL" -> {
+                    String username = (String) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
+                        if (user != null) {
+                            String[] cardData = new String[]{
+                                    user.getIdentificationNumber(),
+                                    user.getCreditCardNumber(),
+                                    user.getCreditCardExpiration(),
+                                    user.getCreditCardSecurityCode()
+                            };
+                            client.sendToClient(new Msg("PAYMENT_PREFILL", cardData));
+                        } else {
+                            client.sendToClient(new Msg("PAYMENT_PREFILL", new String[]{"", "", "", ""}));
+                        }
+                    }
+                }
+
+                case "ACTIVATE_VIP" -> {
+                    String username = (String) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
+                        if (user != null) {
+                            session.beginTransaction();
+                            if (!user.isVIP()) {
+                                user.setVIP(true);
+                                user.setVipExpirationDate(LocalDate.now().plusMonths(12));
+                            }
+                            user.setVipCanceled(false);
+                            user.setActive(true);
+                            session.merge(user);
+                            session.getTransaction().commit();
+                            client.sendToClient(new Msg("VIP_ACTIVATED", null));
+                        }
+                    }
+                }
+
+                case "CANCEL_VIP" -> {
+                    String username = (String) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
+                        if (user != null) {
+                            session.beginTransaction();
+                            user.setVipCanceled(true);
+                            session.merge(user);
+                            session.getTransaction().commit();
+                            client.sendToClient(new Msg("VIP_CANCELLED", null));
+                        }
+                    }
+                }
+
+                case "GET_CATALOG" -> {
                     List<Product> catalog = fetchCatalog();
-                    massage = new Msg("SENT_CATALOG", fetchCatalog());
-                    client.sendToClient(massage);
-                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-                    break;
+                    client.sendToClient(new Msg("SENT_CATALOG", catalog));
                 }
-                case "UPDATE_PRODUCT": {
-                    Product product = (Product) massage.getData();
-                    updateFullProduct(product);
-                    List<Product> catalog = fetchCatalog();
-                    massage = new Msg("PRODUCT_UPDATED", fetchCatalog());
-                    client.sendToClient(massage);
-                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-                    break;
-                }
-                case "ADD_PRODUCT": {
-                    Product product = (Product) massage.getData();
+
+                case "ADD_PRODUCT" -> {
+                    Product product = (Product) data;
                     saveNewProduct(product);
-                    List<Product> catalog = fetchCatalog();
-                    massage = new Msg("PRODUCT_ADDED", fetchCatalog());
-                    client.sendToClient(massage);
-                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-                    break;
+                    client.sendToClient(new Msg("PRODUCT_ADDED", fetchCatalog()));
                 }
-                case "DELETE_PRODUCT": {
-                    Product product = (Product) massage.getData();
+
+                case "UPDATE_PRODUCT" -> {
+                    Product product = (Product) data;
+                    updateFullProduct(product);
+                    client.sendToClient(new Msg("PRODUCT_UPDATED", fetchCatalog()));
+                }
+
+                case "DELETE_PRODUCT" -> {
+                    Product product = (Product) data;
                     deleteProduct(product.getId());
-                    List<Product> catalog = fetchCatalog();
-                    massage = new Msg("PRODUCT_DELETED", fetchCatalog());
-                    client.sendToClient(massage);
-                    System.out.printf("Sent %d products to client %s%n", catalog.size(), client.getInetAddress().getHostAddress());
-                    break;
+                    client.sendToClient(new Msg("PRODUCT_DELETED", fetchCatalog()));
                 }
+
+                default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
         }
     }
+
 
     private void updateFullProduct(Product updatedProduct) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
