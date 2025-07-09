@@ -24,9 +24,6 @@ public class Product implements Serializable {
     @Column(name = "product_image", columnDefinition = "MEDIUMBLOB")
     private byte[] product_image;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SaleProduct> saleProducts;
-
     public Product() {}
 
     public Product(int product_id, String product_name, String product_type, double product_price, byte[] product_image) {
@@ -78,15 +75,6 @@ public class Product implements Serializable {
 
     public void setImage(byte[] product_image) {
         this.product_image = product_image;
-    }
-
-    // ✅ Getter/Setter for the new sales relationship
-    public List<SaleProduct> getSaleProducts() {
-        return saleProducts;
-    }
-
-    public void setSaleProducts(List<SaleProduct> saleProducts) {
-        this.saleProducts = saleProducts;
     }
 
     //method for updating product details

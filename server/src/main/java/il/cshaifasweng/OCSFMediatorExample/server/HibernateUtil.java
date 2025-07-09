@@ -30,7 +30,6 @@ public class HibernateUtil {
             configuration.addAnnotatedClass(Product.class); // link entity
             configuration.addAnnotatedClass(User.class);
             configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Sale.class);
-            configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.SaleProduct.class);
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();
             sessionFactory = configuration.buildSessionFactory(serviceRegistry);
