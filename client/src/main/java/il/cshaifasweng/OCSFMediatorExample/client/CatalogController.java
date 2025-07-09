@@ -2,6 +2,7 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import Events.CatalogEvent;
 import il.cshaifasweng.Msg;
+import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -13,6 +14,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -33,7 +35,8 @@ public class CatalogController {
     @FXML private TextField minPrice;
     @FXML private TextField maxPrice;
     @FXML private ComboBox<String> typeBox;
-
+    @FXML private Button basketIcon;
+    @FXML private Label basketCountLabel;
     @FXML private TilePane productGrid;
 
     private List<Product> products;
@@ -44,9 +47,17 @@ public class CatalogController {
         try {
             Msg msg = new Msg("GET_CATALOG", null);
             SimpleClient.getClient().sendToServer(msg);
+
+            // Also fetch the user's current basket
+            Msg fetchBasket = new Msg("FETCH_BASKET", SceneController.loggedUsername);
+            SimpleClient.getClient().sendToServer(fetchBasket);
+            System.out.println("Client instance: " + SimpleClient.getClient());
+            System.out.println("Connected? " + (SimpleClient.getClient() != null && SimpleClient.getClient().isConnected()));
+
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
+
 
         // Accept only integers for price filters
         minPrice.setTextFormatter(new TextFormatter<>(change ->
@@ -100,6 +111,20 @@ public class CatalogController {
             }
             displayProducts(filteredProducts);
         });
+        basketIcon.setOnAction(e -> {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("basket.fxml"));
+            Scene scene = null;
+            try {
+                scene = new Scene(loader.load());
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            Stage basketStage = new Stage();
+            basketStage.setTitle("Your Basket");
+            basketStage.setScene(scene);
+            basketStage.show();
+        });
     }
 
     @Subscribe
@@ -112,9 +137,24 @@ public class CatalogController {
         });
     }
 
+    @Subscribe
+    public void handleBasketMessages(Msg msg) {
+        if (msg.getAction().equals("BASKET_FETCHED")) {
+            List<Basket> items = (List<Basket>) msg.getData();
+            int total = items.stream().mapToInt(Basket::getAmount).sum();
+            Platform.runLater(() -> basketCountLabel.setText(total > 99 ? "99+" : String.valueOf(total)));
+        } else if (msg.getAction().equals("BASKET_UPDATED")) {
+            try {
+                SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
-
         for (Product product : productList) {
             VBox card = new VBox(5);
             card.setStyle("-fx-border-color: lightgray; -fx-border-radius: 10; -fx-padding: 10; -fx-background-color: white;");
@@ -148,7 +188,33 @@ public class CatalogController {
             Button viewButton = new Button("View");
             viewButton.setOnAction(e -> openProductPage(product));
 
-            card.getChildren().addAll(imageView, nameLabel,typeLabel, priceLabel, viewButton);
+            // Add to Basket Button
+            Button addToBasketButton = new Button("Add to Basket");
+            try{
+                SimpleClient.getClient().openConnection();
+            }
+            catch(IOException e){
+                e.printStackTrace();
+            }
+            addToBasketButton.setOnAction(e -> {
+                System.out.println("Preparing to send product: " + product.getName());
+                if (SimpleClient.ensureConnected()) {
+                    try {
+                        Msg msg = new Msg("ADD_TO_BASKET", new Object[]{SceneController.loggedUsername, product});
+                        SimpleClient.getClient().sendToServer(msg);
+                        System.out.println("Sent ADD_TO_BASKET: " + product.getName());
+                    } catch (IOException ex) {
+                        System.err.println("Failed to send ADD_TO_BASKET");
+                        ex.printStackTrace();
+                    }
+                } else {
+                    System.err.println("Client is not connected and reconnection failed.");
+                }
+            });
+
+
+            card.getChildren().addAll(imageView, nameLabel, typeLabel, priceLabel, viewButton, addToBasketButton);
+
             productGrid.getChildren().add(card);
         }
     }
