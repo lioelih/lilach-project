@@ -40,6 +40,8 @@ public class App extends Application {
 
         SceneController.setMainStage(stage);
         SceneController.switchScene("home");
+        stage.setMaximized(true);
+
 
         stage.setOnCloseRequest(e -> {
             try {
