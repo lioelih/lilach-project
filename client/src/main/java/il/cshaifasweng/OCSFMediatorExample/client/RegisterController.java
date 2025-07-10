@@ -4,6 +4,9 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import il.cshaifasweng.Msg;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+
 import java.io.IOException;
 
 public class RegisterController {
@@ -16,7 +19,7 @@ public class RegisterController {
     @FXML private ComboBox<String> branchComboBox;
     @FXML private Button submitButton;
     @FXML private Button backButton;
-
+    @FXML private ImageView logoImage;
     @FXML
     public void initialize() {
         backButton.setOnAction(e -> SceneController.switchScene("home"));
@@ -38,6 +41,8 @@ public class RegisterController {
                 e.printStackTrace();
             }
         });
+        Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
+        logoImage.setImage(logo);
     }
 
     private boolean isValidInput(String[] f) {

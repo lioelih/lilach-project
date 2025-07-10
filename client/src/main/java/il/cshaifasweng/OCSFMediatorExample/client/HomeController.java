@@ -5,6 +5,15 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import java.io.IOException;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+
+import java.net.URL;
+import java.util.ResourceBundle;
 
 public class HomeController {
 
@@ -15,7 +24,7 @@ public class HomeController {
     @FXML private Button loginButton;
     @FXML private Button registerButton;
     @FXML private Button vipButton;
-
+    @FXML private ImageView logoImage;
     @FXML
     public void initialize() {
         boolean loggedIn = SceneController.loggedUsername != null;
@@ -45,5 +54,7 @@ public class HomeController {
             SceneController.loggedUsername = null;
             SceneController.switchScene("home");
         });
+        Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
+        logoImage.setImage(logo);
     }
 }

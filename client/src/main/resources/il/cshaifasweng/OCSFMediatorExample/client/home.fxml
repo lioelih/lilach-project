@@ -1,22 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
 
-<VBox alignment="TOP_CENTER" prefHeight="600" prefWidth="800" spacing="15" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.HomeController">
+<BorderPane xmlns="http://javafx.com/javafx/23.0.1"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.HomeController"
+            prefHeight="600.0" prefWidth="900.0"
+            stylesheets="@homepage.css">
 
-    <Button fx:id="catalogButton" text="Catalog" />
-    <Button fx:id="contactButton" text="Contact Support" />
-    <Button fx:id="vipButton" layoutX="100" layoutY="300" text="VIP Subscription" />
-    <Button fx:id="loginButton" text="Login" />
-    <Button fx:id="registerButton" text="Register" />
-    <Button fx:id="logoutButton" text="Logout" visible="false"/>
-    <Label fx:id="welcomeLabel" style="-fx-font-size: 14px;" text=""/>
-    <Label style="-fx-font-size: 28px; -fx-font-weight: bold;" text="Lilach Store" />
-    <Label style="-fx-font-size: 16px;" text="All your needs for flowers" />
+    <top>
+        <StackPane styleClass="top-bar" prefHeight="70">
+            <children>
+                <!-- Blue background bar -->
+                <HBox spacing="15" alignment="CENTER_LEFT" styleClass="top-bar">
+                    <padding>
+                        <Insets top="0" right="20" bottom="0" left="80"/>
+                    </padding>
+                    <children>
+                        <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true"/>
+                        <!-- Removed Lilach Store text as requested -->
+                        <Pane HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="catalogButton" text="Catalog" styleClass="nav-button"/>
+                        <Button fx:id="contactButton" text="Contact Support" styleClass="nav-button"/>
+                        <Button fx:id="vipButton" text="VIP Subscription" styleClass="nav-button"/>
+                        <Button fx:id="loginButton" text="Login" styleClass="nav-button"/>
+                        <Button fx:id="registerButton" text="Register" styleClass="nav-button"/>
+                        <Button fx:id="logoutButton" text="Logout" visible="false" styleClass="nav-button"/>
+                    </children>
+                </HBox>
 
-    <ImageView fx:id="storeImage" fitHeight="200" fitWidth="300" preserveRatio="true" />
 
-</VBox>
+            </children>
+        </StackPane>
+    </top>
+
+
+
+    <!-- Hero Section -->
+    <center>
+        <VBox spacing="20" alignment="CENTER">
+            <children>
+                <ImageView fx:id="storeImage" fitHeight="250" fitWidth="800" preserveRatio="true"/>
+                <Label text="Welcome to Lilach Store" styleClass="hero-heading"/>
+                <Label text="All your needs for flowers" styleClass="hero-subheading"/>
+                <Label fx:id="welcomeLabel" styleClass="welcome-text"/>
+            </children>
+        </VBox>
+    </center>
+
+    <!-- Bottom Highlights -->
+    <bottom>
+        <HBox spacing="40" alignment="CENTER">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <children>
+                <VBox alignment="CENTER">
+                    <Label text="✔" styleClass="icon"/>
+                    <Label text="30,000+ Happy Customers" styleClass="highlight"/>
+                </VBox>
+                <VBox alignment="CENTER">
+                    <Label text="🌿" styleClass="icon"/>
+                    <Label text="Organic Flowers" styleClass="highlight"/>
+                </VBox>
+                <VBox alignment="CENTER">
+                    <Label text="⭐" styleClass="icon"/>
+                    <Label text="2,600+ 5 Star Reviews" styleClass="highlight"/>
+                </VBox>
+            </children>
+        </HBox>
+    </bottom>
+
+</BorderPane>
