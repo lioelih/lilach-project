@@ -5,14 +5,20 @@ import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class BasketController {
@@ -66,6 +72,26 @@ public class BasketController {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        });
+        confirmButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("checkout.fxml"));
+                Scene scene = new Scene(loader.load());
+
+                CheckoutController cc = loader.getController();
+                cc.initData(new ArrayList<>(basketTable.getItems()));   // pass copy
+
+                Stage st = new Stage();
+                st.setTitle("Checkout");
+                st.setScene(scene);
+
+                /* centre in safe visual bounds */
+                Rectangle2D vb = Screen.getPrimary().getVisualBounds();
+                st.setX(vb.getMinX() + (vb.getWidth() - 900)/2);   // 900 = prefWidth
+                st.setY(vb.getMinY() + (vb.getHeight() - 600)/2);  // 600 = prefHeight
+
+                st.show();
+            } catch (IOException ex) { ex.printStackTrace(); }
         });
 
 

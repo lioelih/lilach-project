@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>          <!-- ⬅️  this line was missing -->
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/23.0.1"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CheckoutController"
+            stylesheets="@homepage.css"
+            prefWidth="900" prefHeight="600">
+
+    <!-- top bar with logo –- optional -->
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="top-bar">
+            <padding><Insets left="15" right="15" top="5" bottom="5"/></padding>
+            <ImageView fx:id="logoImage" fitWidth="80" fitHeight="80" preserveRatio="true"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Button text="Back" onAction="#goBack" styleClass="nav-button"/>
+        </HBox>
+    </top>
+
+    <!-- centre: basket table + fulfil / payment panes -->
+    <center>
+        <VBox spacing="20" alignment="TOP_CENTER" BorderPane.alignment="CENTER">
+            <!-- Basket -->
+            <TableView fx:id="basketTable" prefHeight="200" maxWidth="600">
+                <columns>
+                    <TableColumn fx:id="nameCol"  text="Product"/>
+                    <TableColumn fx:id="amtCol"   text="Qty"/>
+                    <TableColumn fx:id="priceCol" text="Total ₪"/>
+                </columns>
+            </TableView>
+
+            <Label fx:id="totalLabel" styleClass="hero-heading"/>
+
+            <!-- Payment vs fulfilment choice -->
+            <HBox spacing="40" alignment="CENTER">
+                <!-- payment -->
+                <VBox spacing="8">
+                    <Label text="Payment"/>
+                    <RadioButton fx:id="savedCardRadio" text="Use saved card"/>
+                    <HBox spacing="6">
+                        <RadioButton fx:id="addCardRadio" text="New card"/>
+                        <Button      fx:id="addCardButton" text="Add / Edit"/>
+                    </HBox>
+                </VBox>
+
+                <!-- fulfilment -->
+                <VBox spacing="8">
+                    <Label text="Fulfilment"/>
+                    <RadioButton fx:id="pickupRadio"  text="Pick-up"/>
+                    <ComboBox    fx:id="branchCombo" promptText="Select branch" prefWidth="140"/>
+                    <RadioButton fx:id="deliveryRadio" text="Delivery"/>
+                    <HBox spacing="6">
+                        <TextField fx:id="cityField"   promptText="City"   prefWidth="80"/>
+                        <TextField fx:id="streetField" promptText="Street" prefWidth="80"/>
+                    </HBox>
+                    <HBox spacing="6">
+                        <TextField fx:id="houseField"  promptText="House #" prefWidth="60"/>
+                        <TextField fx:id="zipField"    promptText="ZIP"     prefWidth="60"/>
+                    </HBox>
+                </VBox>
+            </HBox>
+
+            <Button fx:id="completeBtn" text="Complete Order" styleClass="nav-button"/>
+            <Label  fx:id="statusLabel"/>
+
+        </VBox>
+    </center>
+</BorderPane>
