@@ -74,3 +74,16 @@
     -fx-text-fill: #333;
 }
 
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-padding: 4;              /* a bit of click area */
+}
+
+.icon-button:hover {
+    -fx-background-color: #e1ecff;
+    -fx-background-radius: 20;
+}
+
+.icon-button:armed {
+    -fx-background-color: #c5d9ff;
+}

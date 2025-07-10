@@ -5,9 +5,10 @@ import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
+import il.cshaifasweng.OrderDTO;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
-
+import org.hibernate.Transaction;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -357,6 +358,33 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                case "NEW_ORDER" -> {
+                    OrderDTO dto   = (OrderDTO) data;      // <-- use 'data' not 'msg'
+                    boolean ok     = processOrder(dto);
+                    client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", null));
+                }
+
+                case "HAS_CARD" -> {
+                    /* data == username (String) */
+                    String username = (String) data;
+
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery(
+                                        "FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
+
+                        boolean hasCard =
+                                user != null
+                                        && user.getCreditCardNumber() != null
+                                        && !user.getCreditCardNumber().isBlank();
+
+                        client.sendToClient(new Msg("HAS_CARD", hasCard));
+                    }
+                }
+
+
+
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
         }
@@ -445,6 +473,63 @@ public class SimpleServer extends AbstractServer {
             return session.createQuery("FROM Product", Product.class).list();
         }
     }
+
+    /** create Order + attach baskets */
+    private boolean processOrder(OrderDTO dto) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {  // factory -> HibernateUtil
+            Transaction tx = session.beginTransaction();
+
+            /* 1. fetch user */
+            User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                    .setParameter("u", dto.getUsername())
+                    .uniqueResult();
+            if (user == null) return false;
+
+            /* 2. fetch basket lines that belong to this user and aren’t already in an order */
+            List<Basket> basketItems = session.createQuery(
+                            "FROM Basket WHERE id IN (:ids) AND user = :u AND order IS NULL", Basket.class)
+                    .setParameter("ids", dto.getBasketIds())
+                    .setParameter("u",   user)
+                    .list();
+
+            if (basketItems.size() != dto.getBasketIds().size()) return false; // tampering?
+
+            /* 3. create order */
+            Order order = new Order();
+            order.setUser(user);
+            order.setReceived(false);
+
+            if ("PICKUP".equals(dto.getFulfilType())) {
+                if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
+                    return false;  // invalid → pickup branch was not selected
+                }
+                order.setPickup(dto.getFulfilInfo());
+            } else if ("DELIVERY".equals(dto.getFulfilType())) {
+                if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
+                    return false;  // invalid → delivery address is missing
+                }
+                order.setDelivery(dto.getFulfilInfo());
+            } else {
+                return false;  // invalid fulfil type
+            }
+            session.persist(order);
+
+            /* 4. link baskets */
+            for (Basket b : basketItems) {
+                b.setOrder(order);
+                session.merge(b);
+            }
+
+            tx.commit();
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
 
     @Override
     protected void serverStopped() {
