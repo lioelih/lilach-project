@@ -1,8 +1,10 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import Events.CatalogEvent;
+import Events.SalesEvent;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -25,6 +27,7 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -43,12 +46,15 @@ public class CatalogController {
     @FXML private TilePane productGrid;
 
     private List<Product> products;
+    private  List<Sale> sales;
 
     @FXML
     public void initialize() {
         EventBus.getDefault().register(this);
         try {
-            Msg msg = new Msg("GET_CATALOG", null);
+            Msg msg = new Msg("GET_SALES", null);
+            SimpleClient.getClient().sendToServer(msg);
+            msg = new Msg("GET_CATALOG", null);
             SimpleClient.getClient().sendToServer(msg);
         } catch (IOException e) {
             System.out.println(e.getMessage());
@@ -118,6 +124,11 @@ public class CatalogController {
         });
     }
 
+    @Subscribe
+    public void onSalesReceived(SalesEvent event) {
+        sales = event.getSales();
+    }
+
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
 
@@ -147,7 +158,14 @@ public class CatalogController {
 
             imageStack.getChildren().add(imageView);
 
-            boolean isOnSale = true;
+            //check if product isOnSale
+            boolean isOnSale = false;
+            for(Sale sale : this.sales)
+                if (sale.getProductIds().contains(product.getId()))
+                    if(sale.getEndDate().isAfter(LocalDateTime.now())) {
+                        isOnSale = true;
+                        break;
+                    }
 
             // Price Label
             Text price = new Text(String.format("₪%.2f", product.getPrice()));
