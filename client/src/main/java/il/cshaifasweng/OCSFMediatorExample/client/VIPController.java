@@ -9,6 +9,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
@@ -21,11 +23,13 @@ public class VIPController  {
     @FXML private Button subscribeButton;
     @FXML private Button cancelVipButton;
     @FXML private Button backButton;
-
+    @FXML private ImageView logoImage;
     private User user;
 
     @FXML
     public void initialize() {
+        Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
+        logoImage.setImage(logo);
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }

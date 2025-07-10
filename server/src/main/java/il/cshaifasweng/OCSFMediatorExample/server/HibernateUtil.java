@@ -29,6 +29,8 @@ public class HibernateUtil {
             configuration.configure(); // looks for hibernate.cfg.xml
             configuration.addAnnotatedClass(Product.class); // link entity
             configuration.addAnnotatedClass(User.class);
+            configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Basket.class);
+            configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Order.class);
             configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Sale.class);
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();

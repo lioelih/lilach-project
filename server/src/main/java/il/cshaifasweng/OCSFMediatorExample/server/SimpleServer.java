@@ -223,6 +223,125 @@ public class SimpleServer extends AbstractServer {
                     deleteProduct(product.getId());
                     client.sendToClient(new Msg("PRODUCT_DELETED", fetchCatalog()));
                 }
+                case "FETCH_BASKET" -> {
+                    String username = (String) data;
+                    System.out.println("[Server] FETCH_BASKET received for: " + username);
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
+
+                        if (user != null) {
+                            List<Basket> basketItems = session.createQuery(
+                                            "FROM Basket WHERE user.id = :userId AND order IS NULL", Basket.class)
+                                    .setParameter("userId", user.getId()).list();
+
+                            System.out.println("[Server] Found " + basketItems.size() + " basket items for user " + username);
+
+                            for (Basket item : basketItems) {
+                                Product fullProduct = session.get(Product.class, item.getProduct().getId());
+                                item.setProduct(fullProduct);
+                                System.out.println(" -> Basket item: " + fullProduct.getName() + " x" + item.getAmount());
+                            }
+
+                            client.sendToClient(new Msg("BASKET_FETCHED", basketItems));
+                            System.out.println("[Server] BASKET_FETCHED sent to client.");
+                        } else {
+                            System.out.println("[Server] User not found: " + username);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[Server] Error fetching basket for " + username);
+                        e.printStackTrace();
+                    }
+                }
+
+
+
+                case "ADD_TO_BASKET" -> {
+                    Object[] arr = (Object[]) data;
+                    String username = (String) arr[0];
+                    Product product = (Product) arr[1];
+                    System.out.println("Received ADD_TO_BASKET for " + username + " product ID: " + product.getId());
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
+
+                        Product dbProduct = session.get(Product.class, product.getId());  // 🔥 IMPORTANT
+
+                        if (user != null && dbProduct != null) {
+                            session.beginTransaction();
+
+                            Basket existing = session.createQuery(
+                                            "FROM Basket WHERE user.id = :userId AND product.id = :productId AND order IS NULL", Basket.class)
+                                    .setParameter("userId", user.getId())
+                                    .setParameter("productId", dbProduct.getId())
+                                    .uniqueResult();
+
+                            if (existing != null) {
+                                existing.setAmount(existing.getAmount() + 1);
+                                existing.setPrice(existing.getAmount() * dbProduct.getPrice());
+                                session.merge(existing);
+                            } else {
+                                Basket basket = new Basket();
+                                basket.setUser(user);
+                                basket.setProduct(dbProduct);  // ✅ use managed object
+                                basket.setAmount(1);
+                                basket.setPrice(dbProduct.getPrice());
+                                session.persist(basket);
+                            }
+
+                            session.getTransaction().commit();
+                            client.sendToClient(new Msg("BASKET_UPDATED", null));
+                        } else {
+                            System.err.println("User or Product not found");
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace(); // ✅ make sure exception shows up
+                    }
+                }
+
+
+                case "REMOVE_BASKET_ITEM" -> {
+                    Basket basketItem = (Basket) data;
+                    System.out.println("[Server] REMOVE_BASKET_ITEM received with ID: " + basketItem.getId());
+
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+
+                        Basket b = session.get(Basket.class, basketItem.getId());
+                        if (b != null) {
+                            session.remove(b);
+                            System.out.println("[Server] Removed basket item from DB: " + b);
+                        } else {
+                            System.out.println("[Server] No basket item found for ID: " + basketItem.getId());
+                        }
+
+                        session.getTransaction().commit();
+
+                        // Notify client that basket is updated (you may choose to send updated basket)
+                        client.sendToClient(new Msg("BASKET_UPDATED", null));
+                    } catch (Exception e) {
+                        System.err.println("[Server] Error removing basket item: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+
+                case "UPDATE_BASKET_AMOUNT" -> {
+                    Basket updatedItem = (Basket) data;
+                    System.out.println("[Server] Updating amount for basket ID: " + updatedItem.getId());
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+                        Basket existing = session.get(Basket.class, updatedItem.getId());
+                        if (existing != null) {
+                            existing.setAmount(updatedItem.getAmount());
+                            existing.setPrice(updatedItem.getPrice());
+                            session.update(existing);
+                        }
+                        session.getTransaction().commit();
+                        client.sendToClient(new Msg("BASKET_UPDATED", null));
+                    }
+                }
+
+
 
                 case "GET_SALES" -> {
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {

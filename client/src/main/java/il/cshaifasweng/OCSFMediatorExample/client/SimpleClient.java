@@ -6,6 +6,7 @@ import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import org.greenrobot.eventbus.EventBus;
 
+import java.io.IOException;
 import java.util.List;
 
 public class SimpleClient extends AbstractClient {
@@ -14,6 +15,10 @@ public class SimpleClient extends AbstractClient {
 
 	public SimpleClient(String host, int port) {
 		super(host, port);
+	}
+
+	public static void setClient(SimpleClient c) {
+		client = c;
 	}
 
 	@Override
@@ -49,6 +54,8 @@ public class SimpleClient extends AbstractClient {
 						EventBus.getDefault().post(massage);
 				case "SENT_SALES" ->
 					    EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));
+				case "BASKET_FETCHED", "BASKET_UPDATED" ->
+						EventBus.getDefault().post(massage);
 				default ->
 						System.out.println("Unhandled message: " + massage.getAction());
 
@@ -59,7 +66,24 @@ public class SimpleClient extends AbstractClient {
 	public static SimpleClient getClient() {
 		if (client == null) {
 			client = new SimpleClient("localhost", 3000); // Default host/port
+			System.out.println("New client created");
 		}
 		return client;
+	}
+
+
+	public static boolean ensureConnected() {
+		if (client == null) return false;
+		if (!client.isConnected()) {
+			try {
+				client.openConnection();
+				System.out.println("Client reconnected!");
+				return true;
+			} catch (IOException e) {
+				System.err.println("Reconnection failed: " + e.getMessage());
+				return false;
+			}
+		}
+		return true;
 	}
 }
