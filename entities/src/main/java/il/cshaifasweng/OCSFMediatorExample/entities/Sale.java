@@ -3,26 +3,32 @@ package il.cshaifasweng.OCSFMediatorExample.entities;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "sales")
 public class Sale implements Serializable {
 
+    public enum DiscountType {
+        PERCENTAGE, FIXED, BUNDLE, BUY_X_GET_Y
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
+    @Column(nullable = false)
     private String name;
 
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "discount_type")
+    @Column(name = "discount_type", nullable = false)
     private DiscountType discountType;
 
     @Column(name = "discount_value")
-    private Double discountValue; // can be null for BUY_X_GET_Y
+    private Double discountValue;
 
     @Column(name = "start_date")
     private LocalDateTime startDate;
@@ -30,20 +36,21 @@ public class Sale implements Serializable {
     @Column(name = "end_date")
     private LocalDateTime endDate;
 
-    // For BUY_X_GET_Y
     @Column(name = "buy_quantity")
     private Integer buyQuantity;
 
     @Column(name = "get_quantity")
     private Integer getQuantity;
 
-    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SaleProduct> saleProducts;
+    @Transient
+    private List<Integer> productIds = new ArrayList<>();
 
-    // Constructors
-    public Sale() {}
+    // --- Constructors ---
 
-    // Getters and Setters
+    public Sale() {
+    }
+
+    // --- Getters and Setters ---
 
     public int getId() {
         return id;
@@ -113,11 +120,11 @@ public class Sale implements Serializable {
         this.getQuantity = getQuantity;
     }
 
-    public List<SaleProduct> getSaleProducts() {
-        return saleProducts;
+    public List<Integer> getProductIds() {
+        return productIds;
     }
 
-    public void setSaleProducts(List<SaleProduct> saleProducts) {
-        this.saleProducts = saleProducts;
+    public void setProductIds(List<Integer> products) {
+        this.productIds = products;
     }
 }

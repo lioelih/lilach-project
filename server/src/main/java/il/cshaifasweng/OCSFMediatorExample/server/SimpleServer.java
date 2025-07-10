@@ -343,6 +343,20 @@ public class SimpleServer extends AbstractServer {
 
 
 
+                case "GET_SALES" -> {
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
+
+                        for (Sale sale : sales) {
+                            sale.setProductIds(session.createNativeQuery(
+                                            "SELECT product_id FROM sale_products WHERE sale_id = :saleId", Integer.class)
+                                    .setParameter("saleId", sale.getId())
+                                    .getResultList());
+                        }
+                        client.sendToClient(new Msg("SENT_SALES", sales));
+                    }
+                }
+
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
         }
@@ -428,7 +442,7 @@ public class SimpleServer extends AbstractServer {
 
     private List<Product> fetchCatalog() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("from Product", Product.class).list();
+            return session.createQuery("FROM Product", Product.class).list();
         }
     }
 

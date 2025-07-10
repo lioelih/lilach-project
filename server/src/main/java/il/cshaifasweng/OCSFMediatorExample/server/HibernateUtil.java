@@ -32,7 +32,6 @@ public class HibernateUtil {
             configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Basket.class);
             configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Order.class);
             configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.Sale.class);
-            configuration.addAnnotatedClass(il.cshaifasweng.OCSFMediatorExample.entities.SaleProduct.class);
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();
             sessionFactory = configuration.buildSessionFactory(serviceRegistry);

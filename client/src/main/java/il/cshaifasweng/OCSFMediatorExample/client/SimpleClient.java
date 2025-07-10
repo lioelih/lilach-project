@@ -52,6 +52,8 @@ public class SimpleClient extends AbstractClient {
 						EventBus.getDefault().post(massage);
 				case "VIP_ACTIVATED", "VIP_CANCELLED" ->
 						EventBus.getDefault().post(massage);
+				case "SENT_SALES" ->
+					    EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));
 				case "BASKET_FETCHED", "BASKET_UPDATED" ->
 						EventBus.getDefault().post(massage);
 				default ->

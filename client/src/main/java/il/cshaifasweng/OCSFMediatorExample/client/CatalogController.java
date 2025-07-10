@@ -1,26 +1,34 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import Events.CatalogEvent;
+import Events.SalesEvent;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -40,12 +48,15 @@ public class CatalogController {
     @FXML private TilePane productGrid;
     @FXML private ImageView logoImage;
     private List<Product> products;
+    private  List<Sale> sales;
 
     @FXML
     public void initialize() {
         EventBus.getDefault().register(this);
         try {
-            Msg msg = new Msg("GET_CATALOG", null);
+            Msg msg = new Msg("GET_SALES", null);
+            SimpleClient.getClient().sendToServer(msg);
+            msg = new Msg("GET_CATALOG", null);
             SimpleClient.getClient().sendToServer(msg);
 
             // Also fetch the user's current basket
@@ -140,6 +151,11 @@ public class CatalogController {
     }
 
     @Subscribe
+    public void onSalesReceived(SalesEvent event) {
+        sales = event.getSales();
+    }
+
+    @Subscribe
     public void handleBasketMessages(Msg msg) {
         if (msg.getAction().equals("BASKET_FETCHED")) {
             List<Basket> items = (List<Basket>) msg.getData();
@@ -154,7 +170,6 @@ public class CatalogController {
         }
     }
 
-
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
         for (Product product : productList) {
@@ -164,7 +179,11 @@ public class CatalogController {
             card.setPrefHeight(250);
             card.setAlignment(Pos.CENTER);
 
-            // Image
+            // Create StackPane to hold product image and optional sale badge
+            StackPane imageStack = new StackPane();
+            imageStack.setPrefSize(180, 120);
+
+            // Product ImageView
             ImageView imageView = new ImageView();
             imageView.setFitWidth(180);
             imageView.setFitHeight(120);
@@ -177,14 +196,44 @@ public class CatalogController {
                 }
             }
 
-            // Name
+            imageStack.getChildren().add(imageView);
+
+            //check if product isOnSale
+            boolean isOnSale = false;
+            for(Sale sale : this.sales)
+                if (sale.getProductIds().contains(product.getId()))
+                    if(sale.getEndDate().isAfter(LocalDateTime.now())) {
+                        isOnSale = true;
+                        break;
+                    }
+
+            // Price Label
+            Text price = new Text(String.format("₪%.2f", product.getPrice()));
+            price.setFill(Color.web("#2E8B57")); // SeaGreen color
+            price.setStyle("-fx-font-size: 12;");
+            TextFlow priceFlow = new TextFlow(price);
+            priceFlow.setTextAlignment(TextAlignment.CENTER);
+
+            if (isOnSale) {
+                // Sale badge ImageView
+                ImageView saleBadge = new ImageView(new Image(getClass().getResourceAsStream("/image/sale_icon.png")));
+                saleBadge.setFitWidth(40);
+                saleBadge.setFitHeight(40);
+
+                // Align saleBadge to top-right corner
+                StackPane.setAlignment(saleBadge, Pos.TOP_RIGHT);
+                StackPane.setMargin(saleBadge, new Insets(5));
+
+                imageStack.getChildren().add(saleBadge);
+            }
+
+            // Name Label
             Label nameLabel = new Label(product.getName());
             nameLabel.setStyle("-fx-font-size: 14; -fx-font-weight: bold;");
-            // Type
+
+            // Type Label
             Label typeLabel = new Label(product.getType());
-            // Price
-            Label priceLabel = new Label(String.format("₪%.2f", product.getPrice()));
-            priceLabel.setStyle("-fx-text-fill: darkgreen; -fx-font-size: 12;");
+
 
             // View Button
             Button viewButton = new Button("View");
@@ -215,11 +264,12 @@ public class CatalogController {
             });
 
 
-            card.getChildren().addAll(imageView, nameLabel, typeLabel, priceLabel, viewButton, addToBasketButton);
-
+            // Add everything to the card VBox
+            card.getChildren().addAll(imageStack, nameLabel, typeLabel, priceFlow, viewButton, addToBasketButton);
             productGrid.getChildren().add(card);
         }
     }
+
 
     private void updateFilterBox() {
         if (!typeBox.getItems().contains("All Types")) {
