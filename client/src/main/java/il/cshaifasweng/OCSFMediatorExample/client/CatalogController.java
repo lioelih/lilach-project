@@ -38,7 +38,7 @@ public class CatalogController {
     @FXML private Button basketIcon;
     @FXML private Label basketCountLabel;
     @FXML private TilePane productGrid;
-
+    @FXML private ImageView logoImage;
     private List<Product> products;
 
     @FXML
@@ -125,6 +125,8 @@ public class CatalogController {
             basketStage.setScene(scene);
             basketStage.show();
         });
+        Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
+        logoImage.setImage(logo);
     }
 
     @Subscribe
