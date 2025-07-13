@@ -4,8 +4,10 @@ import Events.CatalogEvent;
 import Events.SalesEvent;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
+import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
+import il.cshaifasweng.StockLineDTO;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -47,21 +49,20 @@ public class CatalogController {
     @FXML private Label basketCountLabel;
     @FXML private TilePane productGrid;
     @FXML private ImageView logoImage;
+    @FXML private ComboBox<Branch> branchFilter;
     private List<Product> products;
     private  List<Sale> sales;
-
+    private List<Product> fullCatalog = new ArrayList<>();
     @FXML
     public void initialize() {
         EventBus.getDefault().register(this);
         try {
-            Msg msg = new Msg("GET_SALES", null);
-            SimpleClient.getClient().sendToServer(msg);
-            msg = new Msg("GET_CATALOG", null);
-            SimpleClient.getClient().sendToServer(msg);
-
+            SimpleClient.ensureConnected();
+            SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
+            SimpleClient.getClient().sendToServer(new Msg("GET_SALES", null));
+            SimpleClient.getClient().sendToServer(new Msg("GET_CATALOG", null));
             // Also fetch the user's current basket
-            Msg fetchBasket = new Msg("FETCH_BASKET", SceneController.loggedUsername);
-            SimpleClient.getClient().sendToServer(fetchBasket);
+            SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
             System.out.println("Client instance: " + SimpleClient.getClient());
             System.out.println("Connected? " + (SimpleClient.getClient() != null && SimpleClient.getClient().isConnected()));
 
@@ -99,8 +100,7 @@ public class CatalogController {
 
         refreshButton.setOnAction(e -> {
             try {
-                Msg msg = new Msg("GET_CATALOG", null);
-                SimpleClient.getClient().sendToServer(msg);
+                SimpleClient.getClient().sendToServer(new Msg("GET_CATALOG", null));
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -143,11 +143,49 @@ public class CatalogController {
         iv.setFitWidth(24);   // optional sizing
         iv.setPreserveRatio(true);
         basketIcon.setGraphic(iv);
+
+        branchFilter.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(Branch b, boolean empty) {
+                super.updateItem(b,empty);
+                setText(empty || b==null ? "" : b.getName());
+            }
+        });
+        branchFilter.setCellFactory(lv -> new ListCell<>() {
+            @Override protected void updateItem(Branch b, boolean empty) {
+                super.updateItem(b,empty);
+                setText(empty || b==null ? "" : b.getName());
+            }
+        });
+
+        filterButton.setOnAction(e -> {
+
+            Branch sel = branchFilter.getValue();
+
+            // -----------  “All Products”  -----------
+            if (sel == null || sel.getBranchId() == 0) {
+                products = new ArrayList<>(fullCatalog);   // full list you cached
+                applyLocalFilters();                       // only local filters
+                return;
+            }
+
+            // -----------  real branch  -----------
+            try {
+                SimpleClient.getClient()
+                        .sendToServer(new Msg("STOCK_BY_BRANCH", sel.getBranchId()));
+            } catch (IOException ex) { ex.printStackTrace(); }
+
+            applyLocalFilters();
+        });
+
+
+
+
     }
 
     @Subscribe
     public void onCatalogReceived(CatalogEvent event) {
         products = event.getProducts();
+        fullCatalog = new ArrayList<>(products);
         Platform.runLater(() -> {
             updateFilterBox();
             displayProducts(products);
@@ -174,6 +212,25 @@ public class CatalogController {
             }
         }
     }
+    @Subscribe
+    public void handleBranches(Msg m) {
+        if (!"BRANCHES_OK".equals(m.getAction())) return;
+
+        List<Branch> list = new ArrayList<>((List<Branch>) m.getData());
+
+        // build a fake “All Products” branch
+        Branch all = new Branch();
+        all.setName("All Products");
+        all.setBranchId(0);           // never exists in DB
+        list.add(0, all);
+
+        Platform.runLater(() -> {
+            branchFilter.getItems().setAll(list);
+            branchFilter.getSelectionModel().selectFirst();   // default = “All Products”
+        });
+    }
+
+
 
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
@@ -297,6 +354,26 @@ public class CatalogController {
         stringSearchField.setText("");
     }
 
+    private void applyLocalFilters() {
+        List<Product> base = new ArrayList<>(products);   // ‘products’ = whole catalog
+
+        if (!"All Types".equals(typeBox.getValue()))
+            base.removeIf(p -> !p.getType().equals(typeBox.getValue()));
+
+        if (!minPrice.getText().isBlank())
+            base.removeIf(p -> p.getPrice() < Double.parseDouble(minPrice.getText()));
+
+        if (!maxPrice.getText().isBlank())
+            base.removeIf(p -> p.getPrice() > Double.parseDouble(maxPrice.getText()));
+
+        if (!stringSearchField.getText().isBlank())
+            base.removeIf(p -> !p.getName().toLowerCase()
+                    .contains(stringSearchField.getText().toLowerCase()));
+
+        displayProducts(base);
+    }
+
+
     private void openProductPage(Product product) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("product_view.fxml"));
@@ -311,6 +388,34 @@ public class CatalogController {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @Subscribe
+    public void handleStock(Msg m) {
+        if (!"STOCK_OK".equals(m.getAction())) return;
+
+        List<StockLineDTO> rows = (List<StockLineDTO>) m.getData();
+
+        // keep only product-ids that are in this stock list
+        List<Integer> allowedIds = rows.stream()
+                .map(StockLineDTO::product_id)
+                .distinct()
+                .toList();
+
+        List<Product> allowed = products.stream()
+                .filter(p -> allowedIds.contains(p.getId()))
+                .toList();
+
+        // after server filter, apply local UI filters too
+        Platform.runLater(() -> {
+            products = new ArrayList<>(allowed);  // limit ‘products’ pool temporarily
+            applyLocalFilters();
+        });
+    }
+
+
+    @FXML private void filterButtonFire() {    // called by both Filter-btn and combo
+        filterButton.fire();
     }
 
     @FXML

@@ -7,12 +7,17 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.control.ComboBox?>
 <VBox alignment="TOP_CENTER" prefHeight="500" prefWidth="600" spacing="15" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.ProductViewController">
     <Label style="-fx-font-size: 24px; -fx-font-weight: bold;" text="Name:" />
     <TextField fx:id="nameField" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
     <Label style="-fx-font-size: 18px;" text="Type:" />
     <TextField fx:id="typeField" style="-fx-font-size: 18px;" />
     <ImageView fx:id="imageView" fitHeight="200" fitWidth="300" preserveRatio="true" />
+    <Label text="Quantity in branch:"/>
+    <TextField fx:id="qtyField" prefWidth="80"/>
+    <ComboBox fx:id="branchBox" prefWidth="120"/>
+    <Button fx:id="saveStockBtn" text="Save Qty"/>
 
     <Label style="-fx-font-size: 16px;" text="Price:" />
     <TextField fx:id="priceField" prefWidth="100" />
