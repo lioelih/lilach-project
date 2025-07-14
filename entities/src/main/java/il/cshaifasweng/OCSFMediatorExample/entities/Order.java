@@ -12,6 +12,9 @@ public class Order {
     @Column(name = "order_id")
     private int orderId;
 
+    @ManyToOne
+    @JoinColumn(name = "branch_id")           // FK to branches.branch_id
+    private Branch branch;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -39,13 +42,8 @@ public class Order {
         this.user = user;
     }
 
-    public String getPickup() {
-        return pickup;
-    }
-
-    public void setPickup(String pickup) {
-        this.pickup = pickup;
-    }
+    public Branch getBranch()            { return branch; }
+    public void   setBranch(Branch b)    { this.branch = b; }
 
     public String getDelivery() {
         return delivery;

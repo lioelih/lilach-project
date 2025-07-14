@@ -58,6 +58,7 @@
                         <TextField fx:id="maxPrice" prefWidth="95.0" promptText="Maximum Price" />
                     </children>
                 </HBox>
+                <ComboBox fx:id="branchFilter" onAction="#filterButtonFire"/>
                 <Button fx:id="filterButton" text="Filter" />
             </HBox>
 

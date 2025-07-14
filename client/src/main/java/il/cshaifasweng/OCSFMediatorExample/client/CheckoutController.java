@@ -1,8 +1,10 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import Events.*;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OrderDTO;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
+import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
 import javafx.application.Platform;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
@@ -18,14 +20,12 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ResourceBundle;
+import java.util.*;
 
 public class CheckoutController implements Initializable {
 
     /* ------------ FXML -------------- */
-    @FXML private TableView<Basket> basketTable;
+    @FXML private TableView<Basket>          basketTable;
     @FXML private TableColumn<Basket,String> nameCol;
     @FXML private TableColumn<Basket,Integer> amtCol;
     @FXML private TableColumn<Basket,Double> priceCol;
@@ -35,17 +35,18 @@ public class CheckoutController implements Initializable {
     @FXML private Button addCardButton;
 
     @FXML private RadioButton pickupRadio, deliveryRadio;
-    @FXML private ComboBox<String> branchCombo;
+    @FXML private ComboBox<Branch> branchCombo;          //  <-- now Branch
     @FXML private TextField cityField, streetField, houseField, zipField;
 
-    @FXML private Button completeBtn;
-    @FXML private ImageView logoImage;
+    @FXML private Button     completeBtn;
+    @FXML private ImageView  logoImage;
 
     /* ------------ data -------------- */
-    private final List<Basket> items = new ArrayList<>();
+    private final List<Basket>  items          = new ArrayList<>();
     private final BooleanProperty hasCardProperty = new SimpleBooleanProperty(false);
+    private final List<Branch>  branchList     = new ArrayList<>();     //  <-- keep list
 
-    /* called from BasketController */
+    /* ------------ init from BasketController -------------- */
     public void initData(List<Basket> copy) {
         items.clear();
         items.addAll(copy);
@@ -54,6 +55,7 @@ public class CheckoutController implements Initializable {
         requestSavedCard();
     }
 
+    /* ------------ controller init -------------- */
     @Override public void initialize(URL u, ResourceBundle b) {
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
 
@@ -70,7 +72,20 @@ public class CheckoutController implements Initializable {
         pickupRadio   .setToggleGroup(fulGrp);
         deliveryRadio .setToggleGroup(fulGrp);
 
-        branchCombo.getItems().addAll("Jerusalem","Haifa","Tel-Aviv");
+        /* ---------- branch combo visualisation ---------- */
+        branchCombo.setCellFactory(cb -> new ListCell<>() {
+            @Override protected void updateItem(Branch b, boolean empty) {
+                super.updateItem(b, empty);
+                setText(empty || b == null ? "" : b.getName());
+            }
+        });
+        branchCombo.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(Branch b, boolean empty) {
+                super.updateItem(b, empty);
+                setText(empty || b == null ? "" : b.getName());
+            }
+        });
+
         branchCombo.disableProperty().bind(pickupRadio.selectedProperty().not());
         cityField.disableProperty()  .bind(deliveryRadio.selectedProperty().not());
         streetField.disableProperty().bind(deliveryRadio.selectedProperty().not());
@@ -85,10 +100,8 @@ public class CheckoutController implements Initializable {
                         .or(addCardRadio.selectedProperty());
 
         BooleanBinding fulfilOk =
-                // PICK-UP → branch must be chosen
                 pickupRadio.selectedProperty()
                         .and(branchCombo.valueProperty().isNotNull())
-                        // DELIVERY → all address boxes non-empty
                         .or(deliveryRadio.selectedProperty()
                                 .and(cityField.textProperty().isNotEmpty())
                                 .and(streetField.textProperty().isNotEmpty())
@@ -103,17 +116,42 @@ public class CheckoutController implements Initializable {
         completeBtn.disableProperty().bind(ready.not());
         completeBtn.setOnAction(e -> submitOrder());
 
-        EventBus.getDefault().register(this);
+        /* ask server for branches & card */
+        try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); }
+        catch (Exception ex){ex.printStackTrace();}
+        requestSavedCard();
+
+        if (!EventBus.getDefault().isRegistered(this))
+            EventBus.getDefault().register(this);
     }
 
-    /* -------------- utils -------------- */
-    private BooleanBinding addressOrBranchValid() {
-        return pickupRadio.selectedProperty().or(
-                cityField.textProperty().isNotEmpty()
-                        .and(streetField.textProperty().isNotEmpty())
-                        .and(houseField.textProperty().isNotEmpty())
-                        .and(zipField.textProperty().isNotEmpty()));
+    /* ---------- build & send order ---------- */
+    private void submitOrder() {
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new Msg("NEW_ORDER", buildDto()));
+        } catch (Exception e){e.printStackTrace();}
     }
+
+    private OrderDTO buildDto() {
+        String type = pickupRadio.isSelected() ? "PICKUP" : "DELIVERY";
+        String info;
+
+        if ("PICKUP".equals(type)) {
+            Branch sel = branchCombo.getValue();
+            info = sel == null ? "" : String.valueOf(sel.getBranchId()); // send id
+        } else {
+            info = String.format("%s, %s %s (%s)",
+                    cityField.getText(), streetField.getText(),
+                    houseField.getText(), zipField.getText());
+        }
+
+        return new OrderDTO(SceneController.loggedUsername,
+                items.stream().map(Basket::getId).toList(),
+                type, info);
+    }
+
+    /* ---------- helpers ---------- */
     private void updateTotal() {
         double total = items.stream().mapToDouble(Basket::getPrice).sum();
         totalLabel.setText(String.format("₪ %.2f", total));
@@ -134,57 +172,43 @@ public class CheckoutController implements Initializable {
         } catch (Exception e){e.printStackTrace();}
     }
 
-    /* -------------- submit -------------- */
-    private void submitOrder() {
-        try {
-            SimpleClient.getClient().sendToServer(
-                    new Msg("NEW_ORDER", buildDto()));
-        } catch (Exception e){e.printStackTrace();}
-    }
-    private OrderDTO buildDto() {
-        String type  = pickupRadio.isSelected()?"PICKUP":"DELIVERY";
-        String info  = pickupRadio.isSelected()? branchCombo.getValue()
-                : String.format("%s, %s %s (%s)",
-                cityField.getText(), streetField.getText(),
-                houseField.getText(), zipField.getText());
-        return new OrderDTO(SceneController.loggedUsername,
-                items.stream().map(Basket::getId).toList(),
-                type, info);
-    }
-
-    /* -------------- server msgs -------------- */
+    /* ---------- server events ---------- */
     @Subscribe
     public void handleServerMsg(Msg m) {
+
+        if ("BRANCHES_OK".equals(m.getAction())) {          // fill combo
+            branchList.clear();
+            branchList.addAll((List<Branch>) m.getData());
+
+            Platform.runLater(() -> {
+                branchCombo.getItems().setAll(branchList);
+                branchCombo.getSelectionModel().clearSelection();
+            });
+            return;
+        }
+
         Platform.runLater(() -> {
             switch (m.getAction()) {
                 case "HAS_CARD" -> {
                     boolean has = (Boolean) m.getData();
                     hasCardProperty.set(has);
-                    savedCardRadio.setText(has? "Use saved card" : "No card on file");
+                    savedCardRadio.setText(has ? "Use saved card" : "No card on file");
                     savedCardRadio.setDisable(!has);
                 }
-
                 case "ORDER_OK" -> {
-                    Alert ok = new Alert(Alert.AlertType.INFORMATION,"Order completed!");
-                    ok.showAndWait();
-
-                    // ask server for fresh basket (will come back empty)
+                    new Alert(Alert.AlertType.INFORMATION,"Order completed!").showAndWait();
                     try { SimpleClient.getClient().sendToServer(
                             new Msg("FETCH_BASKET", SceneController.loggedUsername)); }
                     catch(Exception e){e.printStackTrace();}
-
                     closeWindow();
                 }
-
-                case "ORDER_FAIL" -> {
-                    new Alert(Alert.AlertType.ERROR,"Order failed, please check details.")
-                            .showAndWait();
-                }
+                case "ORDER_FAIL" -> new Alert(Alert.AlertType.ERROR,
+                        "Order failed, please check details.").showAndWait();
             }
         });
     }
 
-    /* -------------- misc -------------- */
+    /* ---------- window utils ---------- */
     private void closeWindow() {
         ((Stage) basketTable.getScene().getWindow()).close();
     }
