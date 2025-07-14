@@ -138,11 +138,6 @@ public class CatalogController {
         });
         Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
         logoImage.setImage(logo);
-        Image img = new Image(getClass().getResourceAsStream("/image/basket_icon.png"));
-        ImageView iv = new ImageView(img);
-        iv.setFitWidth(24);   // optional sizing
-        iv.setPreserveRatio(true);
-        basketIcon.setGraphic(iv);
     }
 
     @Subscribe
@@ -205,14 +200,12 @@ public class CatalogController {
 
             //check if product isOnSale
             boolean isOnSale = false;
-            if(this.sales != null) {
-                for (Sale sale : this.sales)
-                    if (sale.getProductIds().contains(product.getId()))
-                        if (sale.getEndDate().isAfter(LocalDateTime.now())) {
-                            isOnSale = true;
-                            break;
-                        }
-            }
+            for(Sale sale : this.sales)
+                if (sale.getProductIds().contains(product.getId()))
+                    if(sale.getEndDate().isAfter(LocalDateTime.now())) {
+                        isOnSale = true;
+                        break;
+                    }
 
             // Price Label
             Text price = new Text(String.format("₪%.2f", product.getPrice()));

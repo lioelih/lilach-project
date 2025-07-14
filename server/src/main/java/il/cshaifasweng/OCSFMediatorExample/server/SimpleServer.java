@@ -341,9 +341,6 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("BASKET_UPDATED", null));
                     }
                 }
-
-
-
                 case "GET_SALES" -> {
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
