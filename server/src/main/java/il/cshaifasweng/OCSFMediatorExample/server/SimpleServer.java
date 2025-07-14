@@ -5,6 +5,8 @@ import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
+import il.cshaifasweng.OrderDTO;
+import il.cshaifasweng.StockLineDTO;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.*;
 
 public class SimpleServer extends AbstractServer {
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
@@ -354,6 +357,282 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                case "NEW_ORDER" -> {
+
+                    /* incoming payload */
+                    OrderDTO dto = (OrderDTO) data;
+                    boolean   ok = false;                   // will flip to true on success
+
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        Transaction tx = s.beginTransaction();
+
+                        /* ---------- 1. fetch the user ---------- */
+                        User user = s.createQuery(
+                                        "FROM User WHERE username = :u", User.class)
+                                .setParameter("u", dto.getUsername())
+                                .uniqueResult();
+                        if (user == null) {                         // should never happen
+                            client.sendToClient(new Msg("ORDER_FAIL","Unknown user"));
+                            return;
+                        }
+
+                        /* ---------- 2. fetch basket lines ---------- */
+                        List<Basket> basketItems = s.createQuery(
+                                        "FROM Basket WHERE id IN (:ids) " +
+                                                "AND user  = :u " +
+                                                "AND order IS NULL", Basket.class)
+                                .setParameter("ids", dto.getBasketIds())
+                                .setParameter("u",   user)
+                                .list();
+                        if (basketItems.size() != dto.getBasketIds().size()) {
+                            client.sendToClient(new Msg("ORDER_FAIL","Basket mismatch"));
+                            return;
+                        }
+
+        /* ------------------------------------------------------------
+           3. PICK-UP stock validation (if applicable)
+           ------------------------------------------------------------ */
+                        int branchId = -1;                             // will hold parsed id
+
+                        if ("PICKUP".equals(dto.getFulfilType())) {
+
+                            if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
+                                client.sendToClient(new Msg("ORDER_FAIL",
+                                        "No pick-up branch selected"));
+                                return;
+                            }
+
+                            try { branchId = Integer.parseInt(dto.getFulfilInfo()); }
+                            catch (NumberFormatException ex) {
+                                client.sendToClient(new Msg("ORDER_FAIL",
+                                        "Malformed branch id"));
+                                return;
+                            }
+
+                            /* build  {productId → qtyRequested}  */
+                            Map<Integer,Integer> requested = new HashMap<>();
+                            for (Basket b : basketItems)
+                                requested.merge(b.getProduct().getId(),
+                                        b.getAmount(), Integer::sum);
+
+                            /* ask DB for quantities in that branch */
+                            List<Object[]> chk = checkBranchStock(s, branchId, requested);
+
+                            for (Object[] row : chk) {
+                                Integer have = (Integer) row[2];   // may be null
+                                int      want = (Integer) row[1];
+
+                                if (have == null) {
+                                    client.sendToClient(new Msg("ORDER_FAIL",
+                                            "Items aren't available in selected pick-up branch!"));
+                                    tx.rollback();  return;
+                                }
+                                if (have < want) {
+                                    client.sendToClient(new Msg("ORDER_FAIL",
+                                            "Not enough items are available in selected pick-up branch!"));
+                                    tx.rollback();  return;
+                                }
+                            }
+
+                            /* deduct stock (all checks passed) */
+                            for (Object[] row : chk) {
+                                int pid  = (Integer) row[0];
+                                int want = (Integer) row[1];
+
+                                Storage st = s.createQuery("""
+                        FROM Storage
+                        WHERE product.product_id = :pid
+                          AND branch.branch_id   = :bid
+                        """, Storage.class)
+                                        .setParameter("pid", pid)
+                                        .setParameter("bid", branchId)
+                                        .setMaxResults(1)
+                                        .uniqueResult();
+
+                                st.setQuantity(st.getQuantity() - want);
+                                s.merge(st);
+                            }
+                        }
+
+        /* ------------------------------------------------------------
+           4. create Order and link baskets
+           ------------------------------------------------------------ */
+                        Order order = new Order();
+                        order.setUser(user);
+                        order.setReceived(false);
+
+                        if ("PICKUP".equals(dto.getFulfilType())) {
+                            Branch pickedBranch = s.get(Branch.class, branchId);
+                            if (pickedBranch == null) {               // should not happen
+                                client.sendToClient(new Msg("ORDER_FAIL","Branch not found"));
+                                tx.rollback(); return;
+                            }
+                            order.setBranch(pickedBranch);            // FK column
+                        }
+                        else if ("DELIVERY".equals(dto.getFulfilType())) {
+                            if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
+                                client.sendToClient(new Msg("ORDER_FAIL",
+                                        "Delivery address missing"));
+                                tx.rollback(); return;
+                            }
+                            order.setDelivery(dto.getFulfilInfo());
+                        }
+                        else {                                        // invalid fulfil type
+                            client.sendToClient(new Msg("ORDER_FAIL","Bad fulfil type"));
+                            tx.rollback(); return;
+                        }
+
+                        s.persist(order);
+
+                        /* link basket rows */
+                        for (Basket b : basketItems) {
+                            b.setOrder(order);
+                            s.merge(b);
+                        }
+
+                        tx.commit();
+                        ok = true;
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+
+                    client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", null));
+                }
+
+
+                case "HAS_CARD" -> {
+                    /* data == username (String) */
+                    String username = (String) data;
+
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery(
+                                        "FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
+
+                        boolean hasCard =
+                                user != null
+                                        && user.getCreditCardNumber() != null
+                                        && !user.getCreditCardNumber().isBlank();
+
+                        client.sendToClient(new Msg("HAS_CARD", hasCard));
+                    }
+                }
+                case "LIST_BRANCHES" -> {
+                    System.out.println("[Server] Listing BRANCHES");
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        List<Branch> list = s.createQuery("FROM Branch", Branch.class).list();
+
+                        // force Hibernate to initialize collections before clearing
+                        list.forEach(b -> {
+                            b.getStockLines().size();  // trigger fetch to avoid LazyInitEx
+                            b.setManager(null);        // manager is still a proxy — okay
+                            b.getStockLines().clear(); // now we can clear safely
+                        });
+
+                        System.out.println("[Server] Sending BRANCHES_OK with " + list.size() + " branches");
+                        client.sendToClient(new Msg("BRANCHES_OK", list));
+                    } catch (Exception ex) {
+                        System.err.println("[Server] Failed to send branches: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
+                }
+
+
+                case "STOCK_BY_BRANCH" -> {
+                    Integer branchId = (Integer) data;   // null ⇒ all branches
+
+                    String hql = """
+                    SELECT new il.cshaifasweng.StockLineDTO(
+                        st.storage_id,
+                        p.product_id,
+                        p.product_name,
+                        p.product_type,
+                        p.product_price,
+                        p.product_image,
+                        b.branch_id,
+                        b.branch_name,
+                        st.quantity)
+                    FROM Storage st
+                    JOIN st.product p
+                    JOIN st.branch b
+                    WHERE (:bid IS NULL OR b.branch_id = :bid)
+                      AND st.quantity > 0
+    """;
+
+
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        List<StockLineDTO> rows = s
+                                .createQuery(hql, StockLineDTO.class)
+                                .setParameter("bid", branchId)
+                                .list();
+
+                        client.sendToClient(new Msg("STOCK_OK", rows));
+                    }
+                }
+
+
+                case "ADD_STOCK" -> {        // payload = int[productId, branchId, qty]
+                    System.out.println("[Server] Adding stock line");
+                    int[] arr  = (int[]) data;
+                    int pid    = arr[0];
+                    int bid    = arr[1];
+                    int qtyAdd = arr[2];
+
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        s.beginTransaction();
+
+                        Storage st = s.createQuery("""
+            FROM Storage
+            WHERE product.product_id = :pid
+              AND branch.branch_id   = :bid
+            """, Storage.class)
+                                .setParameter("pid", pid)
+                                .setParameter("bid", bid)
+                                .uniqueResult();
+
+                        if (st == null) {
+                            st = new Storage();
+                            st.setProduct(s.get(Product.class, pid));   // product_id FK
+                            st.setBranch (s.get(Branch.class,  bid));   // branch_id  FK
+                            st.setQuantity(qtyAdd);
+                            s.persist(st);
+                        } else {
+                            st.setQuantity(st.getQuantity() + qtyAdd);
+                            s.merge(st);
+                        }
+
+                        s.getTransaction().commit();
+                        client.sendToClient(new Msg("ADD_STOCK_OK", null));
+                    }
+                }
+                case "FETCH_STOCK_SINGLE" -> {
+                    /* payload = { productId, branchId } */
+                    Object[] arr   = (Object[]) data;
+                    int pid        = (Integer) arr[0];
+                    int bid        = (Integer) arr[1];
+
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        Integer qty = (Integer) s.createQuery("""
+            SELECT st.quantity
+            FROM Storage st
+            WHERE st.product.product_id = :pid
+              AND st.branch.branch_id   = :bid
+            """, Integer.class)
+                                .setParameter("pid", pid)
+                                .setParameter("bid", bid)
+                                .setMaxResults(1)
+                                .uniqueResult();
+
+                        /* if null → no row yet → treat as 0 */
+                        client.sendToClient(new Msg("STOCK_SINGLE_OK",
+                                qty == null ? 0 : qty));
+                    }
+                }
+
+
+
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
         }
@@ -388,17 +667,30 @@ public class SimpleServer extends AbstractServer {
     }
 
     private void deleteProduct(int productId) {
+        Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            session.beginTransaction();
+            tx = session.beginTransaction();
+
+            /* 1. detach from baskets (prevents FK violation) */
+            int removed = session.createQuery(
+                            "DELETE FROM Basket b WHERE b.product.id = :pid")
+                    .setParameter("pid", productId)
+                    .executeUpdate();
+            System.out.println("[Server] Removed " + removed + " basket rows");
+
+            /* 2. delete the product itself */
             Product dbProduct = session.get(Product.class, productId);
             if (dbProduct != null) {
                 session.delete(dbProduct);
-                System.out.println("Product deleted successfully.");
+                System.out.println("[Server] Product deleted successfully.");
             } else {
-                System.out.println("Product not found.");
+                System.out.println("[Server] Product not found.");
             }
-            session.getTransaction().commit();
+
+            tx.commit();
         } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            System.err.println("[Server] Failed to delete product " + productId);
             e.printStackTrace();
         }
     }
@@ -442,6 +734,44 @@ public class SimpleServer extends AbstractServer {
             return session.createQuery("FROM Product", Product.class).list();
         }
     }
+
+
+    private List<Object[]> checkBranchStock(Session s,
+                                            int branchId,
+                                            Map<Integer,Integer> requested) {
+
+        // HQL fetches only needed rows from storage
+        String hql = """
+        SELECT st.product.product_id ,
+               SUM(st.quantity)
+        FROM Storage st
+        WHERE st.branch.branch_id = :bid
+          AND st.product.product_id IN (:ids)
+        GROUP BY st.product.product_id
+        """;
+
+        List<Object[]> stock = s.createQuery(hql,Object[].class)
+                .setParameter("bid", branchId)
+                .setParameterList("ids", requested.keySet())
+                .getResultList();
+
+        /* put into map → product_id → quantityInBranch */
+        Map<Integer,Integer> available = new HashMap<>();
+        stock.forEach(row -> available.put( (Integer)row[0] ,
+                ((Long)row[1]).intValue() ));
+
+        // build answer list in same order as requested map
+        List<Object[]> result = new ArrayList<>();
+        for (var e : requested.entrySet()) {
+            Integer pid    = e.getKey();
+            int      want  = e.getValue();
+            Integer have   = available.get(pid);   // may be null
+            result.add(new Object[]{pid, want, have});
+        }
+        return result;
+    }
+
+
 
     @Override
     protected void serverStopped() {

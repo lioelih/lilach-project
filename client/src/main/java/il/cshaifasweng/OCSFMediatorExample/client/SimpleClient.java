@@ -44,13 +44,11 @@ public class SimpleClient extends AbstractClient {
 						EventBus.getDefault().post(new LoginEvent(massage));
 				case "REGISTER_SUCCESS", "REGISTER_FAILED" ->
 						EventBus.getDefault().post(new RegisterEvent(massage));
-				case "FETCH_USER" ->
-						EventBus.getDefault().post(massage);
-				case "PAYMENT_PREFILL" ->
-						EventBus.getDefault().post(massage);
-				case "PAYMENT_INFO" ->
-						EventBus.getDefault().post(massage);
-				case "VIP_ACTIVATED", "VIP_CANCELLED" ->
+
+				case "FETCH_USER", "PAYMENT_PREFILL",
+					 "PAYMENT_INFO", "VIP_ACTIVATED", "VIP_CANCELLED",
+					 "BASKET_FETCHED", "BASKET_UPDATED",
+					 "HAS_CARD", "ORDER_OK", "ORDER_FAIL", "BRANCHES_OK", "STOCK_OK", "ADD_STOCK_OK", "STOCK_SINGLE_OK"    ->   // ← new line
 						EventBus.getDefault().post(massage);
 				case "SENT_SALES" ->
 					    EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));

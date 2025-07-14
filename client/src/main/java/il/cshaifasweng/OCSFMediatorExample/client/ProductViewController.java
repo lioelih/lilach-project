@@ -1,66 +1,72 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import Events.WarningEvent;
 import il.cshaifasweng.Msg;
+import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import javafx.scene.control.Alert.AlertType;
+import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Optional;
 
 public class ProductViewController {
 
-    @FXML
-    private TextField nameField;
+    @FXML private TextField nameField, typeField, priceField, qtyField;
+    @FXML private ImageView imageView;
+    @FXML private Button updateButton, deleteButton, saveStockBtn;
+    @FXML private ComboBox<Branch> branchBox;
 
-    @FXML
-    private TextField typeField;
+    private Product product;
+    private File droppedImageFile;
 
-    @FXML
-    private ImageView imageView;
+    @FXML private void initialize() {
+        if (!EventBus.getDefault().isRegistered(this))
+            EventBus.getDefault().register(this);
 
-    @FXML
-    private TextField priceField;
+        branchBox.setButtonCell(new ListCell<>() {
+            @Override protected void updateItem(Branch b, boolean empty){
+                super.updateItem(b, empty);
+                setText(empty || b == null ? "" : b.getName());
+            }
+        });
+        branchBox.setCellFactory(lv -> new ListCell<>() {
+            @Override protected void updateItem(Branch b, boolean empty){
+                super.updateItem(b, empty);
+                setText(empty || b == null ? "" : b.getName());
+            }
+        });
 
-    @FXML
-    private Button updateButton;
-
-    @FXML
-    private Button deleteButton;
-
-
-
-    private File droppedImageFile = null; // holds the file temporarily
-
+        saveStockBtn.setDisable(true);
+        branchBox.getSelectionModel().selectedItemProperty().addListener(
+                (obs, oldV, newV) -> saveStockBtn.setDisable(newV == null));
+    }
 
     public void setProduct(Product product) {
+        this.product = product;
 
         nameField.setText(product.getName());
         typeField.setText(product.getType());
         priceField.setText(String.format("%.2f", product.getPrice()));
 
-        try {
-            byte[] imageBytes = product.getImage();
-            if (imageBytes != null && imageBytes.length > 0) {
-                Image image = new Image(new ByteArrayInputStream(imageBytes));
-                imageView.setImage(image);
-            } else {
-                imageView.setImage(null);
-            }
-        } catch (Exception e) {
+        if (product.getImage() != null && product.getImage().length > 0) {
+            imageView.setImage(new Image(new ByteArrayInputStream(product.getImage())));
+        } else {
             imageView.setImage(null);
-            e.printStackTrace();
         }
 
+        // Drag and drop image logic
         imageView.setOnDragOver(event -> {
             if (event.getGestureSource() != imageView && event.getDragboard().hasFiles()) {
                 event.acceptTransferModes(TransferMode.COPY);
@@ -71,7 +77,6 @@ public class ProductViewController {
         imageView.setOnDragDropped(event -> {
             Dragboard db = event.getDragboard();
             boolean success = false;
-
             if (db.hasFiles()) {
                 File file = db.getFiles().get(0);
                 if (file.getName().toLowerCase().endsWith(".png")) {
@@ -86,15 +91,69 @@ public class ProductViewController {
             event.consume();
         });
 
+        // Ask server for branches
+        try {
+            SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
+        } catch (IOException ex) { ex.printStackTrace(); }
+
+        branchBox.valueProperty().addListener((obs, oldB, newB) -> {
+            if (newB == null) return;
+            try {
+                SimpleClient.getClient().sendToServer(
+                        new Msg("FETCH_STOCK_SINGLE", new Object[]{ product.getId(), newB.getBranchId() }));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        saveStockBtn.setOnAction(ev -> {
+            Branch br = branchBox.getValue();
+            if (br == null) {
+                showAlert("Choose a branch first.");
+                return;
+            }
+
+            if (qtyField.getText().isBlank()) {
+                showAlert("Enter a quantity.");
+                return;
+            }
+
+            int qty;
+            try {
+                qty = Integer.parseInt(qtyField.getText().trim());
+            } catch (NumberFormatException ex) {
+                showAlert("Quantity must be a whole number.");
+                return;
+            }
+
+            if (qty < 0) {
+                showAlert("Quantity can’t be negative.");
+                return;
+            }
+
+            int[] payload = { product.getId(), br.getBranchId(), qty };
+
+            try {
+                SimpleClient.getClient().sendToServer(new Msg("ADD_STOCK", payload));
+                saveStockBtn.setDisable(true);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                showAlert("Failed to contact server.");
+            }
+        });
+
+        // Restore update button functionality
         updateButton.setOnAction(e -> {
             try {
                 String newName = nameField.getText().trim();
                 String newType = typeField.getText().trim();
                 String stringPrice = priceField.getText().trim();
+
                 if (newName.isEmpty() || newType.isEmpty() || stringPrice.isEmpty()) {
                     showAlert("Please fill in all fields.");
                     return;
                 }
+
                 double newPrice;
                 try {
                     newPrice = Double.parseDouble(stringPrice);
@@ -105,50 +164,77 @@ public class ProductViewController {
 
                 byte[] newImage;
                 try {
-                    if (droppedImageFile == null) newImage = product.getImage();
-                    else newImage = Files.readAllBytes(droppedImageFile.toPath());
+                    if (droppedImageFile == null)
+                        newImage = product.getImage();
+                    else
+                        newImage = Files.readAllBytes(droppedImageFile.toPath());
                 } catch (IOException err) {
                     showAlert("Failed to read image file.");
                     return;
                 }
-                product.updateProduct(newName,newType,newPrice,newImage);
 
-                Msg msg = new Msg("UPDATE_PRODUCT", product);
-                SimpleClient.getClient().sendToServer(msg);
-                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Product updated!");
+                product.updateProduct(newName, newType, newPrice, newImage);
+                SimpleClient.getClient().sendToServer(new Msg("UPDATE_PRODUCT", product));
+                Alert alert = new Alert(AlertType.INFORMATION, "Product updated!");
                 alert.showAndWait();
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
 
+        // Restore delete button functionality
         deleteButton.setOnAction(e -> {
             try {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                Alert alert = new Alert(AlertType.CONFIRMATION);
                 alert.setTitle("Confirmation");
                 alert.setHeaderText("Are you sure?");
-                alert.setContentText("Do you really want to delete" + product.getName() + "from the store?");
-
+                alert.setContentText("Do you really want to delete " + product.getName() + " from the store?");
                 Optional<ButtonType> result = alert.showAndWait();
                 if (result.isPresent() && result.get() == ButtonType.OK) {
-                    Msg msg = new Msg("DELETE_PRODUCT", product);
-                    SimpleClient.getClient().sendToServer(msg);
-                } else {
-                    // User clicked Cancel
-                    System.out.println("Cancelled.");
+                    SimpleClient.getClient().sendToServer(new Msg("DELETE_PRODUCT", product));
                 }
-            } catch (IOException err) {
-                err.printStackTrace();
+                deleteButton.getScene().getWindow().hide();
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
         });
     }
 
-    private void showAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Input Error");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+    @Subscribe
+    public void onBranches(Msg m) {
+        if (!"BRANCHES_OK".equals(m.getAction())) return;
+        List<Branch> branches = (List<Branch>) m.getData();
+        Platform.runLater(() -> {
+            branchBox.getItems().setAll(branches);
+            branchBox.getSelectionModel().clearSelection();
+        });
     }
 
+    @Subscribe
+    public void onStockSaved(Msg m) {
+        if (!"ADD_STOCK_OK".equals(m.getAction())) return;
+        Platform.runLater(() -> {
+            Alert alert = new Alert(AlertType.INFORMATION, "Quantity saved to storage!", ButtonType.OK);
+            alert.setHeaderText(null);
+            alert.showAndWait();
+            qtyField.clear();
+        });
+    }
+
+    @Subscribe
+    public void handleSingleStock(Msg m) {
+        if (!"STOCK_SINGLE_OK".equals(m.getAction())) return;
+        Integer qty = (Integer) m.getData();
+        Platform.runLater(() -> qtyField.setText(String.valueOf(qty)));
+    }
+
+    @FXML private void onClose() {
+        EventBus.getDefault().unregister(this);
+    }
+
+    private void showAlert(String txt) {
+        Alert alert = new Alert(AlertType.WARNING, txt, ButtonType.OK);
+        alert.setHeaderText(null);
+        alert.showAndWait();
+    }
 }
