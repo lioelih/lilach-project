@@ -23,12 +23,14 @@
                         <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true"/>
                         <!-- Removed Lilach Store text as requested -->
                         <Pane HBox.hgrow="ALWAYS"/>
-                        <Button fx:id="catalogButton" text="Catalog" styleClass="nav-button"/>
-                        <Button fx:id="contactButton" text="Contact Support" styleClass="nav-button"/>
-                        <Button fx:id="vipButton" text="VIP Subscription" styleClass="nav-button"/>
-                        <Button fx:id="loginButton" text="Login" styleClass="nav-button"/>
-                        <Button fx:id="registerButton" text="Register" styleClass="nav-button"/>
-                        <Button fx:id="logoutButton" text="Logout" visible="false" styleClass="nav-button"/>
+                      
+                        <Button fx:id="catalogButton"  text="Catalog"           styleClass="nav-button"/>
+                        <Button fx:id="contactButton"  text="Contact Support"  styleClass="nav-button"/>
+                        <Button fx:id="vipButton"      text="VIP Subscription" styleClass="nav-button"/>
+                        <Button fx:id="loginButton"    text="Login"            styleClass="nav-button"/>
+                        <Button fx:id="registerButton" text="Register"         styleClass="nav-button"/>
+                        <Button fx:id="logoutButton"   text="Logout"  visible="false" styleClass="nav-button"/>
+                        <Button fx:id="ordersButton"   text="Orders"  visible="false" styleClass="nav-button"/>
                     </children>
                 </HBox>
 

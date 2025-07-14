@@ -489,7 +489,7 @@ public class CatalogController {
                 .toList();
 
         List<Product> allowed = products.stream()
-                .filter(p -> allowedIds.contains(p.getId()))
+                .filter(p ->allowedIds.contains(p.getId()))
                 .toList();
 
         // after server filter, apply local UI filters too

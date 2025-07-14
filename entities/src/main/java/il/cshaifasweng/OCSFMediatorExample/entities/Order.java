@@ -13,16 +13,22 @@ public class Order {
     private int orderId;
 
     @ManyToOne
-    @JoinColumn(name = "branch_id")           // FK to branches.branch_id
+    @JoinColumn(name = "branch_id")
     private Branch branch;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
-    private String pickup;
+    @Column(name = "delivery")
     private String delivery;
+
+    @Column(name = "received")
     private boolean received;
+
+    @Column(name = "total_price")
+    private double totalPrice;
+
 
     public Order() {}
 
@@ -42,8 +48,13 @@ public class Order {
         this.user = user;
     }
 
-    public Branch getBranch()            { return branch; }
-    public void   setBranch(Branch b)    { this.branch = b; }
+    public Branch getBranch() {
+        return branch;
+    }
+
+    public void setBranch(Branch branch) {
+        this.branch = branch;
+    }
 
     public String getDelivery() {
         return delivery;
@@ -59,5 +70,16 @@ public class Order {
 
     public void setReceived(boolean received) {
         this.received = received;
+    }
+
+    public String getStatusString() {
+        return received ? "Delivered" : "Awaiting Delivery";
+    }
+
+    public double getTotalPrice()        { return totalPrice; }
+    public void   setTotalPrice(double p){ this.totalPrice = p; }
+
+    public String getFulfilInfo() {
+        return (delivery == null || delivery.isBlank()) ? branch.getName() : delivery;
     }
 }
