@@ -130,7 +130,7 @@ public class CatalogController {
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
-
+            ((BasketController)loader.getController()).setSales(sales);
             Stage basketStage = new Stage();
             basketStage.setTitle("Your Basket");
             basketStage.setScene(scene);
@@ -199,13 +199,8 @@ public class CatalogController {
             imageStack.getChildren().add(imageView);
 
             //check if product isOnSale
-            boolean isOnSale = false;
-            for(Sale sale : this.sales)
-                if (sale.getProductIds().contains(product.getId()))
-                    if(sale.getEndDate().isAfter(LocalDateTime.now())) {
-                        isOnSale = true;
-                        break;
-                    }
+            boolean isOnSale = Sale.onSale(product,this.sales);
+
 
             // Price Label
             Text price = new Text(String.format("₪%.2f", product.getPrice()));
@@ -225,6 +220,23 @@ public class CatalogController {
                 StackPane.setMargin(saleBadge, new Insets(5));
 
                 imageStack.getChildren().add(saleBadge);
+
+                //change the price according to the discount
+                double finalPrice = Sale.getDiscountedPrice(product, sales);
+                if(finalPrice != product.getPrice()) {
+                    Text originalPrice = new Text(String.format("₪%.2f ", product.getPrice()));
+                    originalPrice.setFill(Color.RED);
+                    originalPrice.setStyle("-fx-font-size: 12; -fx-strikethrough: true;");
+
+                    // Discounted price (green)
+                    Text discountedPrice = new Text(String.format("₪%.2f", finalPrice));
+                    discountedPrice.setFill(Color.web("#2E8B57")); // SeaGreen
+                    discountedPrice.setStyle("-fx-font-size: 12;");
+
+                    priceFlow.getChildren().clear();
+                    priceFlow.getChildren().addAll(originalPrice, discountedPrice);
+
+                }
             }
 
             // Name Label
@@ -257,6 +269,82 @@ public class CatalogController {
                     } catch (IOException ex) {
                         System.err.println("Failed to send ADD_TO_BASKET");
                         ex.printStackTrace();
+                    }
+                    List<Sale> productSales = Sale.getProductSales(product, sales);
+                    if(productSales != null) {
+                        for (Sale sale : productSales) {
+                            if (sale.getDiscountType() == Sale.DiscountType.BUNDLE) {
+                                Product bundledProduct = Sale.getBundledProduct(product, products, sale);
+                                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                                alert.setTitle("Bundle Offer");
+                                alert.setHeaderText("Special Bundle Offer!");
+                                alert.setContentText(sale.getDescription());
+
+                                // Load product image
+                                Image image = new Image(new ByteArrayInputStream(bundledProduct.getImage()));
+                                ImageView alertImageView = new ImageView(image);
+                                alertImageView.setFitWidth(100);
+                                alertImageView.setFitHeight(100);
+                                alertImageView.setPreserveRatio(true);
+
+                                // Add image to dialog
+                                alert.setGraphic(alertImageView);
+
+                                // Add Yes/No buttons
+                                ButtonType yesButton = new ButtonType("Yes", ButtonBar.ButtonData.YES);
+                                ButtonType noButton = new ButtonType("No", ButtonBar.ButtonData.NO);
+                                alert.getButtonTypes().setAll(yesButton, noButton);
+
+                                // Show dialog and handle result
+                                alert.showAndWait().ifPresent(response -> {
+                                    if (response == yesButton) {
+                                        try {
+                                            Msg msg = new Msg("ADD_TO_BASKET", new Object[]{SceneController.loggedUsername, bundledProduct});
+                                            SimpleClient.getClient().sendToServer(msg);
+                                            System.out.println("Sent ADD_TO_BASKET: " + product.getName());
+                                        } catch (IOException ex) {
+                                            System.err.println("Failed to send ADD_TO_BASKET");
+                                            ex.printStackTrace();
+                                        }
+                                    }
+                                });
+                            }
+                            if (sale.getDiscountType() == Sale.DiscountType.BUY_X_GET_Y) {
+                                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                                alert.setTitle("Bundle Offer");
+                                alert.setHeaderText("Special Bundle Offer!");
+                                alert.setContentText(sale.getDescription());
+
+                                // Load product image
+                                Image image = new Image(new ByteArrayInputStream(product.getImage()));
+                                ImageView alertImageView = new ImageView(image);
+                                alertImageView.setFitWidth(100);
+                                alertImageView.setFitHeight(100);
+                                alertImageView.setPreserveRatio(true);
+
+                                // Add image to dialog
+                                alert.setGraphic(alertImageView);
+
+                                // Add Yes/No buttons
+                                ButtonType yesButton = new ButtonType("Yes", ButtonBar.ButtonData.YES);
+                                ButtonType noButton = new ButtonType("No", ButtonBar.ButtonData.NO);
+                                alert.getButtonTypes().setAll(yesButton, noButton);
+
+                                // Show dialog and handle result
+                                alert.showAndWait().ifPresent(response -> {
+                                    if (response == yesButton) {
+                                        try {
+                                            Msg msg = new Msg("ADD_TO_BASKET", new Object[]{SceneController.loggedUsername, product});
+                                            SimpleClient.getClient().sendToServer(msg);
+                                            System.out.println("Sent ADD_TO_BASKET: " + product.getName());
+                                        } catch (IOException ex) {
+                                            System.err.println("Failed to send ADD_TO_BASKET");
+                                            ex.printStackTrace();
+                                        }
+                                    }
+                                });
+                            }
+                        }
                     }
                 } else {
                     System.err.println("Client is not connected and reconnection failed.");

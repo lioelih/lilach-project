@@ -28,38 +28,38 @@ public class SimpleClient extends AbstractClient {
 		}
 		else if (msg instanceof Msg massage) {
 			switch (massage.getAction()) {
-				case "SENT_CATALOG"      -> EventBus.getDefault()
-						.post(new CatalogEvent("SENT_CATALOG",
-								(List<Product>) massage.getData()));
-				case "PRODUCT_UPDATED"   -> EventBus.getDefault()
-						.post(new CatalogEvent("PRODUCT_UPDATED",
-								(List<Product>) massage.getData()));
-				case "PRODUCT_ADDED"     -> EventBus.getDefault()
-						.post(new CatalogEvent("PRODUCT_ADDED",
-								(List<Product>) massage.getData()));
-				case "PRODUCT_DELETED"   -> EventBus.getDefault()
-						.post(new CatalogEvent("PRODUCT_DELETED",
-								(List<Product>) massage.getData()));
-
-				case "LOGIN_SUCCESS", "LOGIN_FAILED"   ->
+				case "SENT_CATALOG" -> {
+					EventBus.getDefault().post(new CatalogEvent("SENT_CATALOG", (List<Product>) massage.getData()));
+				}
+				case "PRODUCT_UPDATED" -> {
+					EventBus.getDefault().post(new CatalogEvent("PRODUCT_UPDATED", (List<Product>) massage.getData()));
+				}
+				case "PRODUCT_ADDED" -> {
+					EventBus.getDefault().post(new CatalogEvent("PRODUCT_ADDED", (List<Product>) massage.getData()));
+				}
+				case "PRODUCT_DELETED" -> {
+					EventBus.getDefault().post(new CatalogEvent("PRODUCT_DELETED", (List<Product>) massage.getData()));
+				}
+				case "LOGIN_SUCCESS", "LOGIN_FAILED" ->
 						EventBus.getDefault().post(new LoginEvent(massage));
 				case "REGISTER_SUCCESS", "REGISTER_FAILED" ->
 						EventBus.getDefault().post(new RegisterEvent(massage));
-
-				case "FETCH_USER", "PAYMENT_PREFILL",
-					 "PAYMENT_INFO", "VIP_ACTIVATED", "VIP_CANCELLED",
-					 "BASKET_FETCHED", "BASKET_UPDATED",
-					 "HAS_CARD", "ORDER_OK", "ORDER_FAIL"    ->   // ← new line
+				case "FETCH_USER" ->
 						EventBus.getDefault().post(massage);
-
+				case "PAYMENT_PREFILL" ->
+						EventBus.getDefault().post(massage);
+				case "PAYMENT_INFO" ->
+						EventBus.getDefault().post(massage);
+				case "VIP_ACTIVATED", "VIP_CANCELLED" ->
+						EventBus.getDefault().post(massage);
 				case "SENT_SALES" ->
-						EventBus.getDefault().post(new SalesEvent("SENT_SALES",
-								(List<Sale>) massage.getData()));
-
+					    EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));
+				case "BASKET_FETCHED", "BASKET_UPDATED" ->
+						EventBus.getDefault().post(massage);
 				default ->
 						System.out.println("Unhandled message: " + massage.getAction());
-			}
 
+			}
 		}
 	}
 
