@@ -485,6 +485,11 @@ public class SimpleServer extends AbstractServer {
                             tx.rollback(); return;
                         }
 
+                        double grandTotal = basketItems.stream()
+                                .mapToDouble(Basket::getPrice)
+                                .sum();
+                        order.setTotalPrice(grandTotal);
+
                         s.persist(order);
 
                         /* link basket rows */

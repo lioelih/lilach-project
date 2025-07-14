@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.control.cell.*?>
+
+<!--
+     Orders view
+     • ToggleGroup is declared in  <fx:define>  so it isn’t treated as a Node
+     • xmlns / xmlns:fx are mandatory
+-->
+<BorderPane fx:controller="il.cshaifasweng.OCSFMediatorExample.client.OrdersController"
+            xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            prefWidth="900" prefHeight="600">
+
+    <!-- ───────────── top bar ───────────── -->
+    <top>
+        <HBox spacing="10" style="-fx-padding: 10;">
+            <Button text="← Home" onAction="#goHome"/>
+            <Label text="Orders"
+                   style="-fx-font-size: 18; -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+        </HBox>
+    </top>
+
+    <!-- ───────────── center block ───────────── -->
+    <center>
+        <VBox spacing="12" style="-fx-padding: 10;">
+            <HBox spacing="20">
+                <fx:define>
+                    <ToggleGroup fx:id="scopeGroup"/>
+                </fx:define>
+
+                <RadioButton fx:id="rbMine"
+                             text="My orders"
+                             toggleGroup="$scopeGroup"
+                             selected="true"/>
+                <RadioButton fx:id="rbAllUsers"
+                             text="All users"
+                             toggleGroup="$scopeGroup"/>
+                <RadioButton fx:id="rbAllOrders"
+                             text="All orders"
+                             toggleGroup="$scopeGroup"/>
+            </HBox>
+
+            <TableView fx:id="ordersTable" prefHeight="540">
+
+                <!-- Order # -->
+                <columns>
+                    <TableColumn fx:id="colId" text="Order #" prefWidth="80">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="id"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
+                    <!-- User -->
+                    <TableColumn fx:id="colUser" text="User ID" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="userId"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
+                    <!-- Delivery / Pick-up -->
+                    <TableColumn fx:id="colFulfil"
+                                 text="Delivery / Pick-up"
+                                 prefWidth="220">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="fulfilInfo"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
+                    <!-- Status -->
+                    <TableColumn fx:id="colStatus"
+                                 text="Status"
+                                 prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="statusString"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
+                    <!-- Price -->
+                    <TableColumn fx:id="colPrice"
+                                 text="Price"
+                                 prefWidth="100">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="totalPrice"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
+                    <!-- View products (button) -->
+                    <TableColumn fx:id="colViewProducts"
+                                 text="Products"
+                                 prefWidth="100"/>
+
+                    <!-- Mark as received (button) -->
+                    <TableColumn fx:id="colMarkReceived"
+                                 text="Mark as Received"
+                                 prefWidth="140"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>
