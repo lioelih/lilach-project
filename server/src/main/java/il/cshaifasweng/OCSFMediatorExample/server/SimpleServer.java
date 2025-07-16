@@ -301,8 +301,49 @@ public class SimpleServer extends AbstractServer {
                         ex.printStackTrace(); // ✅ make sure exception shows up
                     }
                 }
+                case "ADD_TO_BASKET_X_AMOUNT" -> {
+                    Object[] arr = (Object[]) data;
+                    String username = (String) arr[0];
+                    Product product = (Product) arr[1];
+                    int amount = (int) arr[2];
+                    System.out.println("Received ADD_TO_BASKET for " + username + " product ID: " + product.getId());
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
 
+                        Product dbProduct = session.get(Product.class, product.getId());  // 🔥 IMPORTANT
 
+                        if (user != null && dbProduct != null) {
+                            session.beginTransaction();
+
+                            Basket existing = session.createQuery(
+                                            "FROM Basket WHERE user.id = :userId AND product.id = :productId AND order IS NULL", Basket.class)
+                                    .setParameter("userId", user.getId())
+                                    .setParameter("productId", dbProduct.getId())
+                                    .uniqueResult();
+
+                            if (existing != null) {
+                                existing.setAmount(existing.getAmount() + amount);
+                                existing.setPrice(existing.getAmount() * dbProduct.getPrice());
+                                session.merge(existing);
+                            } else {
+                                Basket basket = new Basket();
+                                basket.setUser(user);
+                                basket.setProduct(dbProduct);  // ✅ use managed object
+                                basket.setAmount(amount);
+                                basket.setPrice(dbProduct.getPrice());
+                                session.persist(basket);
+                            }
+
+                            session.getTransaction().commit();
+                            client.sendToClient(new Msg("BASKET_UPDATED", null));
+                        } else {
+                            System.err.println("User or Product not found");
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace(); // ✅ make sure exception shows up
+                    }
+                }
                 case "REMOVE_BASKET_ITEM" -> {
                     Basket basketItem = (Basket) data;
                     System.out.println("[Server] REMOVE_BASKET_ITEM received with ID: " + basketItem.getId());
