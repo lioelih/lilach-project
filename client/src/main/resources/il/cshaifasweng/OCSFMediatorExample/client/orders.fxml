@@ -16,11 +16,10 @@
 
     <!-- ───────────── top bar ───────────── -->
     <top>
-        <HBox spacing="10" style="-fx-padding: 10;">
-            <Button text="← Home" onAction="#goHome"/>
-            <Label text="Orders"
-                   style="-fx-font-size: 18; -fx-font-weight: bold;"/>
-            <Region HBox.hgrow="ALWAYS"/>
+        <HBox spacing="10" style="-fx-padding: 10;" alignment="CENTER_LEFT">
+            <Button fx:id="goHomeButton" text="← Home"/>
+            <Label text="Orders" style="-fx-font-size: 18; -fx-font-weight: bold;" />
+            <Region fx:id="spacer" HBox.hgrow="ALWAYS"/>
         </HBox>
     </top>
 

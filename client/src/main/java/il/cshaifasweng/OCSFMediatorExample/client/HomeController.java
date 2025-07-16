@@ -72,8 +72,7 @@ public class HomeController {
                     getClass().getResource("orders.fxml"));
             Scene scene = new Scene(loader.load());
 
-            // if the OrdersController needs the username:
-            OrdersController oc = loader.getController();
+
 
             Stage st = new Stage();
             st.initModality(Modality.NONE);            // separate window
