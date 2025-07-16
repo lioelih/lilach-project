@@ -6,6 +6,7 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import il.cshaifasweng.OrderDTO;
+import il.cshaifasweng.OrderDisplayDTO;
 import il.cshaifasweng.StockLineDTO;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
@@ -635,6 +636,104 @@ public class SimpleServer extends AbstractServer {
                                 qty == null ? 0 : qty));
                     }
                 }
+                case "FETCH_ORDERS" -> {
+                    Object[] payload = (Object[]) data;
+                    String username = (String) payload[0];
+                    String scope = (String) payload[1];
+
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
+
+                        if (user == null) {
+                            client.sendToClient(new Msg("FETCH_ORDERS_OK", List.of()));
+                            return;
+                        }
+
+                        List<Order> orders;
+                        String hql;
+
+                        if (scope.equals("MINE")) {
+                            hql = "FROM Order o WHERE o.user.id = :uid ORDER BY o.id DESC";
+                            orders = session.createQuery(hql, Order.class)
+                                    .setParameter("uid", user.getId())
+                                    .list();
+                        } else if (scope.equals("ALL_USERS")) {
+                            hql = "FROM Order o WHERE o.user.branch = :branch ORDER BY o.id DESC";
+                            orders = session.createQuery(hql, Order.class)
+                                    .setParameter("branch", user.getBranch())
+                                    .list();
+                        } else if (scope.equals("ALL")) {
+                            hql = "FROM Order o ORDER BY o.id DESC";
+                            orders = session.createQuery(hql, Order.class).list();
+                        } else {
+                            client.sendToClient(new Msg("FETCH_ORDERS_OK", List.of()));
+                            return;
+                        }
+
+                        List<OrderDisplayDTO> displayList = new ArrayList<>();
+                        for (Order o : orders) {
+                            String fulfilment;
+                            if (o.getDelivery() != null && !o.getDelivery().isBlank()) {
+                                fulfilment = "Delivery to: " + o.getDelivery();
+                            } else if (o.getBranch() != null) {
+                                fulfilment = "Pickup from: " + o.getBranch().getName();
+                            } else {
+                                fulfilment = "Unknown";
+                            }
+
+                            String status = o.isReceived() ? "Received"
+                                    : (o.getDelivery() != null ? "Out for delivery" : "Awaiting pickup");
+
+                            double totalPrice = session.createQuery(
+                                            "SELECT SUM(b.price) FROM Basket b WHERE b.order.id = :oid", Double.class)
+                                    .setParameter("oid", o.getOrderId())
+                                    .uniqueResultOptional()
+                                    .orElse(0.0);
+
+                            displayList.add(new OrderDisplayDTO(
+                                    o.getOrderId(),
+                                    o.getUser().getUsername(),
+                                    fulfilment,
+                                    status,
+                                    totalPrice,
+                                    o.isReceived()
+                            ));
+                        }
+
+                        client.sendToClient(new Msg("FETCH_ORDERS_OK", displayList));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        client.sendToClient(new Msg("FETCH_ORDERS_OK", List.of()));
+                    }
+                }
+
+                case "MARK_ORDER_RECEIVED" -> {
+                    int orderId = (int) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+
+                        Order order = session.get(Order.class, orderId);
+                        if (order != null && !order.isReceived()) {
+                            order.setReceived(true);
+                            session.merge(order);
+                        }
+
+                        session.getTransaction().commit();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+
+                    client.sendToClient(new Msg("MARK_ORDER_RECEIVED_OK", List.of()));
+                }
+                case "FETCH_ORDER_PRODUCTS" -> {
+                    System.out.println("[Server] FETCH_ORDER_PRODUCTS Received");
+                    int orderId = (int) massage.getData();
+                    List<Product> products = fetchProductsByOrderId(orderId); // You implement this method
+                    client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_OK", products));
+                }
+
 
 
 
@@ -670,6 +769,25 @@ public class SimpleServer extends AbstractServer {
             e.printStackTrace();
         }
     }
+
+    private List<Product> fetchProductsByOrderId(int orderId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery("""
+            SELECT b.product
+            FROM Basket b
+            WHERE b.order.id = :oid
+        """, Product.class)
+                    .setParameter("oid", orderId)
+                    .list();
+        } catch (Exception e) {
+            System.err.println("[Server] Failed to fetch products for order " + orderId);
+            e.printStackTrace();
+            return List.of();
+        }
+    }
+
+
+
 
     private void deleteProduct(int productId) {
         Transaction tx = null;
