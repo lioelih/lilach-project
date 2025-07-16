@@ -2,7 +2,6 @@ package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import jakarta.persistence.*;
 import java.io.Serializable;
-import java.util.List;
 
 @Entity
 @Table(name = "basket")
@@ -84,10 +83,5 @@ public class Basket implements Serializable {
                 product != null ? product.getName() : "null",
                 amount,
                 price);
-    }
-
-    public static double getDiscount(Basket basket, List<Sale> sales) {
-        double totalDiscount = 0;
-        return totalDiscount;
     }
 }

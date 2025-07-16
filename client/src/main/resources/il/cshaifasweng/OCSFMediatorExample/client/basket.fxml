@@ -1,25 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.BasketController">
+<AnchorPane xmlns="http://javafx.com/javafx/11.0.1"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.BasketController"
+            prefHeight="400.0" prefWidth="600.0">
 
     <TableView fx:id="basketTable" layoutX="14.0" layoutY="14.0" prefHeight="250.0" prefWidth="572.0">
         <columns>
-            <TableColumn fx:id="nameColumn" text="Product Name" />
-            <TableColumn fx:id="amountColumn" text="Amount" />
-            <TableColumn fx:id="priceColumn" text="Total Price" />
-            <TableColumn fx:id="removeColumn" text="Action" />
+            <TableColumn fx:id="nameColumn" text="Product Name"/>
+            <TableColumn fx:id="amountColumn" text="Amount"/>
+            <TableColumn fx:id="priceColumn" text="Total Price"/>
+            <TableColumn fx:id="removeColumn" text="Action"/>
         </columns>
     </TableView>
 
-    <Label fx:id="totalLabel" layoutX="14.0" layoutY="280.0" text="Total: 0 NIS" />
-    <Button fx:id="confirmButton" layoutX="472.0" layoutY="350.0" mnemonicParsing="false" text="Confirm Purchase" />
-   <Label fx:id="discountLabel" layoutX="14.0" layoutY="298.0" text="Discount: 0 NIS" />
-   <Label fx:id="totalAfterDiscountLabel" layoutX="14.0" layoutY="316.0" text="Total After Discount: 0 NIS" />
+    <Label fx:id="totalLabel" layoutX="14.0" layoutY="280.0" text="Total: 0 NIS"/>
+    <Button fx:id="confirmButton" layoutX="472.0" layoutY="350.0" mnemonicParsing="false" text="Confirm Purchase"/>
 
 </AnchorPane>

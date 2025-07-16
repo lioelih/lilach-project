@@ -10,7 +10,7 @@ import il.cshaifasweng.OrderDisplayDTO;
 import il.cshaifasweng.StockLineDTO;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
-
+import org.hibernate.Transaction;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -302,8 +302,49 @@ public class SimpleServer extends AbstractServer {
                         ex.printStackTrace(); // ✅ make sure exception shows up
                     }
                 }
+                case "ADD_TO_BASKET_X_AMOUNT" -> {
+                    Object[] arr = (Object[]) data;
+                    String username = (String) arr[0];
+                    Product product = (Product) arr[1];
+                    int amount = (int) arr[2];
+                    System.out.println("Received ADD_TO_BASKET for " + username + " product ID: " + product.getId());
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username).uniqueResult();
 
+                        Product dbProduct = session.get(Product.class, product.getId());  // 🔥 IMPORTANT
 
+                        if (user != null && dbProduct != null) {
+                            session.beginTransaction();
+
+                            Basket existing = session.createQuery(
+                                            "FROM Basket WHERE user.id = :userId AND product.id = :productId AND order IS NULL", Basket.class)
+                                    .setParameter("userId", user.getId())
+                                    .setParameter("productId", dbProduct.getId())
+                                    .uniqueResult();
+
+                            if (existing != null) {
+                                existing.setAmount(existing.getAmount() + amount);
+                                existing.setPrice(existing.getAmount() * dbProduct.getPrice());
+                                session.merge(existing);
+                            } else {
+                                Basket basket = new Basket();
+                                basket.setUser(user);
+                                basket.setProduct(dbProduct);  // ✅ use managed object
+                                basket.setAmount(amount);
+                                basket.setPrice(dbProduct.getPrice());
+                                session.persist(basket);
+                            }
+
+                            session.getTransaction().commit();
+                            client.sendToClient(new Msg("BASKET_UPDATED", null));
+                        } else {
+                            System.err.println("User or Product not found");
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace(); // ✅ make sure exception shows up
+                    }
+                }
                 case "REMOVE_BASKET_ITEM" -> {
                     Basket basketItem = (Basket) data;
                     System.out.println("[Server] REMOVE_BASKET_ITEM received with ID: " + basketItem.getId());
@@ -344,6 +385,9 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("BASKET_UPDATED", null));
                     }
                 }
+
+
+
                 case "GET_SALES" -> {
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
@@ -734,6 +778,29 @@ public class SimpleServer extends AbstractServer {
                     client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_OK", products));
                 }
 
+
+                case "FETCH_ORDERS" -> {
+                    Object[] arr      = (Object[]) data;
+                    String   username = (String)  arr[0];
+                    String   scope    = (String)  arr[1];     // "MINE" | "ALL"
+                    System.out.println("[Server] Fetching orders");
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+
+                        String hql = "ALL".equals(scope)
+                                ? "FROM Order"
+                                : "FROM Order o WHERE o.user.username = :u";
+
+                        Query<Order> q = s.createQuery(hql, Order.class);
+                        if ("MINE".equals(scope)) q.setParameter("u", username);
+
+                        List<Order> list = q.list();
+
+                        /* initialise derived text fields */
+                        list.forEach(o -> { o.getStatusString(); o.getFulfilInfo(); });
+
+                        client.sendToClient(new Msg("FETCH_ORDERS_OK", list));
+                    }
+                }
 
 
 

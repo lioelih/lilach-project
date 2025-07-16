@@ -2,18 +2,23 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
-import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class BasketController {
@@ -26,9 +31,6 @@ public class BasketController {
 
     @FXML private Label totalLabel;
     @FXML private Button confirmButton;
-
-    private List<Sale> sales;
-    private List<Basket> basket;
 
     @FXML
     public void initialize() {
@@ -71,6 +73,26 @@ public class BasketController {
                 e.printStackTrace();
             }
         });
+        confirmButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("checkout.fxml"));
+                Scene scene = new Scene(loader.load());
+
+                CheckoutController cc = loader.getController();
+                cc.initData(new ArrayList<>(basketTable.getItems()));   // pass copy
+
+                Stage st = new Stage();
+                st.setTitle("Checkout");
+                st.setScene(scene);
+
+                /* centre in safe visual bounds */
+                Rectangle2D vb = Screen.getPrimary().getVisualBounds();
+                st.setX(vb.getMinX() + (vb.getWidth() - 900)/2);   // 900 = prefWidth
+                st.setY(vb.getMinY() + (vb.getHeight() - 600)/2);  // 600 = prefHeight
+
+                st.show();
+            } catch (IOException ex) { ex.printStackTrace(); }
+        });
 
 
     }
@@ -85,7 +107,6 @@ public class BasketController {
                     try {
                         SimpleClient.getClient().sendToServer(new Msg("REMOVE_BASKET_ITEM", basketItem));
                         getTableView().getItems().remove(basketItem);
-                        basket.remove(basketItem);
                         updateTotal();
                     } catch (IOException ex) {
                         ex.printStackTrace();
@@ -104,7 +125,7 @@ public class BasketController {
     @Subscribe
     public void handleBasketFetched(Msg msg) {
         if (!msg.getAction().equals("BASKET_FETCHED")) return;
-        basket = (List<Basket>) msg.getData();
+
         System.out.println("[BasketController] Received BASKET_FETCHED from server");
 
         Platform.runLater(() -> {
@@ -122,9 +143,6 @@ public class BasketController {
         totalLabel.setText("Total: " + total + " NIS");
     }
 
-    public void setSales(List<Sale> sales) {
-        this.sales = sales;
-    }
     @FXML
     private void onClose() {
         EventBus.getDefault().unregister(this);

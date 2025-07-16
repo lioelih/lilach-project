@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
 
 <BorderPane xmlns="http://javafx.com/javafx/23.0.1"
             xmlns:fx="http://javafx.com/fxml/1"
@@ -11,19 +11,21 @@
             prefHeight="600.0" prefWidth="900.0"
             stylesheets="@homepage.css">
 
+    <!-- ─────────── TOP BAR ─────────── -->
     <top>
-        <StackPane styleClass="top-bar" prefHeight="70">
+        <StackPane prefHeight="70" styleClass="top-bar">
             <children>
-                <!-- Blue background bar -->
                 <HBox spacing="15" alignment="CENTER_LEFT" styleClass="top-bar">
                     <padding>
                         <Insets top="0" right="20" bottom="0" left="80"/>
                     </padding>
                     <children>
-                        <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true"/>
-                        <!-- Removed Lilach Store text as requested -->
+                        <ImageView fx:id="logoImage"
+                                   fitHeight="100" fitWidth="100"
+                                   pickOnBounds="true" preserveRatio="true"/>
+
                         <Pane HBox.hgrow="ALWAYS"/>
-                      
+
                         <Button fx:id="catalogButton"  text="Catalog"           styleClass="nav-button"/>
                         <Button fx:id="contactButton"  text="Contact Support"  styleClass="nav-button"/>
                         <Button fx:id="vipButton"      text="VIP Subscription" styleClass="nav-button"/>
@@ -32,17 +34,15 @@
                         <Button fx:id="ordersButton"   text="Orders"  visible="false" styleClass="nav-button"/>
                         <Button fx:id="logoutButton"   text="Logout"  visible="false" styleClass="nav-button"/>
                         <Button fx:id="ordersButton"   text="Orders"  visible="false" styleClass="nav-button"/>
+
                     </children>
                 </HBox>
-
-
             </children>
         </StackPane>
     </top>
 
 
-
-    <!-- Hero Section -->
+    <!-- ─────────── HERO / CENTRE ─────────── -->
     <center>
         <VBox spacing="20" alignment="CENTER">
             <children>
@@ -54,27 +54,36 @@
         </VBox>
     </center>
 
-    <!-- Bottom Highlights -->
+
+    <!-- ─────────── BOTTOM HIGHLIGHTS ─────────── -->
     <bottom>
-        <HBox spacing="40" alignment="CENTER">
-            <padding>
-                <Insets top="10" right="10" bottom="10" left="10"/>
-            </padding>
-            <children>
-                <VBox alignment="CENTER">
-                    <Label text="✔" styleClass="icon"/>
-                    <Label text="30,000+ Happy Customers" styleClass="highlight"/>
-                </VBox>
-                <VBox alignment="CENTER">
-                    <Label text="🌿" styleClass="icon"/>
-                    <Label text="Organic Flowers" styleClass="highlight"/>
-                </VBox>
-                <VBox alignment="CENTER">
-                    <Label text="⭐" styleClass="icon"/>
-                    <Label text="2,600+ 5 Star Reviews" styleClass="highlight"/>
-                </VBox>
-            </children>
+        <!-- Outer holder stretches full width but centres its inner bar.
+             Extra bottom padding (taskbarOffset) keeps it off-screen bars -->
+        <HBox alignment="CENTER">
+            <!--          top   right bottom left  -->
+            <padding><Insets top="10" right="10" bottom="50" left="10"/></padding>
+
+            <HBox spacing="40"
+                  alignment="CENTER"
+                  prefWidth="800"
+                  maxWidth="-1">
+                <children>
+                    <VBox alignment="CENTER">
+                        <Label text="✔" styleClass="icon"/>
+                        <Label text="30,000+ Happy Customers" styleClass="highlight"/>
+                    </VBox>
+                    <VBox alignment="CENTER">
+                        <Label text="🌿" styleClass="icon"/>
+                        <Label text="Organic Flowers" styleClass="highlight"/>
+                    </VBox>
+                    <VBox alignment="CENTER">
+                        <Label text="⭐" styleClass="icon"/>
+                        <Label text="2,600+ 5 Star Reviews" styleClass="highlight"/>
+                    </VBox>
+                </children>
+            </HBox>
         </HBox>
     </bottom>
+
 
 </BorderPane>

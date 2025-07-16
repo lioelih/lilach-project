@@ -215,6 +215,4 @@ public class Sale implements Serializable {
         }
         return finalPrice;
     }
-
-
 }

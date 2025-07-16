@@ -55,7 +55,10 @@ public class CatalogController {
     private List<Product> fullCatalog = new ArrayList<>();
     @FXML
     public void initialize() {
-        EventBus.getDefault().register(this);
+
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this);
+        }
         try {
             SimpleClient.ensureConnected();
             SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
@@ -130,7 +133,7 @@ public class CatalogController {
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
-            ((BasketController)loader.getController()).setSales(sales);
+
             Stage basketStage = new Stage();
             basketStage.setTitle("Your Basket");
             basketStage.setScene(scene);
@@ -262,7 +265,6 @@ public class CatalogController {
 
             //check if product isOnSale
             boolean isOnSale = Sale.onSale(product,this.sales);
-
 
             // Price Label
             Text price = new Text(String.format("₪%.2f", product.getPrice()));
@@ -396,7 +398,7 @@ public class CatalogController {
                                 alert.showAndWait().ifPresent(response -> {
                                     if (response == yesButton) {
                                         try {
-                                            Msg msg = new Msg("ADD_TO_BASKET", new Object[]{SceneController.loggedUsername, product});
+                                            Msg msg = new Msg("ADD_TO_BASKET_X_AMOUNT", new Object[]{SceneController.loggedUsername, product, sale.getBuyQuantity() + sale.getGetQuantity() - 1});
                                             SimpleClient.getClient().sendToServer(msg);
                                             System.out.println("Sent ADD_TO_BASKET: " + product.getName());
                                         } catch (IOException ex) {
