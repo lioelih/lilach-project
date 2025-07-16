@@ -12,7 +12,8 @@
 		<module>entities</module>
 		<module>client</module>
 		<module>communication</module>
-	</modules>
+        <module>common</module>
+    </modules>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>15</maven.compiler.source>

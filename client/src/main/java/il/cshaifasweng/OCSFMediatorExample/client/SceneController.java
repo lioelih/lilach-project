@@ -4,7 +4,8 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
+import javafx.geometry.Rectangle2D;
+import javafx.stage.Screen;
 import java.io.IOException;
 
 public class SceneController {
@@ -16,13 +17,24 @@ public class SceneController {
     }
 
     public static void switchScene(String fxmlName) {
-        try { // Will allow the user to switch scenes between different panels
+        try {
             FXMLLoader loader = new FXMLLoader(SceneController.class.getResource(fxmlName + ".fxml"));
             Parent root = loader.load();
-            mainStage.setScene(new Scene(root)); // <- this crashes if mainStage == null
+
+            // Get usable screen bounds (excludes task-bar)
+            Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
+
+            Scene scene = new Scene(root, visualBounds.getWidth(), visualBounds.getHeight());
+            mainStage.setScene(scene);
+            mainStage.setTitle("Lilach Store");
+            mainStage.setX(visualBounds.getMinX());
+            mainStage.setY(visualBounds.getMinY());
+            mainStage.setWidth(visualBounds.getWidth());
+            mainStage.setHeight(visualBounds.getHeight());
             mainStage.show();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
 }

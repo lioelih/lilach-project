@@ -9,7 +9,7 @@ import il.cshaifasweng.OrderDTO;
 import il.cshaifasweng.StockLineDTO;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
-
+import org.hibernate.Transaction;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -343,6 +343,9 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("BASKET_UPDATED", null));
                     }
                 }
+
+
+
                 case "GET_SALES" -> {
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
@@ -633,6 +636,29 @@ public class SimpleServer extends AbstractServer {
                         /* if null → no row yet → treat as 0 */
                         client.sendToClient(new Msg("STOCK_SINGLE_OK",
                                 qty == null ? 0 : qty));
+                    }
+                }
+
+                case "FETCH_ORDERS" -> {
+                    Object[] arr      = (Object[]) data;
+                    String   username = (String)  arr[0];
+                    String   scope    = (String)  arr[1];     // "MINE" | "ALL"
+                    System.out.println("[Server] Fetching orders");
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+
+                        String hql = "ALL".equals(scope)
+                                ? "FROM Order"
+                                : "FROM Order o WHERE o.user.username = :u";
+
+                        Query<Order> q = s.createQuery(hql, Order.class);
+                        if ("MINE".equals(scope)) q.setParameter("u", username);
+
+                        List<Order> list = q.list();
+
+                        /* initialise derived text fields */
+                        list.forEach(o -> { o.getStatusString(); o.getFulfilInfo(); });
+
+                        client.sendToClient(new Msg("FETCH_ORDERS_OK", list));
                     }
                 }
 
