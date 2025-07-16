@@ -31,6 +31,7 @@
                         <Button fx:id="vipButton"      text="VIP Subscription" styleClass="nav-button"/>
                         <Button fx:id="loginButton"    text="Login"            styleClass="nav-button"/>
                         <Button fx:id="registerButton" text="Register"         styleClass="nav-button"/>
+                        <Button fx:id="ordersButton"   text="Orders"  visible="false" styleClass="nav-button"/>
                         <Button fx:id="logoutButton"   text="Logout"  visible="false" styleClass="nav-button"/>
                         <Button fx:id="ordersButton"   text="Orders"  visible="false" styleClass="nav-button"/>
 

@@ -1,51 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.control.cell.*?>
+<?import javafx.scene.control.cell.PropertyValueFactory?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
 
-<!--
-     Orders view
-     • ToggleGroup is declared in  <fx:define>  so it isn’t treated as a Node
-     • xmlns / xmlns:fx are mandatory
--->
-<BorderPane fx:controller="il.cshaifasweng.OCSFMediatorExample.client.OrdersController"
-            xmlns="http://javafx.com/javafx"
+<BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
-            prefWidth="900" prefHeight="600">
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.OrdersController"
+            prefWidth="1280" prefHeight="720">
 
-    <!-- ───────────── top bar ───────────── -->
+    <!-- ───────────── Top Bar (with logo and Home) ───────────── -->
     <top>
-        <HBox spacing="10" style="-fx-padding: 10;" alignment="CENTER_LEFT">
-            <Button fx:id="goHomeButton" text="← Home"/>
-            <Label text="Orders" style="-fx-font-size: 18; -fx-font-weight: bold;" />
-            <Region fx:id="spacer" HBox.hgrow="ALWAYS"/>
+        <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-background-color: #D6EAF8; -fx-padding: 10;">
+            <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true"
+                       pickOnBounds="true" />
+            <Button fx:id="goHomeButton" text="← Home" />
+            <Label text="Orders"
+                   style="-fx-font-size: 22; -fx-font-weight: bold;" />
+            <Region HBox.hgrow="ALWAYS"/>
+
         </HBox>
     </top>
 
-    <!-- ───────────── center block ───────────── -->
+    <!-- ───────────── Center Content ───────────── -->
     <center>
-        <VBox spacing="12" style="-fx-padding: 10;">
-            <HBox spacing="20">
+        <VBox spacing="12" style="-fx-padding: 20;">
+            <!-- Filter toggles -->
+            <HBox spacing="20" alignment="CENTER_LEFT">
                 <fx:define>
                     <ToggleGroup fx:id="scopeGroup"/>
                 </fx:define>
 
-                <RadioButton fx:id="rbMine"
-                             text="My orders"
-                             toggleGroup="$scopeGroup"
-                             selected="true"/>
-                <RadioButton fx:id="rbAllUsers"
-                             text="All users"
-                             toggleGroup="$scopeGroup"/>
-                <RadioButton fx:id="rbAllOrders"
-                             text="All orders"
-                             toggleGroup="$scopeGroup"/>
+                <RadioButton fx:id="rbMine" text="My orders" toggleGroup="$scopeGroup" selected="true"/>
+                <RadioButton fx:id="rbAllOrders" text="All orders" toggleGroup="$scopeGroup"/>
             </HBox>
 
-            <TableView fx:id="ordersTable" prefHeight="540">
-
-                <!-- Order # -->
+            <!-- Orders table -->
+            <TableView fx:id="ordersTable" prefHeight="600" VBox.vgrow="ALWAYS">
                 <columns>
                     <TableColumn fx:id="colId" text="Order #" prefWidth="80">
                         <cellValueFactory>
@@ -53,51 +46,36 @@
                         </cellValueFactory>
                     </TableColumn>
 
-                    <!-- User -->
-                    <TableColumn fx:id="colUser" text="User ID" prefWidth="120">
+                    <TableColumn fx:id="colUser" text="Username" prefWidth="100">
                         <cellValueFactory>
-                            <PropertyValueFactory property="userId"/>
+                            <PropertyValueFactory property="username"/>
                         </cellValueFactory>
                     </TableColumn>
 
-                    <!-- Delivery / Pick-up -->
-                    <TableColumn fx:id="colFulfil"
-                                 text="Delivery / Pick-up"
-                                 prefWidth="220">
+                    <TableColumn fx:id="colFulfil" text="Fulfillment" prefWidth="220">
                         <cellValueFactory>
-                            <PropertyValueFactory property="fulfilInfo"/>
+                            <PropertyValueFactory property="fulfilment"/>
                         </cellValueFactory>
                     </TableColumn>
 
-                    <!-- Status -->
-                    <TableColumn fx:id="colStatus"
-                                 text="Status"
-                                 prefWidth="120">
+                    <TableColumn fx:id="colStatus" text="Status" prefWidth="150">
                         <cellValueFactory>
-                            <PropertyValueFactory property="statusString"/>
+                            <PropertyValueFactory property="status"/>
                         </cellValueFactory>
                     </TableColumn>
 
-                    <!-- Price -->
-                    <TableColumn fx:id="colPrice"
-                                 text="Price"
-                                 prefWidth="100">
+                    <TableColumn fx:id="colPrice" text="Price" prefWidth="100">
                         <cellValueFactory>
                             <PropertyValueFactory property="totalPrice"/>
                         </cellValueFactory>
                     </TableColumn>
 
-                    <!-- View products (button) -->
-                    <TableColumn fx:id="colViewProducts"
-                                 text="Products"
-                                 prefWidth="100"/>
-
-                    <!-- Mark as received (button) -->
-                    <TableColumn fx:id="colMarkReceived"
-                                 text="Mark as Received"
-                                 prefWidth="140"/>
+                    <TableColumn fx:id="colProducts" text="Products" prefWidth="100"/>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="200"/>
                 </columns>
             </TableView>
+
         </VBox>
     </center>
+
 </BorderPane>
