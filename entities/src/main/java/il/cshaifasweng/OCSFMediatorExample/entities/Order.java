@@ -2,7 +2,7 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import jakarta.persistence.*;
-
+import java.time.LocalDateTime;
 @Entity
 @Table(name = "orders")
 public class Order {
@@ -29,6 +29,14 @@ public class Order {
     @Column(name = "total_price")
     private double totalPrice;
 
+    @Column(name="deadline", nullable=false)
+    private LocalDateTime deadline;
+
+    @Column(name="recipient", nullable=false)
+    private String recipient;
+
+    @Column(name="greeting")
+    private String greeting;
 
     public Order() {}
 
@@ -82,4 +90,11 @@ public class Order {
     public String getFulfilInfo() {
         return (delivery == null || delivery.isBlank()) ? branch.getName() : delivery;
     }
+    public LocalDateTime getDeadline() { return deadline; }
+    public void setDeadline(LocalDateTime deadline) { this.deadline = deadline; }
+    public String getRecipient() { return recipient; }
+    public void   setRecipient(String r){ this.recipient = r; }
+
+    public String getGreeting(){ return greeting; }
+    public void   setGreeting(String g){ this.greeting = g; }
 }

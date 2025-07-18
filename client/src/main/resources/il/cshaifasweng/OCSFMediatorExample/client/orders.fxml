@@ -52,6 +52,17 @@
                         </cellValueFactory>
                     </TableColumn>
 
+                    <TableColumn fx:id="colRecipient" text="Recipient" prefWidth="180">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="recipient"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colGreeting" text="Greeting" prefWidth="200">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="greeting"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
                     <TableColumn fx:id="colFulfil" text="Fulfillment" prefWidth="220">
                         <cellValueFactory>
                             <PropertyValueFactory property="fulfilment"/>
@@ -67,6 +78,12 @@
                     <TableColumn fx:id="colPrice" text="Price" prefWidth="100">
                         <cellValueFactory>
                             <PropertyValueFactory property="totalPrice"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
+                    <TableColumn fx:id="colDeadline" text="Deadline" prefWidth="160">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="deadline"/>
                         </cellValueFactory>
                     </TableColumn>
 

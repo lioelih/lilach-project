@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.*;
-
+import java.time.LocalDateTime;
 public class SimpleServer extends AbstractServer {
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
     private ScheduledExecutorService scheduler;
@@ -444,6 +444,10 @@ public class SimpleServer extends AbstractServer {
                     OrderDTO dto = (OrderDTO) data;
                     boolean ok = false;
 
+                    double totalPrice = 0;
+                    double vipDiscount = 0;
+                    double deliveryFee = 0;
+                    int newOrderId = 0;
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = s.beginTransaction();
 
@@ -573,7 +577,22 @@ public class SimpleServer extends AbstractServer {
                                 .mapToDouble(Basket::getPrice)
                                 .sum();
 
-                        order.setTotalPrice(grandTotal - discount);
+                        vipDiscount = user.isVIP()
+                                ? (grandTotal - discount) * 0.10
+                                : 0.0;
+                        deliveryFee = "DELIVERY".equals(dto.getFulfilType())
+                                ? 10.0
+                                : 0.0;
+
+                        totalPrice = grandTotal - discount - vipDiscount + deliveryFee;
+                        order.setTotalPrice(totalPrice);
+
+                        // 6. Set Deadline
+                        order.setDeadline(dto.getDeadline());
+
+                        // 7. Set recipient and greetings data
+                        order.setRecipient(dto.getRecipient());
+                        order.setGreeting(dto.getGreeting());
 
                         s.persist(order);
 
@@ -582,15 +601,20 @@ public class SimpleServer extends AbstractServer {
                             b.setOrder(order);
                             s.merge(b);
                         }
-
+                        newOrderId = order.getOrderId();
                         tx.commit();
                         ok = true;
 
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
-
-                    client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", null));
+                    Map<String, Object> result = Map.of(
+                            "orderId", newOrderId,
+                            "totalPrice", totalPrice,
+                            "vipDiscount", vipDiscount,
+                            "deliveryFee", deliveryFee
+                    );
+                    client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
                 }
 
 
@@ -792,6 +816,9 @@ public class SimpleServer extends AbstractServer {
                                     fulfilment,
                                     status,
                                     totalPrice,
+                                    o.getDeadline(),
+                                    o.getRecipient(),
+                                    o.getGreeting(),
                                     o.isReceived()
                             ));
                         }
@@ -970,7 +997,18 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("UPDATE_USER_FAILED", "Error updating user"));
                     }
                 }
-
+                case "UPDATE_GREETING" -> {
+                    Map<String, Object> payload = (Map<String, Object>) data;
+                    int orderId = (Integer) payload.get("orderId");
+                    String greeting = (String) payload.get("greeting");
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        Transaction tx = s.beginTransaction();
+                        Order o = s.get(Order.class, orderId);
+                        o.setGreeting(greeting);
+                        s.merge(o);
+                        tx.commit();
+                    }
+                }
 
 
 
