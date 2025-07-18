@@ -444,6 +444,9 @@ public class SimpleServer extends AbstractServer {
                     OrderDTO dto = (OrderDTO) data;
                     boolean ok = false;
 
+                    double totalPrice = 0;
+                    double vipDiscount = 0;
+                    double deliveryFee = 0;
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = s.beginTransaction();
 
@@ -573,7 +576,15 @@ public class SimpleServer extends AbstractServer {
                                 .mapToDouble(Basket::getPrice)
                                 .sum();
 
-                        order.setTotalPrice(grandTotal - discount);
+                        vipDiscount = user.isVIP()
+                                ? (grandTotal - discount) * 0.10
+                                : 0.0;
+                        deliveryFee = "DELIVERY".equals(dto.getFulfilType())
+                                ? 10.0
+                                : 0.0;
+
+                        totalPrice = grandTotal - discount - vipDiscount + deliveryFee;
+                        order.setTotalPrice(totalPrice);
 
                         s.persist(order);
 
@@ -589,8 +600,12 @@ public class SimpleServer extends AbstractServer {
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
-
-                    client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", null));
+                    Map<String,Object> result = Map.of(
+                            "totalPrice", totalPrice,
+                            "vipDiscount", vipDiscount,
+                            "deliveryFee", deliveryFee
+                    );
+                    client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
                 }
 
 

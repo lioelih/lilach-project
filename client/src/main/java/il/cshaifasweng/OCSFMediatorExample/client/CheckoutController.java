@@ -1,7 +1,9 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import Events.*;
+import javafx.beans.binding.Bindings;
 import il.cshaifasweng.Msg;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import il.cshaifasweng.OrderDTO;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
@@ -15,10 +17,12 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 
@@ -31,6 +35,10 @@ public class CheckoutController implements Initializable {
     @FXML private TableColumn<Basket,Double> priceCol;
     @FXML private Label  totalLabel;
     @FXML private Label  totalAfterLabel;
+    @FXML private HBox   vipBox;
+    @FXML private Label  vipDiscountLabel;
+    @FXML private HBox deliveryBox;
+    @FXML private Label  deliveryFeeLabel;
 
     @FXML private RadioButton savedCardRadio, addCardRadio;
     @FXML private Button addCardButton;
@@ -46,15 +54,24 @@ public class CheckoutController implements Initializable {
     private final List<Basket>  items          = new ArrayList<>();
     private final BooleanProperty hasCardProperty = new SimpleBooleanProperty(false);
     private final List<Branch>  branchList     = new ArrayList<>();     //  <-- keep list
-
+    private boolean isVipUser     = false;
+    private double  totalBefore;      // passed in from initData
+    private double  saleDiscount;     // ditto
     /* ------------ init from BasketController -------------- */
     public void initData(List<Basket> copy, double totalBefore, double discount) {
+        this.totalBefore   = totalBefore;
+        this.saleDiscount  = discount;
+
         items.clear();
         items.addAll(copy);
         basketTable.getItems().setAll(items);
-        totalLabel.setText(String.format("Total Before Discount " + "₪ %.2f", totalBefore));
-        totalAfterLabel.setText(String.format("Total After Discount " + "₪ %.2f", totalBefore - discount));
+
+        totalLabel.setText(String.format("Total Before Discount  ₪ %.2f", totalBefore));
+        totalAfterLabel.setText(String.format("Total After Discount   ₪ %.2f", totalBefore - discount));
+
+        updateSummary();
         requestSavedCard();
+        requestVipStatus();
     }
 
     /* ------------ controller init -------------- */
@@ -71,8 +88,8 @@ public class CheckoutController implements Initializable {
         addCardRadio  .setToggleGroup(payGrp);
 
         ToggleGroup fulGrp = new ToggleGroup();
-        pickupRadio   .setToggleGroup(fulGrp);
-        deliveryRadio .setToggleGroup(fulGrp);
+        pickupRadio.selectedProperty().addListener((obs, o, n) -> updateSummary());
+        deliveryRadio.selectedProperty().addListener((obs, o, n) -> updateSummary());
 
         /* ---------- branch combo visualisation ---------- */
         branchCombo.setCellFactory(cb -> new ListCell<>() {
@@ -110,12 +127,19 @@ public class CheckoutController implements Initializable {
                                 .and(houseField.textProperty().isNotEmpty())
                                 .and(zipField.textProperty().isNotEmpty()));
 
-        BooleanBinding ready =
-                paymentOk
-                        .and(fulGrp.selectedToggleProperty().isNotNull())
-                        .and(fulfilOk);
+        ToggleGroup fulGroup = new ToggleGroup();
+        pickupRadio.setToggleGroup(fulGroup);
+        deliveryRadio.setToggleGroup(fulGroup);
 
+// 2) compose a single ready‐to‐submit binding:
+        BooleanBinding ready = paymentOk
+                .and(fulGroup.selectedToggleProperty().isNotNull())
+                .and(fulfilOk);
+
+// 3) bind the button’s disable state to the inverse of “ready”:
         completeBtn.disableProperty().bind(ready.not());
+
+// 4) leave your action handler alone:
         completeBtn.setOnAction(e -> submitOrder());
 
         /* ask server for branches & card */
@@ -125,6 +149,7 @@ public class CheckoutController implements Initializable {
 
         if (!EventBus.getDefault().isRegistered(this))
             EventBus.getDefault().register(this);
+        requestVipStatus();
     }
 
     /* ---------- build & send order ---------- */
@@ -187,6 +212,12 @@ public class CheckoutController implements Initializable {
 
         Platform.runLater(() -> {
             switch (m.getAction()) {
+                case "FETCH_USER" -> {
+                    User user = (User) m.getData();
+                    isVipUser = user.isVIP();
+                    updateSummary();
+                }
+
                 case "HAS_CARD" -> {
                     boolean has = (Boolean) m.getData();
                     hasCardProperty.set(has);
@@ -194,16 +225,64 @@ public class CheckoutController implements Initializable {
                     savedCardRadio.setDisable(!has);
                 }
                 case "ORDER_OK" -> {
-                    new Alert(Alert.AlertType.INFORMATION,"Order completed!").showAndWait();
-                    try { SimpleClient.getClient().sendToServer(
-                            new Msg("FETCH_BASKET", SceneController.loggedUsername)); }
-                    catch(Exception e){e.printStackTrace();}
+                    // if you want to show the server‑computed breakdown:
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> res = (Map<String,Object>) m.getData();
+                    double finalTotal  = (Double) res.get("totalPrice");
+                    double vipDisc     = (Double) res.get("vipDiscount");
+                    double deliveryFee = (Double) res.get("deliveryFee");
+                    new Alert(Alert.AlertType.INFORMATION,
+                            String.format(
+                                    "Order completed!\nYou paid ₪%.2f\n– VIP Discount: ₪%.2f\n+ Delivery Fee: ₪%.2f",
+                                    finalTotal, vipDisc, deliveryFee
+                            )
+                    ).showAndWait();
+
+                    // refresh basket & close:
+                    try {
+                        SimpleClient.getClient().sendToServer(
+                                new Msg("FETCH_BASKET", SceneController.loggedUsername)
+                        );
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                     closeWindow();
                 }
                 case "ORDER_FAIL" -> new Alert(Alert.AlertType.ERROR,
                         "Order failed, please check details.").showAndWait();
             }
         });
+    }
+
+    private void requestVipStatus() {
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new Msg("FETCH_USER", SceneController.loggedUsername)
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSummary() {
+        double afterSale   = totalBefore - saleDiscount;
+        double vipDisc     = isVipUser    ? afterSale * 0.10 : 0.0;
+        double deliveryFee = deliveryRadio.isSelected() ? 10.0 : 0.0;
+        double finalTotal  = afterSale - vipDisc + deliveryFee;
+
+        // VIP
+        vipBox.setVisible(isVipUser);
+        vipBox.setManaged(isVipUser);
+        vipDiscountLabel.setText(String.format("-₪%.2f", vipDisc));
+
+        // Delivery
+        boolean isDel = deliveryRadio.isSelected();
+        deliveryBox.setVisible(isDel);
+        deliveryBox.setManaged(isDel);
+        deliveryFeeLabel.setText(String.format("+₪%.2f", deliveryFee));
+
+        // Button
+        completeBtn.setText(String.format("Complete Order (₪%.2f)", finalTotal));
     }
 
     /* ---------- window utils ---------- */
