@@ -447,6 +447,7 @@ public class SimpleServer extends AbstractServer {
                     double totalPrice = 0;
                     double vipDiscount = 0;
                     double deliveryFee = 0;
+                    int newOrderId = 0;
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = s.beginTransaction();
 
@@ -589,6 +590,10 @@ public class SimpleServer extends AbstractServer {
                         // 6. Set Deadline
                         order.setDeadline(dto.getDeadline());
 
+                        // 7. Set recipient and greetings data
+                        order.setRecipient(dto.getRecipient());
+                        order.setGreeting(dto.getGreeting());
+
                         s.persist(order);
 
                         // Link baskets to order
@@ -596,14 +601,15 @@ public class SimpleServer extends AbstractServer {
                             b.setOrder(order);
                             s.merge(b);
                         }
-
+                        newOrderId = order.getOrderId();
                         tx.commit();
                         ok = true;
 
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
-                    Map<String,Object> result = Map.of(
+                    Map<String, Object> result = Map.of(
+                            "orderId", newOrderId,
                             "totalPrice", totalPrice,
                             "vipDiscount", vipDiscount,
                             "deliveryFee", deliveryFee
@@ -811,6 +817,8 @@ public class SimpleServer extends AbstractServer {
                                     status,
                                     totalPrice,
                                     o.getDeadline(),
+                                    o.getRecipient(),
+                                    o.getGreeting(),
                                     o.isReceived()
                             ));
                         }
@@ -989,7 +997,18 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("UPDATE_USER_FAILED", "Error updating user"));
                     }
                 }
-
+                case "UPDATE_GREETING" -> {
+                    Map<String, Object> payload = (Map<String, Object>) data;
+                    int orderId = (Integer) payload.get("orderId");
+                    String greeting = (String) payload.get("greeting");
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        Transaction tx = s.beginTransaction();
+                        Order o = s.get(Order.class, orderId);
+                        o.setGreeting(greeting);
+                        s.merge(o);
+                        tx.commit();
+                    }
+                }
 
 
 

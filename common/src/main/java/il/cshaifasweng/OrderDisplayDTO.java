@@ -11,8 +11,10 @@ public class OrderDisplayDTO implements Serializable {
     private double totalPrice;
     private boolean received;
     private LocalDateTime deadline;
+    private final String recipient;
+    private final String greeting;
     public OrderDisplayDTO(int id, String username, String fulfilment,
-                           String status, double totalPrice,LocalDateTime deadline, boolean received) {
+                           String status, double totalPrice,LocalDateTime deadline, String recipient, String greeting, boolean received) {
         this.id = id;
         this.username = username;
         this.fulfilment = fulfilment;
@@ -20,6 +22,8 @@ public class OrderDisplayDTO implements Serializable {
         this.totalPrice = totalPrice;
         this.received = received;
         this.deadline = deadline;
+        this.recipient = recipient;
+        this.greeting  = greeting;
     }
 
     public int getId() { return id; }
@@ -29,4 +33,7 @@ public class OrderDisplayDTO implements Serializable {
     public double getTotalPrice() { return totalPrice; }
     public boolean isReceived() { return received; }
     public LocalDateTime getDeadline() { return deadline; }
+
+    public String getRecipient(){ return recipient; }
+    public String getGreeting() { return greeting;  }
 }

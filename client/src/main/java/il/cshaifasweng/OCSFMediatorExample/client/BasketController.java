@@ -18,7 +18,7 @@ import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
-
+import javafx.beans.binding.Bindings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,15 +71,27 @@ public class BasketController {
         amountColumn.setOnEditCommit(event -> {
             Basket basketItem = event.getRowValue();
             int newAmount = event.getNewValue();
+            if (newAmount < 1) {
+                // reset to 1 and warn
+                newAmount = 1;
+                Alert alert = new Alert(Alert.AlertType.WARNING,
+                        "Quantity must be at least 1. Resetting to 1.");
+                alert.setHeaderText(null);
+                alert.showAndWait();
+            }
             basketItem.setAmount(newAmount);
             basketItem.setPrice(newAmount * basketItem.getProduct().getPrice());
+            basketTable.refresh();    // make sure table shows the clamped value
             updateTotal();
             try {
-                SimpleClient.getClient().sendToServer(new Msg("UPDATE_BASKET_AMOUNT", basketItem));
+                SimpleClient.getClient().sendToServer(
+                        new Msg("UPDATE_BASKET_AMOUNT", basketItem)
+                );
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
+
 
         confirmButton.setOnAction(e -> {
             try {
@@ -96,7 +108,7 @@ public class BasketController {
                 Rectangle2D vb = Screen.getPrimary().getVisualBounds();
                 st.setX(vb.getMinX() + (vb.getWidth() - 900) / 2);
                 st.setY(vb.getMinY() + (vb.getHeight() - 600) / 2);
-
+                st.setMaximized(true);
                 st.show();
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -156,7 +168,7 @@ public class BasketController {
         totalLabel.setText("Total: " + total + " NIS");
         discountLabel.setText("Discount: " + discount + " NIS");
         afterDiscountLabel.setText("Total After Discount: " + totalAfter + " NIS");
-
+        confirmButton.setDisable(basketItems.isEmpty());
     }
 
     public void setSales(List<Sale> sales) {

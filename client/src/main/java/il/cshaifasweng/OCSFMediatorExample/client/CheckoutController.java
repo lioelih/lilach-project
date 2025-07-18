@@ -14,10 +14,13 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -57,6 +60,8 @@ public class CheckoutController implements Initializable {
     @FXML private ComboBox<Integer> deadlineHourCombo;
     @FXML private HBox scheduleBox;
 
+    @FXML private TextField recipientNameField, recipientPhoneField;
+
     @FXML private Button     completeBtn;
     @FXML private ImageView  logoImage;
 
@@ -67,6 +72,10 @@ public class CheckoutController implements Initializable {
     private boolean isVipUser     = false;
     private double  totalBefore;      // passed in from initData
     private double  saleDiscount;     // ditto
+    private String greetingText  = null;
+    private String greetingColor = null;
+    private String currentGreetingText = null;
+    private String currentGreetingHex  = "#FFFFFF";
     /* ------------ init from BasketController -------------- */
     public void initData(List<Basket> copy, double totalBefore, double discount) {
         this.totalBefore   = totalBefore;
@@ -179,6 +188,9 @@ public class CheckoutController implements Initializable {
             }
         });
 
+
+
+
         BooleanBinding timeOk = asapRadio.selectedProperty()
                 .or(scheduleRadio.selectedProperty()
                         .and(deadlineDatePicker.valueProperty().isNotNull())
@@ -201,6 +213,11 @@ public class CheckoutController implements Initializable {
         if (!EventBus.getDefault().isRegistered(this))
             EventBus.getDefault().register(this);
         requestVipStatus();
+        try {
+            SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /* ---------- build & send order ---------- */
@@ -233,9 +250,14 @@ public class CheckoutController implements Initializable {
             deadline = date.atTime(hour, 0);
         }
 
-        return new OrderDTO(SceneController.loggedUsername,
+        return new OrderDTO(
+                SceneController.loggedUsername,
                 items.stream().map(Basket::getId).toList(),
-                type, info, deadline);
+                type, info,
+                deadline,
+                recipientNameField.getText().trim()  + " (" + recipientPhoneField.getText().trim() + ")",
+                null
+        );
     }
 
     /* ---------- helpers ---------- */
@@ -275,6 +297,8 @@ public class CheckoutController implements Initializable {
                 case "FETCH_USER" -> {
                     User user = (User) m.getData();
                     isVipUser = user.isVIP();
+                    recipientNameField.setText(user.getFullName());
+                    recipientPhoneField.setText(user.getPhoneNumber());
                     updateSummary();
                 }
 
@@ -285,12 +309,14 @@ public class CheckoutController implements Initializable {
                     savedCardRadio.setDisable(!has);
                 }
                 case "ORDER_OK" -> {
-                    // if you want to show the server‑computed breakdown:
                     @SuppressWarnings("unchecked")
-                    Map<String, Object> res = (Map<String,Object>) m.getData();
-                    double finalTotal  = (Double) res.get("totalPrice");
-                    double vipDisc     = (Double) res.get("vipDiscount");
-                    double deliveryFee = (Double) res.get("deliveryFee");
+                    Map<String, Object> res = (Map<String, Object>) m.getData();
+                    double finalTotal  = ((Number) res.get("totalPrice")).doubleValue();
+                    double vipDisc     = ((Number) res.get("vipDiscount")).doubleValue();
+                    double deliveryFee = ((Number) res.get("deliveryFee")).doubleValue();
+                    int createdOrderId = ((Number) res.get("orderId")).intValue();
+
+                    // 1. Show confirmation with breakdown
                     new Alert(Alert.AlertType.INFORMATION,
                             String.format(
                                     "Order completed!\nYou paid ₪%.2f\n– VIP Discount: ₪%.2f\n+ Delivery Fee: ₪%.2f",
@@ -298,7 +324,7 @@ public class CheckoutController implements Initializable {
                             )
                     ).showAndWait();
 
-                    // refresh basket & close:
+                    // 2. Refresh basket & close main window
                     try {
                         SimpleClient.getClient().sendToServer(
                                 new Msg("FETCH_BASKET", SceneController.loggedUsername)
@@ -307,7 +333,52 @@ public class CheckoutController implements Initializable {
                         throw new RuntimeException(e);
                     }
                     closeWindow();
+
+                    // 3. Ask to add a greeting
+                    Alert confirm = new Alert(
+                            Alert.AlertType.CONFIRMATION,
+                            "Add a greeting to your order?",
+                            ButtonType.YES, ButtonType.NO
+                    );
+                    confirm.setHeaderText(null);
+                    if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
+                        // 4. Load greeting dialog
+                        FXMLLoader loader = new FXMLLoader(getClass().getResource(
+                                "/il/cshaifasweng/OCSFMediatorExample/client/greeting.fxml"
+                        ));
+                        Parent root = null;
+                        try {
+                            root = loader.load();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        GreetingController gc = loader.getController();
+                        gc.init(
+                                /* initialText= */ null,
+                                /* initialHex = */ "#FFFFFF",
+                                (text, hex) -> {
+                                    // 5. Send UPDATE_GREETING
+                                    Map<String, Object> msg = Map.of(
+                                            "orderId",  createdOrderId,
+                                            "greeting", String.format("(%s)%s", hex, text)
+                                    );
+                                    try {
+                                        SimpleClient.getClient().sendToServer(
+                                                new Msg("UPDATE_GREETING", msg)
+                                        );
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                        );
+                        Stage popup = new Stage();
+                        popup.initModality(Modality.APPLICATION_MODAL);
+                        popup.setTitle("Add Greeting");
+                        popup.setScene(new Scene(root));
+                        popup.showAndWait();
+                    }
                 }
+
                 case "ORDER_FAIL" -> new Alert(Alert.AlertType.ERROR,
                         "Order failed, please check details.").showAndWait();
             }
@@ -347,6 +418,7 @@ public class CheckoutController implements Initializable {
 
     /* ---------- window utils ---------- */
     private void closeWindow() {
+        EventBus.getDefault().unregister(this);
         ((Stage) basketTable.getScene().getWindow()).close();
     }
     @FXML private void goBack(){ closeWindow(); }

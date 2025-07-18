@@ -19,6 +19,7 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class OrdersController {
@@ -35,7 +36,9 @@ public class OrdersController {
     @FXML private TableColumn<OrderDisplayDTO, String> colFulfil;
     @FXML private TableColumn<OrderDisplayDTO, String> colStatus;
     @FXML private TableColumn<OrderDisplayDTO, Double> colPrice;
-    @FXML private TableColumn colDeadline;
+    @FXML private TableColumn<OrderDisplayDTO, LocalDateTime> colDeadline;
+    @FXML private TableColumn<OrderDisplayDTO, String> colRecipient;
+    @FXML private TableColumn<OrderDisplayDTO, String> colGreeting;
     @FXML private TableColumn<OrderDisplayDTO, Void> colProducts;
     @FXML private TableColumn<OrderDisplayDTO, Void> colActions;
 
@@ -67,6 +70,8 @@ public class OrdersController {
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colPrice.setCellValueFactory(new PropertyValueFactory<>("totalPrice"));
         colDeadline.setCellValueFactory(new PropertyValueFactory<>("deadline"));
+        colRecipient.setCellValueFactory(new PropertyValueFactory<>("recipient"));
+        colGreeting .setCellValueFactory(new PropertyValueFactory<>("greeting"));
 
         colProducts.setCellFactory(col -> new TableCell<>() {
             private final Button viewBtn = new Button("View");

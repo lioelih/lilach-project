@@ -32,6 +32,12 @@ public class Order {
     @Column(name="deadline", nullable=false)
     private LocalDateTime deadline;
 
+    @Column(name="recipient", nullable=false)
+    private String recipient;
+
+    @Column(name="greeting")
+    private String greeting;
+
     public Order() {}
 
     public int getOrderId() {
@@ -86,4 +92,9 @@ public class Order {
     }
     public LocalDateTime getDeadline() { return deadline; }
     public void setDeadline(LocalDateTime deadline) { this.deadline = deadline; }
+    public String getRecipient() { return recipient; }
+    public void   setRecipient(String r){ this.recipient = r; }
+
+    public String getGreeting(){ return greeting; }
+    public void   setGreeting(String g){ this.greeting = g; }
 }

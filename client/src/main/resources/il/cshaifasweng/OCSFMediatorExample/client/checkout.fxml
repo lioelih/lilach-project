@@ -41,6 +41,12 @@
                 <!-- scheduling group -->
                 <ToggleGroup fx:id="timeGroup"/>
             </fx:define>
+            <!-- Recipient details-->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Recipient:"/>
+                <TextField fx:id="recipientNameField" promptText="Full Name"/>
+                <TextField fx:id="recipientPhoneField" promptText="Phone #"/>
+            </HBox>
 
             <!-- Basket table -->
             <TableView fx:id="basketTable" maxWidth="600" prefHeight="200">

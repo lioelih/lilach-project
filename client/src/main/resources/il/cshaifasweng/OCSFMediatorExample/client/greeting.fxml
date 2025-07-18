@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox fx:id="rootPane" spacing="10" xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="il.cshaifasweng.OCSFMediatorExample.client.GreetingController"
+      style="-fx-background-color: white; -fx-border-color: #ccc;">
+    <padding>
+        <Insets top="15" right="15" bottom="15" left="15"/>
+    </padding>
+    <Label text="Add your greeting (max 200 chars)"/>
+
+    <TextArea fx:id="greetingTextArea"
+              wrapText="true"
+              prefRowCount="4"/>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Color:"/>
+        <ColorPicker fx:id="colorPicker" />
+    </HBox>
+
+    <Label fx:id="charCountLabel" text="200 chars remaining" style="-fx-text-fill: gray;"/>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button fx:id="cancelGreetingBtn" text="Cancel"/>
+        <Button fx:id="saveGreetingBtn"   text="Save"/>
+    </HBox>
+</VBox>
