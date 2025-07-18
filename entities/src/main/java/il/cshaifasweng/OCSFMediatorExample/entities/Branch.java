@@ -57,7 +57,14 @@ public class Branch implements Serializable {
 
     /* ---------- convenience ---------- */
 
-    @Override public String toString() { return branch_name; }
+    @Override
+    public String toString() {
+        return branch_name; // or getName()
+    }
 
 
+
+    public String getBranchName() {
+        return branch_name;
+    }
 }

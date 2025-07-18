@@ -65,7 +65,7 @@ public class SimpleServer extends AbstractServer {
                         } else {
                             User user = users.get(0);
                             if (!user.isActive()) {
-                                client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
+                                client.sendToClient(new Msg("LOGIN_FAILED", "Your account is frozen. Please contact support."));
                             } else {
                                 client.sendToClient(new Msg("LOGIN_SUCCESS", user.getUsername()));
                             }
@@ -76,7 +76,9 @@ public class SimpleServer extends AbstractServer {
                 case "REGISTER" -> {
                     String[] regData = (String[]) data;
                     String username = regData[0], email = regData[1], fullName = regData[2],
-                            phoneNumber = regData[3], password = regData[4], branch = regData[5];
+                            phoneNumber = regData[3], password = regData[4], branchIdString = regData[5];
+
+                    System.out.println("[Server] REGISTER received with username: " + username + ", branchIdString: " + branchIdString);
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         Query<User> check = session.createQuery("FROM User WHERE username = :u OR email = :e");
@@ -85,7 +87,30 @@ public class SimpleServer extends AbstractServer {
 
                         if (!check.list().isEmpty()) {
                             client.sendToClient(new Msg("REGISTER_FAILED", "User already exists"));
+                            System.out.println("[Server] REGISTER failed: user already exists");
                             return;
+                        }
+
+                        int branchId;
+                        try {
+                            branchId = Integer.parseInt(branchIdString);
+                            System.out.println("[Server] Parsed branchId: " + branchId);
+                        } catch (NumberFormatException e) {
+                            client.sendToClient(new Msg("REGISTER_FAILED", "Invalid branch ID"));
+                            System.out.println("[Server] REGISTER failed: invalid branch ID");
+                            return;
+                        }
+
+                        Query<Branch> branchQuery = session.createQuery("FROM Branch WHERE branch_id = :bid", Branch.class);
+                        branchQuery.setParameter("bid", branchId);
+                        Branch selectedBranch = branchQuery.uniqueResult();
+
+                        if (selectedBranch == null) {
+                            client.sendToClient(new Msg("REGISTER_FAILED", "Selected branch does not exist"));
+                            System.out.println("[Server] REGISTER failed: selected branch does not exist for ID: " + branchId);
+                            return;
+                        } else {
+                            System.out.println("[Server] Found branch for registration: " + selectedBranch.getName() + ", ID: " + selectedBranch.getBranchId());
                         }
 
                         User newUser = new User();
@@ -94,17 +119,30 @@ public class SimpleServer extends AbstractServer {
                         newUser.setPhoneNumber(phoneNumber);
                         newUser.setFullName(fullName);
                         newUser.setPassword(password);
-                        newUser.setBranch(branch);
+                        newUser.setBranch(selectedBranch);
                         newUser.setRole(User.Role.USER);
                         newUser.setActive(true);
 
                         session.beginTransaction();
-                        session.persist(newUser);
-                        session.getTransaction().commit();
 
-                        client.sendToClient(new Msg("REGISTER_SUCCESS", null));
+                        try {
+                            session.persist(newUser);
+                            session.getTransaction().commit();
+                            System.out.println("[Server] Registered new user: " + username + " with branch ID: " + branchId);
+                            client.sendToClient(new Msg("REGISTER_SUCCESS", null));
+                        } catch (Exception ex) {
+                            session.getTransaction().rollback();
+                            System.out.println("[Server] REGISTER failed: exception during persist");
+                            ex.printStackTrace();
+                            client.sendToClient(new Msg("REGISTER_FAILED", "Server error during registration."));
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[Server] REGISTER failed: outer exception");
+                        e.printStackTrace();
+                        client.sendToClient(new Msg("REGISTER_FAILED", "Server error during registration."));
                     }
                 }
+
 
                 case "LOGOUT" -> {
                     String username = (String) data;
@@ -580,6 +618,12 @@ public class SimpleServer extends AbstractServer {
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         List<Branch> list = s.createQuery("FROM Branch", Branch.class).list();
 
+                        // Debug print branches sent
+                        System.out.println("[Server] Branches found in DB:");
+                        for (Branch b : list) {
+                            System.out.println("[Server] Branch: " + b.getName() + ", ID: " + b.getBranchId());
+                        }
+
                         // force Hibernate to initialize collections before clearing
                         list.forEach(b -> {
                             b.getStockLines().size();  // trigger fetch to avoid LazyInitEx
@@ -784,29 +828,153 @@ public class SimpleServer extends AbstractServer {
                     client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_OK", products));
                 }
 
+                case "FETCH_ALL_USERS" -> {
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        List<User> users = session.createQuery("FROM User", User.class).list();
+                        List<Map<String, Object>> results = new ArrayList<>();
 
-                case "FETCH_ORDERS" -> {
-                    Object[] arr      = (Object[]) data;
-                    String   username = (String)  arr[0];
-                    String   scope    = (String)  arr[1];     // "MINE" | "ALL"
-                    System.out.println("[Server] Fetching orders");
-                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        for (User user : users) {
+                            Double total = session.createQuery(
+                                            "SELECT SUM(o.totalPrice) FROM Order o WHERE o.user.id = :uid", Double.class)
+                                    .setParameter("uid", user.getId())
+                                    .uniqueResultOptional()
+                                    .orElse(0.0);
 
-                        String hql = "ALL".equals(scope)
-                                ? "FROM Order"
-                                : "FROM Order o WHERE o.user.username = :u";
+                            Map<String, Object> map = new HashMap<>();
+                            map.put("id", user.getId());
+                            map.put("username", user.getUsername());
+                            map.put("email", user.getEmail());
+                            map.put("phone", user.getPhoneNumber());
+                            map.put("role", user.getRole().toString());
+                            map.put("active", user.isActive());
+                            map.put("totalSpent", total);
+                            map.put("branchName", user.getBranch().getBranchName());
+                            map.put("password", user.getPassword());
+                            map.put("isVIP", user.isVIP());
+                            results.add(map);
+                        }
 
-                        Query<Order> q = s.createQuery(hql, Order.class);
-                        if ("MINE".equals(scope)) q.setParameter("u", username);
-
-                        List<Order> list = q.list();
-
-                        /* initialise derived text fields */
-                        list.forEach(o -> { o.getStatusString(); o.getFulfilInfo(); });
-
-                        client.sendToClient(new Msg("FETCH_ORDERS_OK", list));
+                        client.sendToClient(new Msg("FETCH_ALL_USERS_OK", results));
                     }
                 }
+
+                case "FREEZE_USER" -> {
+                    int userId = (int) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+                        User user = session.get(User.class, userId);
+                        if (user != null) {
+                            user.setActive(false);
+                            session.merge(user);
+                        }
+                        session.getTransaction().commit();
+                        client.sendToClient(new Msg("USER_FREEZE_OK", userId));
+                    }
+                }
+
+                case "UNFREEZE_USER" -> {
+                    int userId = (int) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+                        User user = session.get(User.class, userId);
+                        if (user != null) {
+                            user.setActive(true);
+                            session.merge(user);
+                        }
+                        session.getTransaction().commit();
+                        client.sendToClient(new Msg("USER_UNFREEZE_OK", userId));
+                    }
+                }
+
+                case "CHANGE_ROLE" -> {
+                    Map<String, Object> map = (Map<String, Object>) data;
+                    int userId = (int) map.get("id");
+                    String newRole = (String) map.get("role");
+
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+                        User user = session.get(User.class, userId);
+                        if (user != null) {
+                            user.setRole(User.Role.valueOf(newRole));
+                            session.merge(user);
+                        }
+                        session.getTransaction().commit();
+                        client.sendToClient(new Msg("CHANGE_ROLE_OK", userId));
+                    }
+                }
+                case "UPDATE_USER" -> {
+                    Map<String, Object> updateData = (Map<String, Object>) data;
+                    int userId = (int) updateData.get("id");
+                    String newUsername = (String) updateData.get("username");
+                    String newEmail = (String) updateData.get("email");
+                    String newPhone = (String) updateData.get("phone");
+                    String newRole = (String) updateData.get("role");
+                    Boolean newActive = (Boolean) updateData.get("active");
+                    String newBranchName = (String) updateData.get("branchName");
+                    String newPassword = (String) updateData.get("password");
+                    Boolean newVip = (Boolean) updateData.get("isVIP");
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        session.beginTransaction();
+
+                        User user = session.get(User.class, userId);
+                        if (user == null) {
+                            client.sendToClient(new Msg("UPDATE_USER_FAILED", "User not found"));
+                            return;
+                        }
+
+                        List<User> conflicts = session.createQuery(
+                                        "FROM User WHERE (username = :username OR email = :email) AND id != :id", User.class)
+                                .setParameter("username", newUsername)
+                                .setParameter("email", newEmail)
+                                .setParameter("id", userId)
+                                .list();
+                        if (!conflicts.isEmpty()) {
+                            client.sendToClient(new Msg("UPDATE_USER_FAILED", "Username or email already taken by another user"));
+                            session.getTransaction().rollback();
+                            return;
+                        }
+
+                        user.setUsername(newUsername);
+                        user.setEmail(newEmail);
+                        user.setPhoneNumber(newPhone);
+                        user.setRole(User.Role.valueOf(newRole));
+                        user.setActive(newActive);
+                        if (newVip != null) {
+                            user.setVIP(newVip);
+                        }
+                        // Update password if provided
+                        if (newPassword != null && !newPassword.isBlank()) {
+                            user.setPassword(newPassword);
+                        }
+
+                        if (newBranchName != null && !newBranchName.isBlank()) {
+                            Branch branch = session.createQuery("FROM Branch WHERE branch_name = :name", Branch.class)
+                                    .setParameter("name", newBranchName)
+                                    .uniqueResult();
+                            if (branch != null) {
+                                user.setBranch(branch);
+                            } else {
+                                client.sendToClient(new Msg("UPDATE_USER_FAILED", "Branch not found"));
+                                session.getTransaction().rollback();
+                                return;
+                            }
+                        }
+
+                        session.merge(user);
+                        session.getTransaction().commit();
+
+                        client.sendToClient(new Msg("UPDATE_USER_OK", null));
+                        System.out.println("[Server] Updated user ID " + userId + " successfully.");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        client.sendToClient(new Msg("UPDATE_USER_FAILED", "Error updating user"));
+                    }
+                }
+
+
+
+
+
 
 
 
