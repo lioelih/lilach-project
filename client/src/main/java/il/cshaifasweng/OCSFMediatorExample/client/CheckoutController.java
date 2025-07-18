@@ -30,6 +30,7 @@ public class CheckoutController implements Initializable {
     @FXML private TableColumn<Basket,Integer> amtCol;
     @FXML private TableColumn<Basket,Double> priceCol;
     @FXML private Label  totalLabel;
+    @FXML private Label  totalAfterLabel;
 
     @FXML private RadioButton savedCardRadio, addCardRadio;
     @FXML private Button addCardButton;
@@ -47,11 +48,12 @@ public class CheckoutController implements Initializable {
     private final List<Branch>  branchList     = new ArrayList<>();     //  <-- keep list
 
     /* ------------ init from BasketController -------------- */
-    public void initData(List<Basket> copy) {
+    public void initData(List<Basket> copy, double totalBefore, double discount) {
         items.clear();
         items.addAll(copy);
         basketTable.getItems().setAll(items);
-        updateTotal();
+        totalLabel.setText(String.format("Total Before Discount " + "₪ %.2f", totalBefore));
+        totalAfterLabel.setText(String.format("Total After Discount " + "₪ %.2f", totalBefore - discount));
         requestSavedCard();
     }
 
@@ -152,10 +154,6 @@ public class CheckoutController implements Initializable {
     }
 
     /* ---------- helpers ---------- */
-    private void updateTotal() {
-        double total = items.stream().mapToDouble(Basket::getPrice).sum();
-        totalLabel.setText(String.format("₪ %.2f", total));
-    }
     private void requestSavedCard() {
         try { SimpleClient.getClient().sendToServer(
                 new Msg("HAS_CARD", SceneController.loggedUsername)); }

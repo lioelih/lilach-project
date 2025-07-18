@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "sales")
@@ -215,4 +217,94 @@ public class Sale implements Serializable {
         }
         return finalPrice;
     }
+
+    /**
+     * Calculates the total discount amount for a list of basket items based on applicable sales.
+     * The function checks each item in the basket against the provided sales,
+     * applies any applicable discount, and returns the total value of the discount applied.
+     *
+     * @param basketList The list of basket items currently in the user's basket.
+     * @param sales The list of all available sales.
+     * @return The total discount amount to be subtracted from the basket's total price.
+     */
+    public static double calculateTotalDiscount(List<Basket> basketList, List<Sale> sales) {
+        if (basketList == null || sales == null) return 0.0;
+
+        Map<Integer, Integer> paidQuantities = new HashMap<>();
+        Map<Integer, Integer> freeQuantities = new HashMap<>();
+        Map<Integer, Double> realPrices = new HashMap<>();
+
+        // Step 1: Calculate real prices (apply percentage or fixed)
+        for (Basket basket : basketList) {
+            Product product = basket.getProduct();
+            int productId = product.getId();
+            double basePrice = product.getPrice();
+            double realPrice = basePrice;
+
+            for (Sale sale : sales) {
+                if (!sale.getProductIds().contains(productId)) continue;
+                if (sale.getStartDate().isAfter(java.time.LocalDateTime.now()) ||
+                        sale.getEndDate().isBefore(java.time.LocalDateTime.now())) continue;
+
+                if (sale.getDiscountType() == DiscountType.PERCENTAGE) {
+                    realPrice = basePrice * (1 - sale.getDiscountValue() / 100.0);
+                    break;
+                } else if (sale.getDiscountType() == DiscountType.FIXED) {
+                    realPrice = basePrice - sale.getDiscountValue();
+                    break;
+                }
+            }
+
+            realPrices.put(productId, Math.max(0.0, realPrice));
+            paidQuantities.put(productId, basket.getAmount());
+        }
+
+        double totalDiscount = 0.0;
+
+        // Step 2: BUY_X_GET_Y
+        for (Sale sale : sales) {
+            if (sale.getDiscountType() != DiscountType.BUY_X_GET_Y) continue;
+            if (sale.getStartDate().isAfter(java.time.LocalDateTime.now()) ||
+                    sale.getEndDate().isBefore(java.time.LocalDateTime.now())) continue;
+
+            for (int productId : sale.getProductIds()) {
+                int totalQty = paidQuantities.getOrDefault(productId, 0);
+                int buy = sale.getBuyQuantity();
+                int get = sale.getGetQuantity();
+
+                int fullSets = totalQty / (buy + get);
+                int actualPaidQty = fullSets * buy;
+                int actualFreeQty = fullSets * get;
+
+                double unitPrice = realPrices.getOrDefault(productId, 0.0);
+                totalDiscount += unitPrice * actualFreeQty;
+
+                freeQuantities.put(productId, actualFreeQty);
+                paidQuantities.put(productId, totalQty - actualFreeQty);
+            }
+        }
+
+        // Step 3: BUNDLE
+        for (Sale sale : sales) {
+            if (sale.getDiscountType() != DiscountType.BUNDLE) continue;
+            if (sale.getStartDate().isAfter(java.time.LocalDateTime.now()) ||
+                    sale.getEndDate().isBefore(java.time.LocalDateTime.now())) continue;
+
+            List<Integer> bundleProducts = sale.getProductIds();
+            int bundleSets = Integer.MAX_VALUE;
+
+            for (int productId : bundleProducts) {
+                int paidQty = paidQuantities.getOrDefault(productId, 0);
+                bundleSets = Math.min(bundleSets, paidQty);
+            }
+
+            if (bundleSets > 0 && bundleSets != Integer.MAX_VALUE) {
+                totalDiscount += bundleSets * sale.getDiscountValue();
+            }
+        }
+
+        return totalDiscount;
+    }
+
+
 }

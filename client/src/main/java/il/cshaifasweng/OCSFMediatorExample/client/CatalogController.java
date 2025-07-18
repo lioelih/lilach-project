@@ -50,9 +50,11 @@ public class CatalogController {
     @FXML private TilePane productGrid;
     @FXML private ImageView logoImage;
     @FXML private ComboBox<Branch> branchFilter;
+
     private List<Product> products;
     private  List<Sale> sales;
     private List<Product> fullCatalog = new ArrayList<>();
+
     @FXML
     public void initialize() {
 
@@ -130,14 +132,21 @@ public class CatalogController {
             Scene scene = null;
             try {
                 scene = new Scene(loader.load());
+
+                // Step 1: Get the controller
+                BasketController controller = loader.getController();
+
+                // Step 2: Set data (example: pass a list of Basket items)
+                controller.setSales(sales);
+
+                // Step 3: Show the stage
+                Stage basketStage = new Stage();
+                basketStage.setTitle("Your Basket");
+                basketStage.setScene(scene);
+                basketStage.show();
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
-
-            Stage basketStage = new Stage();
-            basketStage.setTitle("Your Basket");
-            basketStage.setScene(scene);
-            basketStage.show();
         });
         Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
         logoImage.setImage(logo);
