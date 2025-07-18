@@ -51,7 +51,8 @@ public class SimpleClient extends AbstractClient {
 					 "BASKET_FETCHED", "BASKET_UPDATED",
 					 "HAS_CARD", "ORDER_OK", "ORDER_FAIL", "BRANCHES_OK",
 					 "STOCK_OK", "ADD_STOCK_OK", "STOCK_SINGLE_OK", "FETCH_ORDERS_OK", "FETCH_ORDER_PRODUCTS_OK",
-					 "MARK_ORDER_RECEIVED_OK" ->   // ← new line
+					 "MARK_ORDER_RECEIVED_OK", "FETCH_ALL_USERS_OK", "FREEZE_USER_OK", "UNFREEZE_USER_OK",
+					 "CHANGE_ROLE_OK", "UPDATE_USER_OK", "UPDATE_USER_FAILED"->   // ← new line
 						EventBus.getDefault().post(massage);
 
 				case "SENT_SALES" ->

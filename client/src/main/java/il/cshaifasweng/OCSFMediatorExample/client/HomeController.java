@@ -22,6 +22,7 @@ import java.util.ResourceBundle;
 public class HomeController {
 
     @FXML public Label welcomeLabel;
+    @FXML private Button usersButton;
     @FXML private Button logoutButton;
     @FXML private Button catalogButton;
     @FXML private Button contactButton;
@@ -40,12 +41,13 @@ public class HomeController {
         registerButton.setOnAction(e -> SceneController.switchScene("register"));
         vipButton.setOnAction(e -> SceneController.switchScene("vip"));
         ordersButton.setOnAction(e -> SceneController.switchScene("orders"));
-
+        usersButton.setOnAction(e -> SceneController.switchScene("users"));
         if (loggedIn) {
             loginButton.setVisible(false);
             registerButton.setVisible(false);
             logoutButton.setVisible(true);
             ordersButton.setVisible(true);
+            usersButton.setVisible(true);
             welcomeLabel.setText("Welcome, " + SceneController.loggedUsername);
         } else {
             logoutButton.setVisible(false);

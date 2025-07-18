@@ -38,15 +38,7 @@
             <TextField fx:id="phoneNumberField" promptText="Phone Number"/>
             <TextField fx:id="nameField" promptText="Full Name"/>
             <PasswordField fx:id="passwordField" promptText="Password"/>
-            <ComboBox fx:id="branchComboBox" promptText="Select Branch">
-                <items>
-                    <FXCollections fx:factory="observableArrayList">
-                        <String fx:value="Jerusalem" />
-                        <String fx:value="Haifa" />
-                        <String fx:value="Tel-Aviv" />
-                    </FXCollections>
-                </items>
-            </ComboBox>
+            <ComboBox fx:id="branchComboBox" promptText="Select Branch"/>
             <Button fx:id="submitButton" text="Register"/>
         </VBox>
     </center>

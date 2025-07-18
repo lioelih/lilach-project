@@ -16,8 +16,8 @@
     </modules>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.source>15</maven.compiler.source>
-		<maven.compiler.target>15</maven.compiler.target>
+		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>17</maven.compiler.target>
 		<maven.assemblyPlugin.version>3.3.0</maven.assemblyPlugin.version>
 		<javafx.version>14</javafx.version>
 	</properties>
@@ -27,6 +27,11 @@
 				<groupId>il.cshaifasweng.OCSFMediatorExample</groupId>
 				<artifactId>entities</artifactId>
 				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>il.cshaifasweng</groupId>
+				<artifactId>common</artifactId>
+				<version>0.0.1-SNAPSHOT</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

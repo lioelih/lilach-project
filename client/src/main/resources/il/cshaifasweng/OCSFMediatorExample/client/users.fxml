@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.control.cell.PropertyValueFactory?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.UsersController"
+            prefWidth="1280" prefHeight="720">
+
+    <!-- ───────────── Top Bar ───────────── -->
+    <top>
+        <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-background-color: #D6EAF8; -fx-padding: 10;">
+            <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true" pickOnBounds="true"/>
+            <Button fx:id="goHomeButton" text="← Home"/>
+            <Label text="Users" style="-fx-font-size: 22; -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+        </HBox>
+    </top>
+
+    <!-- ───────────── Center Table ───────────── -->
+    <center>
+        <VBox spacing="12" style="-fx-padding: 20;">
+            <!-- Search Bar -->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Search by username:"/>
+                <TextField fx:id="searchField" promptText="Enter username..."/>
+            </HBox>
+
+            <!-- Users Table -->
+            <TableView fx:id="usersTable" prefHeight="600" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="60">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="id"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colUsername" text="Username" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="username"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colPassword" text="Password" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="username"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colEmail" text="Email" prefWidth="180">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="email"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colPhone" text="Phone" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="phone"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colRole" text="Role" prefWidth="100">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="role"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colBranch" text="Branch" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="branchName"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colIsVIP" text="Vip Status" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="isVIP"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colTotalSpent" text="Total Spent (₪)" prefWidth="120">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="totalSpent"/>
+                        </cellValueFactory>
+                    </TableColumn>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="200"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>

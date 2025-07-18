@@ -24,8 +24,9 @@ public class User implements Serializable {
     @Column(name = "phone_number")
     private String phoneNumber;
 
-    @Column(name = "branch")
-    private String branch;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
 
     @Column(name = "isVIP")
     private boolean isVIP = false;
@@ -86,8 +87,8 @@ public class User implements Serializable {
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
 
-    public String getBranch() { return branch; }
-    public void setBranch(String branch) { this.branch = branch; }
+    public Branch getBranch() { return branch; }
+    public void setBranch(Branch branch) { this.branch = branch; }
 
     public boolean isVIP() {
         return isVIP;
