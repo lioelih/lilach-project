@@ -23,6 +23,7 @@ import java.util.List;
 
 public class OrdersController {
 
+
     @FXML private ImageView logoImage;
     @FXML private Button goHomeButton;
     @FXML private RadioButton rbMine;
@@ -34,6 +35,7 @@ public class OrdersController {
     @FXML private TableColumn<OrderDisplayDTO, String> colFulfil;
     @FXML private TableColumn<OrderDisplayDTO, String> colStatus;
     @FXML private TableColumn<OrderDisplayDTO, Double> colPrice;
+    @FXML private TableColumn colDeadline;
     @FXML private TableColumn<OrderDisplayDTO, Void> colProducts;
     @FXML private TableColumn<OrderDisplayDTO, Void> colActions;
 
@@ -64,6 +66,7 @@ public class OrdersController {
         colFulfil.setCellValueFactory(new PropertyValueFactory<>("fulfilment"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colPrice.setCellValueFactory(new PropertyValueFactory<>("totalPrice"));
+        colDeadline.setCellValueFactory(new PropertyValueFactory<>("deadline"));
 
         colProducts.setCellFactory(col -> new TableCell<>() {
             private final Button viewBtn = new Button("View");

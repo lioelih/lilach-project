@@ -24,7 +24,11 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.IntStream;
 
 public class CheckoutController implements Initializable {
 
@@ -46,6 +50,12 @@ public class CheckoutController implements Initializable {
     @FXML private RadioButton pickupRadio, deliveryRadio;
     @FXML private ComboBox<Branch> branchCombo;          //  <-- now Branch
     @FXML private TextField cityField, streetField, houseField, zipField;
+
+
+    @FXML private RadioButton asapRadio, scheduleRadio;
+    @FXML private DatePicker   deadlineDatePicker;
+    @FXML private ComboBox<Integer> deadlineHourCombo;
+    @FXML private HBox scheduleBox;
 
     @FXML private Button     completeBtn;
     @FXML private ImageView  logoImage;
@@ -131,15 +141,56 @@ public class CheckoutController implements Initializable {
         pickupRadio.setToggleGroup(fulGroup);
         deliveryRadio.setToggleGroup(fulGroup);
 
-// 2) compose a single ready‐to‐submit binding:
+        for (int h = 8; h <= 20; h++) {
+            deadlineHourCombo.getItems().add(h);
+        }
+        LocalDate today = LocalDate.now();
+        deadlineDatePicker.setDayCellFactory(dp -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                if (empty || date.isBefore(today)) {
+                    setDisable(true);
+                    setStyle("-fx-background-color: #EEEEEE;");
+                }
+            }
+        });
+        scheduleBox.visibleProperty().bind(scheduleRadio.selectedProperty());
+        scheduleBox.managedProperty().bind(scheduleRadio.selectedProperty());
+        deadlineDatePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
+            if (newDate == null) return;
+            int minHour = 8;  // never before 8am
+            if (newDate.equals(today)) {
+                LocalDateTime asap = LocalDateTime.now().plusHours(3);
+                int cutoff = asap.getHour();
+                // if there’s any minutes past, bump to next hour
+                if (asap.getMinute() > 0) {
+                    cutoff++;
+                }
+                minHour = Math.max(minHour, cutoff);
+            }
+
+            // rebuild the hour list
+            var valid = IntStream.rangeClosed(minHour, 20).boxed().toList();
+            deadlineHourCombo.getItems().setAll(valid);
+            // clear any previously-picked invalid hour
+            if (!valid.contains(deadlineHourCombo.getValue())) {
+                deadlineHourCombo.setValue(null);
+            }
+        });
+
+        BooleanBinding timeOk = asapRadio.selectedProperty()
+                .or(scheduleRadio.selectedProperty()
+                        .and(deadlineDatePicker.valueProperty().isNotNull())
+                        .and(deadlineHourCombo.valueProperty().isNotNull()));
+
         BooleanBinding ready = paymentOk
                 .and(fulGroup.selectedToggleProperty().isNotNull())
-                .and(fulfilOk);
+                .and(fulfilOk)
+                .and(timeOk);
 
-// 3) bind the button’s disable state to the inverse of “ready”:
         completeBtn.disableProperty().bind(ready.not());
 
-// 4) leave your action handler alone:
         completeBtn.setOnAction(e -> submitOrder());
 
         /* ask server for branches & card */
@@ -173,9 +224,18 @@ public class CheckoutController implements Initializable {
                     houseField.getText(), zipField.getText());
         }
 
+        LocalDateTime deadline;
+        if (asapRadio.isSelected()) {
+            deadline = LocalDateTime.now().plusHours(3);
+        } else {
+            LocalDate date = deadlineDatePicker.getValue();
+            Integer hour   = deadlineHourCombo.getValue();
+            deadline = date.atTime(hour, 0);
+        }
+
         return new OrderDTO(SceneController.loggedUsername,
                 items.stream().map(Basket::getId).toList(),
-                type, info);
+                type, info, deadline);
     }
 
     /* ---------- helpers ---------- */

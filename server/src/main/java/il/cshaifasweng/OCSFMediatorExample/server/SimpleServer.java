@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.*;
-
+import java.time.LocalDateTime;
 public class SimpleServer extends AbstractServer {
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
     private ScheduledExecutorService scheduler;
@@ -586,6 +586,9 @@ public class SimpleServer extends AbstractServer {
                         totalPrice = grandTotal - discount - vipDiscount + deliveryFee;
                         order.setTotalPrice(totalPrice);
 
+                        // 6. Set Deadline
+                        order.setDeadline(dto.getDeadline());
+
                         s.persist(order);
 
                         // Link baskets to order
@@ -807,6 +810,7 @@ public class SimpleServer extends AbstractServer {
                                     fulfilment,
                                     status,
                                     totalPrice,
+                                    o.getDeadline(),
                                     o.isReceived()
                             ));
                         }

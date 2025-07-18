@@ -70,6 +70,12 @@
                         </cellValueFactory>
                     </TableColumn>
 
+                    <TableColumn fx:id="colDeadline" text="Deadline" prefWidth="160">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="deadline"/>
+                        </cellValueFactory>
+                    </TableColumn>
+
                     <TableColumn fx:id="colProducts" text="Products" prefWidth="100"/>
                     <TableColumn fx:id="colActions" text="Actions" prefWidth="200"/>
                 </columns>
