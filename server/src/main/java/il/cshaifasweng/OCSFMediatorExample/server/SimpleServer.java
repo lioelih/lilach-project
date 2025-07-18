@@ -402,92 +402,85 @@ public class SimpleServer extends AbstractServer {
                 }
 
                 case "NEW_ORDER" -> {
-
-                    /* incoming payload */
                     OrderDTO dto = (OrderDTO) data;
-                    boolean   ok = false;                   // will flip to true on success
+                    boolean ok = false;
 
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = s.beginTransaction();
 
-                        /* ---------- 1. fetch the user ---------- */
+                        // 1. Fetch user
                         User user = s.createQuery(
                                         "FROM User WHERE username = :u", User.class)
                                 .setParameter("u", dto.getUsername())
                                 .uniqueResult();
-                        if (user == null) {                         // should never happen
-                            client.sendToClient(new Msg("ORDER_FAIL","Unknown user"));
+
+                        if (user == null) {
+                            client.sendToClient(new Msg("ORDER_FAIL", "Unknown user"));
                             return;
                         }
 
-                        /* ---------- 2. fetch basket lines ---------- */
-                        List<Basket> basketItems = s.createQuery(
-                                        "FROM Basket WHERE id IN (:ids) " +
-                                                "AND user  = :u " +
-                                                "AND order IS NULL", Basket.class)
+                        // 2. Fetch basket lines with product using JOIN FETCH
+                        List<Basket> basketItems = s.createQuery("""
+                SELECT b FROM Basket b
+                JOIN FETCH b.product
+                WHERE b.id IN (:ids)
+                  AND b.user = :u
+                  AND b.order IS NULL
+            """, Basket.class)
                                 .setParameter("ids", dto.getBasketIds())
-                                .setParameter("u",   user)
+                                .setParameter("u", user)
                                 .list();
+
                         if (basketItems.size() != dto.getBasketIds().size()) {
-                            client.sendToClient(new Msg("ORDER_FAIL","Basket mismatch"));
+                            client.sendToClient(new Msg("ORDER_FAIL", "Basket mismatch"));
                             return;
                         }
 
-        /* ------------------------------------------------------------
-           3. PICK-UP stock validation (if applicable)
-           ------------------------------------------------------------ */
-                        int branchId = -1;                             // will hold parsed id
-
+                        // 3. PICK-UP stock validation (if applicable)
+                        int branchId = -1;
                         if ("PICKUP".equals(dto.getFulfilType())) {
 
                             if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
-                                client.sendToClient(new Msg("ORDER_FAIL",
-                                        "No pick-up branch selected"));
+                                client.sendToClient(new Msg("ORDER_FAIL", "No pick-up branch selected"));
                                 return;
                             }
 
-                            try { branchId = Integer.parseInt(dto.getFulfilInfo()); }
-                            catch (NumberFormatException ex) {
-                                client.sendToClient(new Msg("ORDER_FAIL",
-                                        "Malformed branch id"));
+                            try {
+                                branchId = Integer.parseInt(dto.getFulfilInfo());
+                            } catch (NumberFormatException ex) {
+                                client.sendToClient(new Msg("ORDER_FAIL", "Malformed branch id"));
                                 return;
                             }
 
-                            /* build  {productId → qtyRequested}  */
-                            Map<Integer,Integer> requested = new HashMap<>();
-                            for (Basket b : basketItems)
-                                requested.merge(b.getProduct().getId(),
-                                        b.getAmount(), Integer::sum);
+                            // Build requested product quantities
+                            Map<Integer, Integer> requested = new HashMap<>();
+                            for (Basket b : basketItems) {
+                                requested.merge(b.getProduct().getId(), b.getAmount(), Integer::sum);
+                            }
 
-                            /* ask DB for quantities in that branch */
+                            // Check branch stock
                             List<Object[]> chk = checkBranchStock(s, branchId, requested);
-
                             for (Object[] row : chk) {
-                                Integer have = (Integer) row[2];   // may be null
-                                int      want = (Integer) row[1];
+                                Integer have = (Integer) row[2]; // available
+                                int want = (Integer) row[1];     // requested
 
-                                if (have == null) {
-                                    client.sendToClient(new Msg("ORDER_FAIL",
-                                            "Items aren't available in selected pick-up branch!"));
-                                    tx.rollback();  return;
-                                }
-                                if (have < want) {
-                                    client.sendToClient(new Msg("ORDER_FAIL",
-                                            "Not enough items are available in selected pick-up branch!"));
-                                    tx.rollback();  return;
+                                if (have == null || have < want) {
+                                    client.sendToClient(new Msg("ORDER_FAIL", "Not enough items in selected pick-up branch!"));
+                                    tx.rollback();
+                                    return;
                                 }
                             }
 
-                            /* deduct stock (all checks passed) */
+                            // Deduct stock
                             for (Object[] row : chk) {
-                                int pid  = (Integer) row[0];
+                                int pid = (Integer) row[0];
                                 int want = (Integer) row[1];
 
                                 Storage st = s.createQuery("""
                         FROM Storage
                         WHERE product.product_id = :pid
                           AND branch.branch_id   = :bid
-                        """, Storage.class)
+                    """, Storage.class)
                                         .setParameter("pid", pid)
                                         .setParameter("bid", branchId)
                                         .setMaxResults(1)
@@ -498,42 +491,54 @@ public class SimpleServer extends AbstractServer {
                             }
                         }
 
-        /* ------------------------------------------------------------
-           4. create Order and link baskets
-           ------------------------------------------------------------ */
+                        // 4. Create Order and link baskets
                         Order order = new Order();
                         order.setUser(user);
                         order.setReceived(false);
 
                         if ("PICKUP".equals(dto.getFulfilType())) {
                             Branch pickedBranch = s.get(Branch.class, branchId);
-                            if (pickedBranch == null) {               // should not happen
-                                client.sendToClient(new Msg("ORDER_FAIL","Branch not found"));
-                                tx.rollback(); return;
+                            if (pickedBranch == null) {
+                                client.sendToClient(new Msg("ORDER_FAIL", "Branch not found"));
+                                tx.rollback();
+                                return;
                             }
-                            order.setBranch(pickedBranch);            // FK column
-                        }
-                        else if ("DELIVERY".equals(dto.getFulfilType())) {
+                            order.setBranch(pickedBranch);
+                        } else if ("DELIVERY".equals(dto.getFulfilType())) {
                             if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
-                                client.sendToClient(new Msg("ORDER_FAIL",
-                                        "Delivery address missing"));
-                                tx.rollback(); return;
+                                client.sendToClient(new Msg("ORDER_FAIL", "Delivery address missing"));
+                                tx.rollback();
+                                return;
                             }
                             order.setDelivery(dto.getFulfilInfo());
+                        } else {
+                            client.sendToClient(new Msg("ORDER_FAIL", "Bad fulfil type"));
+                            tx.rollback();
+                            return;
                         }
-                        else {                                        // invalid fulfil type
-                            client.sendToClient(new Msg("ORDER_FAIL","Bad fulfil type"));
-                            tx.rollback(); return;
+
+                        // 5. Calculate discount
+                        double discount = 0;
+                        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                            List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
+                            for (Sale sale : sales) {
+                                sale.setProductIds(session.createNativeQuery(
+                                                "SELECT product_id FROM sale_products WHERE sale_id = :saleId", Integer.class)
+                                        .setParameter("saleId", sale.getId())
+                                        .getResultList());
+                            }
+                            discount = Sale.calculateTotalDiscount(basketItems, sales);
                         }
 
                         double grandTotal = basketItems.stream()
                                 .mapToDouble(Basket::getPrice)
                                 .sum();
-                        order.setTotalPrice(grandTotal);
+
+                        order.setTotalPrice(grandTotal - discount);
 
                         s.persist(order);
 
-                        /* link basket rows */
+                        // Link baskets to order
                         for (Basket b : basketItems) {
                             b.setOrder(order);
                             s.merge(b);
@@ -548,6 +553,7 @@ public class SimpleServer extends AbstractServer {
 
                     client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", null));
                 }
+
 
 
                 case "HAS_CARD" -> {
