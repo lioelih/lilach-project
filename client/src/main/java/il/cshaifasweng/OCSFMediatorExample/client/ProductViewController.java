@@ -11,6 +11,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.control.Alert.AlertType;
+import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
@@ -32,8 +33,8 @@ public class ProductViewController {
     private File droppedImageFile;
 
     @FXML private void initialize() {
-        if (!EventBus.getDefault().isRegistered(this))
-            EventBus.getDefault().register(this);
+        EventBus.getDefault().unregister(this);
+        EventBus.getDefault().register(this);
 
         branchBox.setButtonCell(new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty){
@@ -230,6 +231,8 @@ public class ProductViewController {
 
     @FXML private void onClose() {
         EventBus.getDefault().unregister(this);
+        // then close the Stage, e.g.
+        ((Stage) nameField.getScene().getWindow()).close();
     }
 
     private void showAlert(String txt) {

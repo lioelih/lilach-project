@@ -61,6 +61,9 @@ public class User implements Serializable {
     @Column(name = "is_logged_in")
     private boolean loggedIn;
 
+    @Column(name="compensation_tab", nullable=false)
+    private double compensationTab = 0.0;
+
     public User() {}
 
     public int getId() { return id; }
@@ -146,4 +149,8 @@ public class User implements Serializable {
     public void setVipCanceled(boolean vipCanceled) {
         this.vipCanceled = vipCanceled;
     }
+
+
+    public double getCompensationTab() { return compensationTab; }
+    public void setCompensationTab(double c) { compensationTab = c; }
 }

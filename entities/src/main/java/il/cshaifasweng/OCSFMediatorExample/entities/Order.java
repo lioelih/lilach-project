@@ -7,6 +7,10 @@ import java.time.LocalDateTime;
 @Table(name = "orders")
 public class Order {
 
+    public static final int STATUS_PENDING   = 0;
+    public static final int STATUS_RECEIVED  = 1;
+    public static final int STATUS_CANCELLED = 2;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_id")
@@ -23,8 +27,8 @@ public class Order {
     @Column(name = "delivery")
     private String delivery;
 
-    @Column(name = "received")
-    private boolean received;
+    @Column(name="status", nullable=false)
+    private int status = STATUS_PENDING;
 
     @Column(name = "total_price")
     private double totalPrice;
@@ -37,6 +41,9 @@ public class Order {
 
     @Column(name="greeting")
     private String greeting;
+
+    @Column(name="compensation_used", nullable=false)
+    private double compensationUsed = 0.0;
 
     public Order() {}
 
@@ -72,17 +79,12 @@ public class Order {
         this.delivery = delivery;
     }
 
-    public boolean isReceived() {
-        return received;
-    }
+    public int getStatus() { return status; }
+    public void setStatus(int status) { this.status = status; }
 
-    public void setReceived(boolean received) {
-        this.received = received;
-    }
+    public boolean isReceived()   { return status == STATUS_RECEIVED;  }
+    public boolean isCancelled()  { return status == STATUS_CANCELLED; }
 
-    public String getStatusString() {
-        return received ? "Delivered" : "Awaiting Delivery";
-    }
 
     public double getTotalPrice()        { return totalPrice; }
     public void   setTotalPrice(double p){ this.totalPrice = p; }
@@ -97,4 +99,7 @@ public class Order {
 
     public String getGreeting(){ return greeting; }
     public void   setGreeting(String g){ this.greeting = g; }
+
+    public double getCompensationUsed() { return compensationUsed; }
+    public void   setCompensationUsed(double v) { compensationUsed = v; }
 }

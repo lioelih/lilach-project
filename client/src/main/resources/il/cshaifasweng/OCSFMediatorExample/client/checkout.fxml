@@ -17,6 +17,7 @@
 
 <?import javafx.scene.control.ToggleGroup?>
 
+<?import javafx.scene.control.CheckBox?>
 <BorderPane prefHeight="600" prefWidth="900" stylesheets="@homepage.css"
             xmlns="http://javafx.com/javafx/23.0.1"
             xmlns:fx="http://javafx.com/fxml/1"
@@ -56,6 +57,9 @@
                     <TableColumn fx:id="priceCol" text="Total ₪"/>
                 </columns>
             </TableView>
+
+            <CheckBox fx:id="useCompensationBox" text="Use store credit?" />
+            <Label    fx:id="compBalanceLabel" text="You have ₪0.00 credit" />
 
             <!-- Totals before/after sale discount -->
             <Label fx:id="totalLabel"      styleClass="hero-heading"/>

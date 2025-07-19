@@ -80,6 +80,11 @@
                             <PropertyValueFactory property="totalPrice"/>
                         </cellValueFactory>
                     </TableColumn>
+                    <TableColumn fx:id="colCompUsed" text="Comp Used" prefWidth="100">
+                        <cellValueFactory>
+                            <PropertyValueFactory property="compensationUsed"/>
+                        </cellValueFactory>
+                    </TableColumn>
 
                     <TableColumn fx:id="colDeadline" text="Deadline" prefWidth="160">
                         <cellValueFactory>
