@@ -62,9 +62,27 @@ public class ProductViewController {
         priceField.setText(String.format("%.2f", product.getPrice()));
 
         if (product.getImage() != null && product.getImage().length > 0) {
-            imageView.setImage(new Image(new ByteArrayInputStream(product.getImage())));
+            ByteArrayInputStream bis = new ByteArrayInputStream(product.getImage());
+            Image image = new Image(bis);
+            if (image.isError()) {
+                System.out.println("Image load error: " + image.getException());
+                imageView.setImage(new Image("/image/drag_drop.png"));
+                imageView.setFitWidth(300);
+                imageView.setFitHeight(200);
+                imageView.setPreserveRatio(true);
+            }
+            else {
+                imageView.setImage(image);
+                imageView.setFitWidth(300);
+                imageView.setFitHeight(200);
+                imageView.setPreserveRatio(true);
+            }
         } else {
             imageView.setImage(null);
+            imageView.setImage(new Image("/image/drag_drop.png"));
+            imageView.setFitWidth(300);
+            imageView.setFitHeight(200);
+            imageView.setPreserveRatio(true);
         }
 
         // Drag and drop image logic
@@ -80,13 +98,9 @@ public class ProductViewController {
             boolean success = false;
             if (db.hasFiles()) {
                 File file = db.getFiles().get(0);
-                if (file.getName().toLowerCase().endsWith(".png")) {
-                    droppedImageFile = file;
-                    imageView.setImage(new Image(file.toURI().toString()));
-                    success = true;
-                } else {
-                    showAlert("Only PNG files are allowed.");
-                }
+                droppedImageFile = file;
+                imageView.setImage(new Image(file.toURI().toString()));
+                success = true;
             }
             event.setDropCompleted(success);
             event.consume();

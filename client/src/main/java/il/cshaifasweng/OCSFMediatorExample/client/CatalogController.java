@@ -40,6 +40,7 @@ public class CatalogController {
     @FXML private Button homeButton;
     @FXML private Button refreshButton;
     @FXML private Button addProductButton;
+    @FXML private Button addSaleButton;
     @FXML private Button filterButton;
     @FXML private TextField stringSearchField;
     @FXML private TextField minPrice;
@@ -102,6 +103,25 @@ public class CatalogController {
                 err.printStackTrace();
             }
         });
+
+        addSaleButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
+                Scene scene = new Scene(loader.load());
+
+                // Get the controller and pass the product list
+                AddSaleController controller = loader.getController();
+                controller.setProducts(fullCatalog); // or use 'products' depending on your needs
+
+                Stage stage = new Stage();
+                stage.setTitle("Add Sale");
+                stage.setScene(scene);
+                stage.show();
+            } catch (IOException err) {
+                err.printStackTrace();
+            }
+        });
+
 
         refreshButton.setOnAction(e -> {
             try {
@@ -249,8 +269,8 @@ public class CatalogController {
         for (Product product : productList) {
             VBox card = new VBox(5);
             card.setStyle("-fx-border-color: lightgray; -fx-border-radius: 10; -fx-padding: 10; -fx-background-color: white;");
-            card.setPrefWidth(200);
-            card.setPrefHeight(250);
+            card.setPrefWidth(225);
+            card.setPrefHeight(275);
             card.setAlignment(Pos.CENTER);
 
             // Create StackPane to hold product image and optional sale badge
