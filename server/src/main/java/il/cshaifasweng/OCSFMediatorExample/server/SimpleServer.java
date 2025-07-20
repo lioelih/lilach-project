@@ -8,6 +8,8 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.hibernate.Transaction;
+
+import javax.mail.MessagingException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -18,6 +20,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.time.LocalDateTime;
+import javax.mail.MessagingException;
+import il.cshaifasweng.OCSFMediatorExample.server.EmailService;
+import java.util.stream.Collectors;
+import java.util.List;
+import static java.util.stream.Collectors.toList;
+
 public class SimpleServer extends AbstractServer {
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
     private ScheduledExecutorService scheduler;
@@ -824,22 +832,79 @@ public class SimpleServer extends AbstractServer {
 
                 case "MARK_ORDER_RECEIVED" -> {
                     int orderId = (int) data;
-                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        session.beginTransaction();
+                    // We’ll need a new Session for fetching details and for email:
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        Transaction tx = s.beginTransaction();
 
-                        Order order = session.get(Order.class, orderId);
-                        if (order != null && !order.isReceived()) {
+                        // 1) Load and mark the order
+                        Order order = s.get(Order.class, orderId);
+                        if (order != null && order.getStatus() != Order.STATUS_RECEIVED) {
                             order.setStatus(Order.STATUS_RECEIVED);
-                            session.merge(order);
+                            s.merge(order);
+                        }
+                        tx.commit();
+
+                        // 2) Gather everything we need to send the email:
+                        User user = order.getUser();
+                        String toAddress     = user.getEmail();
+                        String username      = user.getUsername();
+                        // Parse out just the name from the recipient string "Name (phone)"
+                        String recipientRaw  = order.getRecipient();
+                        String recipientName = recipientRaw != null
+                                ? recipientRaw.split("\\s*\\(")[0].trim()
+                                : "";
+                        boolean toSelf       = recipientName.equalsIgnoreCase(user.getFullName());
+
+                        String fulfilType, fulfilInfo;
+                        if (order.getBranch() != null) {
+                            fulfilType = "PICKUP";
+                            fulfilInfo = order.getBranch().getName();
+                        } else {
+                            fulfilType = "DELIVERY";
+                            fulfilInfo = order.getDelivery();
                         }
 
-                        session.getTransaction().commit();
+                        // Fetch the product names in the order
+                        @SuppressWarnings("unchecked")
+                        List<Basket> lines = s.createQuery("""
+    SELECT b FROM Basket b
+      JOIN FETCH b.product
+     WHERE b.order.orderId = :oid
+""", Basket.class)
+                                .setParameter("oid", orderId)
+                                .list();
+
+                        List<String> productNames = lines.stream()
+                                .map(b -> b.getAmount() + " x " + b.getProduct().getName())
+                                .toList();
+                        double totalPaid = order.getTotalPrice();
+
+                        // 3) Send the email (don’t let failures kill the server!)
+                        try {
+                            EmailService.sendOrderReceivedEmail(
+                                    toAddress,
+                                    username,
+                                    orderId,
+                                    toSelf,
+                                    recipientName,
+                                    fulfilType,
+                                    fulfilInfo,
+                                    productNames,
+                                    totalPaid
+                            );
+                            System.out.println("[Server] Sent receive‑notification email to " + toAddress);
+                        } catch (MessagingException mex) {
+                            mex.printStackTrace();
+                            System.err.println("[Server] Failed to send e‑mail for order " + orderId);
+                        }
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
 
+                    // 4) Finally notify the client
                     client.sendToClient(new Msg("MARK_ORDER_RECEIVED_OK", List.of()));
                 }
+
                 case "FETCH_ORDER_PRODUCTS" -> {
                     int orderId = (int) massage.getData();
                     try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
