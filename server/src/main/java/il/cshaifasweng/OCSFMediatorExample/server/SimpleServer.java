@@ -1,17 +1,17 @@
 package il.cshaifasweng.OCSFMediatorExample.server;
 
-import il.cshaifasweng.Msg;
+import il.cshaifasweng.*;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.AbstractServer;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.ConnectionToClient;
 import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
-import il.cshaifasweng.OrderDTO;
-import il.cshaifasweng.OrderDisplayDTO;
-import il.cshaifasweng.StockLineDTO;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.hibernate.Transaction;
+
+import javax.mail.MessagingException;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +20,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.time.LocalDateTime;
+import javax.mail.MessagingException;
+import il.cshaifasweng.OCSFMediatorExample.server.EmailService;
+import java.util.stream.Collectors;
+import java.util.List;
+import static java.util.stream.Collectors.toList;
+
 public class SimpleServer extends AbstractServer {
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
     private ScheduledExecutorService scheduler;
@@ -439,50 +445,48 @@ public class SimpleServer extends AbstractServer {
                     OrderDTO dto = (OrderDTO) data;
                     boolean ok = false;
 
-                    double totalPrice = 0;
-                    double vipDiscount = 0;
-                    double deliveryFee = 0;
-                    int newOrderId = 0;
+                    double totalPrice       = 0;
+                    double vipDiscount      = 0;
+                    double deliveryFee      = 0;
+                    double compensationUsed = 0;
+                    int    newOrderId       = 0;
+
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = s.beginTransaction();
 
                         // 1. Fetch user
-                        User user = s.createQuery(
-                                        "FROM User WHERE username = :u", User.class)
+                        User user = s.createQuery("FROM User WHERE username = :u", User.class)
                                 .setParameter("u", dto.getUsername())
                                 .uniqueResult();
-
                         if (user == null) {
                             client.sendToClient(new Msg("ORDER_FAIL", "Unknown user"));
                             return;
                         }
 
-                        // 2. Fetch basket lines with product using JOIN FETCH
+                        // 2. Fetch basket items + their products
                         List<Basket> basketItems = s.createQuery("""
-                SELECT b FROM Basket b
-                JOIN FETCH b.product
-                WHERE b.id IN (:ids)
-                  AND b.user = :u
-                  AND b.order IS NULL
-            """, Basket.class)
+            SELECT b FROM Basket b
+            JOIN FETCH b.product
+            WHERE b.id     IN (:ids)
+              AND b.user   = :u
+              AND b.order  IS NULL
+        """, Basket.class)
                                 .setParameter("ids", dto.getBasketIds())
-                                .setParameter("u", user)
+                                .setParameter("u",   user)
                                 .list();
-
                         if (basketItems.size() != dto.getBasketIds().size()) {
                             client.sendToClient(new Msg("ORDER_FAIL", "Basket mismatch"));
                             return;
                         }
 
-                        // 3. PICK-UP stock validation (if applicable)
+                        // 3. If PICKUP, validate and deduct stock across *all* matching storage rows
                         int branchId = -1;
                         if ("PICKUP".equals(dto.getFulfilType())) {
-
+                            // 3a. Parse branchId
                             if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
                                 client.sendToClient(new Msg("ORDER_FAIL", "No pick-up branch selected"));
                                 return;
                             }
-
                             try {
                                 branchId = Integer.parseInt(dto.getFulfilInfo());
                             } catch (NumberFormatException ex) {
@@ -490,112 +494,110 @@ public class SimpleServer extends AbstractServer {
                                 return;
                             }
 
-                            // Build requested product quantities
-                            Map<Integer, Integer> requested = new HashMap<>();
+                            // 3b. Build per‑product requested quantities
+                            Map<Integer,Integer> requested = new HashMap<>();
                             for (Basket b : basketItems) {
                                 requested.merge(b.getProduct().getId(), b.getAmount(), Integer::sum);
                             }
 
-                            // Check branch stock
+                            // 3c. Check availability
                             List<Object[]> chk = checkBranchStock(s, branchId, requested);
                             for (Object[] row : chk) {
-                                Integer have = (Integer) row[2]; // available
-                                int want = (Integer) row[1];     // requested
-
+                                Integer have = (Integer) row[2];
+                                int     want = (Integer) row[1];
                                 if (have == null || have < want) {
-                                    client.sendToClient(new Msg("ORDER_FAIL", "Not enough items in selected pick-up branch!"));
+                                    client.sendToClient(new Msg("ORDER_FAIL",
+                                            "Not enough items in selected pick‑up branch!"));
                                     tx.rollback();
                                     return;
                                 }
                             }
 
-                            // Deduct stock
+                            // 3d. Deduct across all Storage rows until each want is satisfied
                             for (Object[] row : chk) {
-                                int pid = (Integer) row[0];
+                                int pid  = (Integer) row[0];
                                 int want = (Integer) row[1];
 
-                                Storage st = s.createQuery("""
-                        FROM Storage
-                        WHERE product.product_id = :pid
-                          AND branch.branch_id   = :bid
-                    """, Storage.class)
+                                // fetch *all* Storage entries for this pid/branch
+                                List<Storage> rows = s.createQuery("""
+                    FROM Storage
+                    WHERE product.product_id = :pid
+                      AND branch.branch_id   = :bid
+                """, Storage.class)
                                         .setParameter("pid", pid)
                                         .setParameter("bid", branchId)
-                                        .setMaxResults(1)
-                                        .uniqueResult();
+                                        .list();
 
-                                st.setQuantity(st.getQuantity() - want);
-                                s.merge(st);
+                                int remaining = want;
+                                for (Storage st : rows) {
+                                    int avail    = st.getQuantity();
+                                    int toRemove = Math.min(avail, remaining);
+                                    st.setQuantity(avail - toRemove);
+                                    remaining   -= toRemove;
+                                    s.merge(st);
+                                    if (remaining <= 0) break;
+                                }
                             }
                         }
 
-                        // 4. Create Order and link baskets
-                        Order order = new Order();
-                        order.setUser(user);
-                        order.setReceived(false);
-
-                        if ("PICKUP".equals(dto.getFulfilType())) {
-                            Branch pickedBranch = s.get(Branch.class, branchId);
-                            if (pickedBranch == null) {
-                                client.sendToClient(new Msg("ORDER_FAIL", "Branch not found"));
-                                tx.rollback();
-                                return;
-                            }
-                            order.setBranch(pickedBranch);
-                        } else if ("DELIVERY".equals(dto.getFulfilType())) {
-                            if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
-                                client.sendToClient(new Msg("ORDER_FAIL", "Delivery address missing"));
-                                tx.rollback();
-                                return;
-                            }
-                            order.setDelivery(dto.getFulfilInfo());
-                        } else {
-                            client.sendToClient(new Msg("ORDER_FAIL", "Bad fulfil type"));
-                            tx.rollback();
-                            return;
-                        }
-
-                        // 5. Calculate discount
-                        double discount = 0;
-                        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                            List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
+                        // 4. Compute discounts & fees
+                        // 4a) Sale discount
+                        double saleDiscount = 0;
+                        try (Session saleSession = HibernateUtil.getSessionFactory().openSession()) {
+                            List<Sale> sales = saleSession.createQuery("FROM Sale", Sale.class).list();
                             for (Sale sale : sales) {
-                                sale.setProductIds(session.createNativeQuery(
+                                sale.setProductIds(saleSession.createNativeQuery(
                                                 "SELECT product_id FROM sale_products WHERE sale_id = :saleId", Integer.class)
                                         .setParameter("saleId", sale.getId())
                                         .getResultList());
                             }
-                            discount = Sale.calculateTotalDiscount(basketItems, sales);
+                            saleDiscount = Sale.calculateTotalDiscount(basketItems, sales);
                         }
-
-                        double grandTotal = basketItems.stream()
+                        // 4b) Subtotal
+                        double subtotal = basketItems.stream()
                                 .mapToDouble(Basket::getPrice)
                                 .sum();
-
+                        // 4c) VIP discount
                         vipDiscount = user.isVIP()
-                                ? (grandTotal - discount) * 0.10
+                                ? (subtotal - saleDiscount) * 0.10
                                 : 0.0;
+                        // 4d) Delivery fee
                         deliveryFee = "DELIVERY".equals(dto.getFulfilType())
                                 ? 10.0
                                 : 0.0;
+                        // 4e) Grand total before compensation
+                        totalPrice = subtotal - saleDiscount - vipDiscount + deliveryFee;
 
-                        totalPrice = grandTotal - discount - vipDiscount + deliveryFee;
+                        // 5. Apply compensation credit if requested
+                        if (dto.isUseCompensation()) {
+                            compensationUsed = Math.min(user.getCompensationTab(), totalPrice);
+                            totalPrice      -= compensationUsed;
+                            user.setCompensationTab(user.getCompensationTab() - compensationUsed);
+                            s.merge(user);
+                        }
+
+                        // 6. Create Order entity, link baskets
+                        Order order = new Order();
+                        order.setUser(user);
+                        order.setStatus(Order.STATUS_PENDING);
                         order.setTotalPrice(totalPrice);
-
-                        // 6. Set Deadline
+                        order.setCompensationUsed(compensationUsed);
                         order.setDeadline(dto.getDeadline());
-
-                        // 7. Set recipient and greetings data
                         order.setRecipient(dto.getRecipient());
                         order.setGreeting(dto.getGreeting());
-
+                        if ("PICKUP".equals(dto.getFulfilType())) {
+                            Branch b = s.get(Branch.class, branchId);
+                            order.setBranch(b);
+                        } else {
+                            order.setDelivery(dto.getFulfilInfo());
+                        }
                         s.persist(order);
 
-                        // Link baskets to order
                         for (Basket b : basketItems) {
                             b.setOrder(order);
                             s.merge(b);
                         }
+
                         newOrderId = order.getOrderId();
                         tx.commit();
                         ok = true;
@@ -603,11 +605,14 @@ public class SimpleServer extends AbstractServer {
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
-                    Map<String, Object> result = Map.of(
-                            "orderId", newOrderId,
-                            "totalPrice", totalPrice,
-                            "vipDiscount", vipDiscount,
-                            "deliveryFee", deliveryFee
+
+                    // 7. Reply to client
+                    Map<String,Object> result = Map.of(
+                            "orderId",          newOrderId,
+                            "totalPrice",       totalPrice,
+                            "vipDiscount",      vipDiscount,
+                            "deliveryFee",      deliveryFee,
+                            "compensationUsed", compensationUsed
                     );
                     client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
                 }
@@ -795,25 +800,18 @@ public class SimpleServer extends AbstractServer {
                                 fulfilment = "Unknown";
                             }
 
-                            String status = o.isReceived() ? "Received"
-                                    : (o.getDelivery() != null ? "Out for delivery" : "Awaiting pickup");
-
-                            double totalPrice = session.createQuery(
-                                            "SELECT SUM(b.price) FROM Basket b WHERE b.order.id = :oid", Double.class)
-                                    .setParameter("oid", o.getOrderId())
-                                    .uniqueResultOptional()
-                                    .orElse(0.0);
+                            double totalPrice = o.getTotalPrice();
 
                             displayList.add(new OrderDisplayDTO(
                                     o.getOrderId(),
                                     o.getUser().getUsername(),
                                     fulfilment,
-                                    status,
                                     totalPrice,
                                     o.getDeadline(),
                                     o.getRecipient(),
                                     o.getGreeting(),
-                                    o.isReceived()
+                                    o.getStatus(),
+                                    o.getCompensationUsed()
                             ));
                         }
 
@@ -826,29 +824,137 @@ public class SimpleServer extends AbstractServer {
 
                 case "MARK_ORDER_RECEIVED" -> {
                     int orderId = (int) data;
-                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        session.beginTransaction();
+                    // We’ll need a new Session for fetching details and for email:
+                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                        Transaction tx = s.beginTransaction();
 
-                        Order order = session.get(Order.class, orderId);
-                        if (order != null && !order.isReceived()) {
-                            order.setReceived(true);
-                            session.merge(order);
+                        // 1) Load and mark the order
+                        Order order = s.get(Order.class, orderId);
+                        if (order != null && order.getStatus() != Order.STATUS_RECEIVED) {
+                            order.setStatus(Order.STATUS_RECEIVED);
+                            s.merge(order);
+                        }
+                        tx.commit();
+
+                        // 2) Gather everything we need to send the email:
+                        User user = order.getUser();
+                        String toAddress     = user.getEmail();
+                        String username      = user.getUsername();
+                        // Parse out just the name from the recipient string "Name (phone)"
+                        String recipientRaw  = order.getRecipient();
+                        String recipientName = recipientRaw != null
+                                ? recipientRaw.split("\\s*\\(")[0].trim()
+                                : "";
+                        boolean toSelf       = recipientName.equalsIgnoreCase(user.getFullName());
+
+                        String fulfilType, fulfilInfo;
+                        if (order.getBranch() != null) {
+                            fulfilType = "PICKUP";
+                            fulfilInfo = order.getBranch().getName();
+                        } else {
+                            fulfilType = "DELIVERY";
+                            fulfilInfo = order.getDelivery();
                         }
 
-                        session.getTransaction().commit();
+                        // Fetch the product names in the order
+                        @SuppressWarnings("unchecked")
+                        List<Basket> lines = s.createQuery("""
+    SELECT b FROM Basket b
+      JOIN FETCH b.product
+     WHERE b.order.orderId = :oid
+""", Basket.class)
+                                .setParameter("oid", orderId)
+                                .list();
+
+                        List<String> productNames = lines.stream()
+                                .map(b -> b.getAmount() + " x " + b.getProduct().getName())
+                                .toList();
+                        double totalPaid = order.getTotalPrice();
+
+                        // 3) Send the email (don’t let failures kill the server!)
+                        try {
+                            EmailService.sendOrderReceivedEmail(
+                                    toAddress,
+                                    username,
+                                    orderId,
+                                    toSelf,
+                                    recipientName,
+                                    fulfilType,
+                                    fulfilInfo,
+                                    productNames,
+                                    totalPaid
+                            );
+                            System.out.println("[Server] Sent receive‑notification email to " + toAddress);
+                        } catch (MessagingException mex) {
+                            mex.printStackTrace();
+                            System.err.println("[Server] Failed to send e‑mail for order " + orderId);
+                        }
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
 
+                    // 4) Finally notify the client
                     client.sendToClient(new Msg("MARK_ORDER_RECEIVED_OK", List.of()));
                 }
 
                 case "FETCH_ORDER_PRODUCTS" -> {
-                    System.out.println("[Server] FETCH_ORDER_PRODUCTS Received");
                     int orderId = (int) massage.getData();
-                    List<Product> products = fetchProductsByOrderId(orderId); // You implement this method
-                    client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_OK", products));
+                    try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
+                        // 1) load order + its basket lines
+                        Order o = s.get(Order.class, orderId);
+                        @SuppressWarnings("unchecked")
+                        List<Basket> items = s.createQuery("""
+            SELECT b 
+              FROM Basket b
+              JOIN FETCH b.product
+             WHERE b.order.orderId = :oid
+        """, Basket.class)
+                                .setParameter("oid", orderId)
+                                .list();
+
+                        // 2) build line‐items DTOs & compute subtotal
+                        List<OrderDetailsDTO.Line> lines = new ArrayList<>();
+                        double subtotal = 0;
+                        for (Basket b : items) {
+                            String name = b.getProduct().getName();
+                            double price = b.getPrice();           // quantity * unit price
+                            int    qty   = b.getAmount();
+                            lines.add(new OrderDetailsDTO.Line(name, qty, price));
+                            subtotal += price;
+                        }
+
+                        // 3) load sales for computing saleDiscount
+                        List<Sale> sales = s.createQuery("FROM Sale", Sale.class).list();
+                        sales.forEach(sale -> {
+                            sale.setProductIds(s.createNativeQuery(
+                                            "SELECT product_id FROM sale_products WHERE sale_id = :sid", Integer.class)
+                                    .setParameter("sid", sale.getId())
+                                    .getResultList()
+                            );
+                        });
+                        double saleDiscount = Sale.calculateTotalDiscount(items, sales);
+
+                        // 4) vip + delivery
+                        boolean isVip = o.getUser().isVIP();
+                        double vipDiscount   = isVip
+                                ? (subtotal - saleDiscount)*0.10
+                                : 0.0;
+                        double deliveryFee   = o.getDelivery()!=null && !o.getDelivery().isBlank()
+                                ? 10.0
+                                : 0.0;
+                        double total         = o.getTotalPrice();
+                        double compUsed    = o.getCompensationUsed();
+                        // 5) send
+                        OrderDetailsDTO dto = new OrderDetailsDTO(
+                                lines, subtotal, saleDiscount, vipDiscount, deliveryFee, total, compUsed
+                        );
+                        client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_OK", dto));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_FAIL", "Could not load order details"));
+                    }
                 }
+
 
                 case "FETCH_ALL_USERS" -> {
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -1006,6 +1112,57 @@ public class SimpleServer extends AbstractServer {
                         tx.commit();
                     }
                 }
+                case "CANCEL_ORDER" -> {
+                    int orderId = (int) data;
+                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                        Transaction tx = session.beginTransaction();
+                        Order o = session.get(Order.class, orderId);
+
+                        // 1) Already received?
+                        if (o.isReceived()) {
+                            tx.rollback();
+                            client.sendToClient(new Msg("CANCEL_FAIL", "Already received"));
+                            return;
+                        }
+
+                        // 2) Past deadline?
+                        LocalDateTime now = LocalDateTime.now();
+                        if (now.isAfter(o.getDeadline())) {
+                            tx.rollback();
+                            client.sendToClient(new Msg("CANCEL_FAIL", "Past deadline"));
+                            return;
+                        }
+
+                        // 3) Compute refund %
+                        long minsLeft = Duration.between(now, o.getDeadline()).toMinutes();
+                        double pct = minsLeft >= 180 ? 1.0
+                                : minsLeft >= 60  ? 0.5
+                                :                   0.0;
+                        double refundAmt = o.getTotalPrice() * pct;
+
+                        // 4) Mark cancelled + update compensation
+                        o.setStatus(Order.STATUS_CANCELLED);
+                        session.merge(o);
+                        User u = o.getUser();
+                        u.setCompensationTab(u.getCompensationTab() + refundAmt);
+                        session.merge(u);
+
+                        tx.commit();
+
+                        // 5) Reply
+                        Map<String,Object> payload = Map.of(
+                                "orderId",  orderId,
+                                "refundPct", pct,
+                                "refundAmt", refundAmt
+                        );
+                        client.sendToClient(new Msg("CANCEL_OK", payload));
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        client.sendToClient(new Msg("CANCEL_FAIL", "Server error"));
+                    }
+                }
+
 
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
