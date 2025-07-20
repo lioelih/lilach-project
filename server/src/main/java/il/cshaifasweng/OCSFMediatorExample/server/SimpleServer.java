@@ -149,7 +149,6 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-
                 case "LOGOUT" -> {
                     String username = (String) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -271,6 +270,7 @@ public class SimpleServer extends AbstractServer {
                     deleteProduct(product.getId());
                     client.sendToClient(new Msg("PRODUCT_DELETED", fetchCatalog()));
                 }
+
                 case "FETCH_BASKET" -> {
                     String username = (String) data;
                     System.out.println("[Server] FETCH_BASKET received for: " + username);
@@ -301,8 +301,6 @@ public class SimpleServer extends AbstractServer {
                         e.printStackTrace();
                     }
                 }
-
-
 
                 case "ADD_TO_BASKET" -> {
                     Object[] arr = (Object[]) data;
@@ -346,6 +344,7 @@ public class SimpleServer extends AbstractServer {
                         ex.printStackTrace(); // ✅ make sure exception shows up
                     }
                 }
+
                 case "ADD_TO_BASKET_X_AMOUNT" -> {
                     Object[] arr = (Object[]) data;
                     String username = (String) arr[0];
@@ -389,6 +388,7 @@ public class SimpleServer extends AbstractServer {
                         ex.printStackTrace(); // ✅ make sure exception shows up
                     }
                 }
+
                 case "REMOVE_BASKET_ITEM" -> {
                     Basket basketItem = (Basket) data;
                     System.out.println("[Server] REMOVE_BASKET_ITEM received with ID: " + basketItem.getId());
@@ -430,20 +430,15 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-
-
                 case "GET_SALES" -> {
-                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
+                    List<Sale> sales = fetchSales();
+                    client.sendToClient(new Msg("SENT_SALES", sales));
+                }
 
-                        for (Sale sale : sales) {
-                            sale.setProductIds(session.createNativeQuery(
-                                            "SELECT product_id FROM sale_products WHERE sale_id = :saleId", Integer.class)
-                                    .setParameter("saleId", sale.getId())
-                                    .getResultList());
-                        }
-                        client.sendToClient(new Msg("SENT_SALES", sales));
-                    }
+                case "ADD_SALE" -> {
+                    Sale newSale = (Sale) data;
+                    saveNewSale(newSale);
+                    sendToAllClients(new Msg("SALE_ADDED", fetchSales()));
                 }
 
                 case "NEW_ORDER" -> {
@@ -622,10 +617,6 @@ public class SimpleServer extends AbstractServer {
                     client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
                 }
 
-
-
-
-
                 case "HAS_CARD" -> {
                     /* data == username (String) */
                     String username = (String) data;
@@ -644,6 +635,7 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("HAS_CARD", hasCard));
                     }
                 }
+
                 case "LIST_BRANCHES" -> {
                     System.out.println("[Server] Listing BRANCHES");
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
@@ -669,7 +661,6 @@ public class SimpleServer extends AbstractServer {
                         ex.printStackTrace();
                     }
                 }
-
 
                 case "STOCK_BY_BRANCH" -> {
                     Integer branchId = (Integer) data;   // null ⇒ all branches
@@ -702,7 +693,6 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("STOCK_OK", rows));
                     }
                 }
-
 
                 case "ADD_STOCK" -> {        // payload = int[productId, branchId, qty]
                     System.out.println("[Server] Adding stock line");
@@ -738,6 +728,7 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("ADD_STOCK_OK", null));
                     }
                 }
+
                 case "FETCH_STOCK_SINGLE" -> {
                     /* payload = { productId, branchId } */
                     Object[] arr   = (Object[]) data;
@@ -761,6 +752,7 @@ public class SimpleServer extends AbstractServer {
                                 qty == null ? 0 : qty));
                     }
                 }
+
                 case "FETCH_ORDERS" -> {
                     Object[] payload = (Object[]) data;
                     String username = (String) payload[0];
@@ -1038,6 +1030,7 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("CHANGE_ROLE_OK", userId));
                     }
                 }
+
                 case "UPDATE_USER" -> {
                     Map<String, Object> updateData = (Map<String, Object>) data;
                     int userId = (int) updateData.get("id");
@@ -1106,6 +1099,7 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("UPDATE_USER_FAILED", "Error updating user"));
                     }
                 }
+
                 case "UPDATE_GREETING" -> {
                     Map<String, Object> payload = (Map<String, Object>) data;
                     int orderId = (Integer) payload.get("orderId");
@@ -1170,17 +1164,10 @@ public class SimpleServer extends AbstractServer {
                 }
 
 
-
-
-
-
-
-
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
         }
     }
-
 
     private void updateFullProduct(Product updatedProduct) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -1209,6 +1196,23 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    private void saveNewSale(Sale sale) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            session.beginTransaction();
+            session.save(sale);
+
+            for (int productId : sale.getProductIds()) {
+                session.createNativeQuery("INSERT INTO sale_products (sale_id, product_id) VALUES (:saleId, :productId)")
+                        .setParameter("saleId", sale.getId())
+                        .setParameter("productId", productId)
+                        .executeUpdate();
+            }
+            session.getTransaction().commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private List<Product> fetchProductsByOrderId(int orderId) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createQuery("""
@@ -1224,9 +1228,6 @@ public class SimpleServer extends AbstractServer {
             return List.of();
         }
     }
-
-
-
 
     private void deleteProduct(int productId) {
         Transaction tx = null;
@@ -1281,10 +1282,11 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
-    public void sendToAllClients(String message) {
+    public void sendToAllClients(Msg message) {
         for (SubscribedClient subscribedClient : SubscribersList) {
             try {
                 subscribedClient.getClient().sendToClient(message);
+                System.out.println("sent to: " + subscribedClient.getClient() + message.getAction());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -1297,11 +1299,23 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    private  List<Sale> fetchSales() {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            List<Sale> sales = session.createQuery("FROM Sale", Sale.class).list();
+
+            for (Sale sale : sales) {
+                sale.setProductIds(session.createNativeQuery(
+                                "SELECT product_id FROM sale_products WHERE sale_id = :saleId", Integer.class)
+                        .setParameter("saleId", sale.getId())
+                        .getResultList());
+            }
+            return sales;
+        }
+    }
 
     private List<Object[]> checkBranchStock(Session s,
                                             int branchId,
                                             Map<Integer,Integer> requested) {
-
         // HQL fetches only needed rows from storage
         String hql = """
         SELECT st.product.product_id ,
@@ -1332,8 +1346,6 @@ public class SimpleServer extends AbstractServer {
         }
         return result;
     }
-
-
 
     @Override
     protected void serverStopped() {

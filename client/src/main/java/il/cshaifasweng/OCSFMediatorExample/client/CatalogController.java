@@ -111,7 +111,8 @@ public class CatalogController {
 
                 // Get the controller and pass the product list
                 AddSaleController controller = loader.getController();
-                controller.setProducts(fullCatalog); // or use 'products' depending on your needs
+                controller.setProducts(fullCatalog);
+                controller.setSales(sales);
 
                 Stage stage = new Stage();
                 stage.setTitle("Add Sale");
@@ -228,6 +229,7 @@ public class CatalogController {
     @Subscribe
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
+        if(event.getUseCase() == "SALE_ADDED") displayProducts(fullCatalog);
     }
 
     @Subscribe
@@ -244,6 +246,7 @@ public class CatalogController {
             }
         }
     }
+
     @Subscribe
     public void handleBranches(Msg m) {
         if (!"BRANCHES_OK".equals(m.getAction())) return;
@@ -261,8 +264,6 @@ public class CatalogController {
             branchFilter.getSelectionModel().selectFirst();   // default = “All Products”
         });
     }
-
-
 
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
@@ -451,7 +452,6 @@ public class CatalogController {
         }
     }
 
-
     private void updateFilterBox() {
         if (!typeBox.getItems().contains("All Types")) {
             typeBox.getItems().add("All Types");
@@ -489,7 +489,6 @@ public class CatalogController {
 
         displayProducts(base);
     }
-
 
     private void openProductPage(Product product) {
         try {
@@ -529,7 +528,6 @@ public class CatalogController {
             applyLocalFilters();
         });
     }
-
 
     @FXML private void filterButtonFire() {    // called by both Filter-btn and combo
         filterButton.fire();

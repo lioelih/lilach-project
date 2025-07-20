@@ -131,6 +131,22 @@ public class Sale implements Serializable {
     }
 
     /**
+     * Checks if the sale is active at any point during the given date range.
+     * This includes any overlap between the sale's start/end and the range.
+     *
+     * @param rangeStart start of the date range
+     * @param rangeEnd end of the date range
+     * @return true if any part of the sale falls within the range
+     */
+    public boolean isActiveBetween(LocalDateTime rangeStart, LocalDateTime rangeEnd) {
+        if (startDate == null || endDate == null || rangeStart == null || rangeEnd == null) {
+            return false;
+        }
+
+        return !startDate.isAfter(rangeEnd) && !endDate.isBefore(rangeStart);
+    }
+
+    /**
      * checks if the given product is on sale and returns true\false accordingly
      *
      * @param product The product that we want to check for sales.
@@ -319,6 +335,7 @@ public class Sale implements Serializable {
 
         return totalDiscount;
     }
+
 
     @Override
     public String toString() {
