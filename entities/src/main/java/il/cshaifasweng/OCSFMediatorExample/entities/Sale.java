@@ -261,6 +261,20 @@ public class Sale implements Serializable {
 
         double totalDiscount = 0.0;
 
+        // Step 1.5: Calculate and apply percentage/fixed discount
+        for (Basket basket : basketList) {
+            int productId = basket.getProduct().getId();
+            double originalPrice = basket.getProduct().getPrice();
+            double realPrice = realPrices.getOrDefault(productId, originalPrice);
+            int quantity = basket.getAmount();
+
+            double priceDifference = originalPrice - realPrice;
+
+            if (priceDifference > 0) {
+                totalDiscount += priceDifference * quantity;
+            }
+        }
+
         // Step 2: BUY_X_GET_Y
         for (Sale sale : sales) {
             if (sale.getDiscountType() != DiscountType.BUY_X_GET_Y) continue;
@@ -306,5 +320,20 @@ public class Sale implements Serializable {
         return totalDiscount;
     }
 
+    @Override
+    public String toString() {
+        return "Sale{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", discountType=" + discountType +
+                ", discountValue=" + discountValue +
+                ", startDate=" + startDate +
+                ", endDate=" + endDate +
+                ", buyQuantity=" + buyQuantity +
+                ", getQuantity=" + getQuantity +
+                ", productIds=" + productIds +
+                '}';
+    }
 
 }
