@@ -156,6 +156,9 @@ public class CheckoutController implements Initializable {
             if (!hours.contains(deadlineHourCombo.getValue()))
                 deadlineHourCombo.setValue(null);
         });
+        deadlineHourCombo.getItems().clear();
+        deadlineDatePicker.setValue(today);
+
 
         // Compensation checkbox
         useCompensationBox.selectedProperty().addListener((o,oldV,newV) -> updateSummary());
