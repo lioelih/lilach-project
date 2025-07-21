@@ -41,6 +41,7 @@ public class CatalogController {
     @FXML private Button refreshButton;
     @FXML private Button addProductButton;
     @FXML private Button addSaleButton;
+    @FXML private Button viewSalesButton;
     @FXML private Button filterButton;
     @FXML private TextField stringSearchField;
     @FXML private TextField minPrice;
@@ -123,13 +124,22 @@ public class CatalogController {
             }
         });
 
+        viewSalesButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("view_sales.fxml"));
+                Scene scene = new Scene(loader.load());
+                Stage stage = new Stage();
+                stage.setTitle("Sales View");
+                stage.setScene(scene);
+                stage.show();
+            } catch (IOException err) {
+                err.printStackTrace();
+            }
+        });
+
 
         refreshButton.setOnAction(e -> {
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("GET_CATALOG", null));
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            initialize();
         });
 
         filterButton.setOnAction(e -> {
@@ -229,6 +239,7 @@ public class CatalogController {
     @Subscribe
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
+        System.out.println("[Catalog] Received Sales");
         if(event.getUseCase() == "SALE_ADDED") displayProducts(fullCatalog);
     }
 

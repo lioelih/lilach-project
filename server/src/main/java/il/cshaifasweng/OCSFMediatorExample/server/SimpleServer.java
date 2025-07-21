@@ -432,6 +432,7 @@ public class SimpleServer extends AbstractServer {
 
                 case "GET_SALES" -> {
                     List<Sale> sales = fetchSales();
+                    System.out.println("Sending sales to client");
                     client.sendToClient(new Msg("SENT_SALES", sales));
                 }
 
@@ -439,6 +440,12 @@ public class SimpleServer extends AbstractServer {
                     Sale newSale = (Sale) data;
                     saveNewSale(newSale);
                     sendToAllClients(new Msg("SALE_ADDED", fetchSales()));
+                }
+
+                case "DELETE_SALE" -> {
+                    Sale targetSale = (Sale) data;
+                    deleteSale(targetSale.getId());
+                    sendToAllClients(new Msg("SALE_DELETED", fetchSales()));
                 }
 
                 case "NEW_ORDER" -> {
@@ -1254,6 +1261,26 @@ public class SimpleServer extends AbstractServer {
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             System.err.println("[Server] Failed to delete product " + productId);
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteSale(int saleId) {
+        Transaction tx = null;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            tx = session.beginTransaction();
+            Sale dbSale = session.get(Sale.class, saleId);
+            if (dbSale != null) {
+                session.delete(dbSale);
+                System.out.println("[Server] Sale deleted successfully.");
+            } else {
+                System.out.println("[Server] Sale not found.");
+            }
+
+            tx.commit();
+        } catch (Exception e) {
+            if (tx != null) tx.rollback();
+            System.err.println("[Server] Failed to delete Sale " + saleId);
             e.printStackTrace();
         }
     }

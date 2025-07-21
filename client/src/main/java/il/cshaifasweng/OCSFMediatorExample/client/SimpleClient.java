@@ -59,6 +59,8 @@ public class SimpleClient extends AbstractClient {
 						EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));
 				case "SALE_ADDED" ->
 						EventBus.getDefault().post(new SalesEvent("SALE_ADDED", (List<Sale>) massage.getData()));
+				case  "SALE_DELETED" ->
+						EventBus.getDefault().post(new SalesEvent("SALE_DELETED", (List<Sale>) massage.getData()));
 				default ->
 						System.out.println("Unhandled message: " + massage.getAction());
 			}

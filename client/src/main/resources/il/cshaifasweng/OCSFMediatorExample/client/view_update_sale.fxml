@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.geometry.Pos?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.ViewUpdateSaleController"
+            prefWidth="800" prefHeight="600">
+
+    <VBox spacing="15" alignment="CENTER"
+          AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0"
+          AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+        <padding>
+            <Insets top="20" right="30" bottom="20" left="30"/>
+        </padding>
+
+        <Label text="View / Edit Sale" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+
+        <HBox spacing="10" alignment="CENTER">
+            <Label text="Name:"/>
+            <Label fx:id="nameLabel"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER">
+            <Label text="Description:"/>
+            <Label fx:id="descriptionLabel"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER">
+            <Label text="Type:"/>
+            <Label fx:id="typeLabel"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER">
+            <Label text="Discount Value:"/>
+            <TextField fx:id="valueField" prefWidth="100"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER">
+            <Label text="Buy Quantity:"/>
+            <TextField fx:id="buyQtyField" prefWidth="100"/>
+            <Label text="Get Quantity:"/>
+            <TextField fx:id="getQtyField" prefWidth="100"/>
+        </HBox>
+
+        <HBox spacing="20" alignment="CENTER">
+            <Label text="Start Date:"/>
+            <DatePicker fx:id="startDatePicker"/>
+            <Label text="End Date:"/>
+            <DatePicker fx:id="endDatePicker"/>
+        </HBox>
+
+        <VBox spacing="10" fx:id="productBox1" alignment="CENTER_LEFT"/>
+        <VBox spacing="10" fx:id="productBox2" alignment="CENTER_LEFT"/>
+
+        <HBox spacing="20" alignment="CENTER">
+            <Button fx:id="saveButton" text="Save Changes"/>
+            <Button fx:id="deleteButton" text="Delete Sale"/>
+            <Button fx:id="cancelButton" text="Cancel"/>
+        </HBox>
+    </VBox>
+</AnchorPane>
