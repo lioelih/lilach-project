@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CustomBouquetController"
+            stylesheets="@homepage.css">
+
+    <!-- Top bar with logo, back arrow, title and “Add to Basket” -->
+    <top>
+        <StackPane styleClass="top-bar" prefHeight="70">
+            <children>
+                <HBox alignment="CENTER_LEFT" spacing="15" styleClass="top-bar">
+                    <padding>
+                        <Insets top="0" right="20" bottom="0" left="80"/>
+                    </padding>
+                    <!-- Your app’s logo -->
+                    <ImageView fx:id="logoImage" fitHeight="40" fitWidth="40"/>
+
+                    <!-- Back button -->
+                    <Button fx:id="backButton"
+                            text="← Back"
+                            onAction="#onBack"
+                            styleClass="nav-button"/>
+
+                    <!-- Title -->
+                    <Label text="Custom Bouquet"
+                           styleClass="header-title"/>
+
+                    <Pane HBox.hgrow="ALWAYS"/>
+
+                    <!-- Add to Basket button (disabled until something is saved) -->
+                    <Button fx:id="addToBasketButton"
+                            text="Add to Basket"
+                            onAction="#onAddToBasket"
+                            disable="true"/>
+                </HBox>
+            </children>
+        </StackPane>
+    </top>
+
+    <!-- Main content -->
+    <center>
+        <VBox spacing="15">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
+
+            <!-- Choose from existing or start new -->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="My Bouquets:"/>
+                <ComboBox fx:id="existingCombo"
+                          promptText="Create New…"/>
+            </HBox>
+
+            <!-- This container is only shown when “Create New…” is selected -->
+            <VBox fx:id="newPane" spacing="12">
+                <!-- Style & Pot selectors -->
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Name:"/>
+                    <TextField fx:id="nameField"
+                               promptText="Enter bouquet name…"/>
+                </HBox>
+                <HBox spacing="15" alignment="CENTER_LEFT">
+                    <Label text="Style:"/>
+                    <ComboBox fx:id="styleBox"/>
+
+                    <Label text="Pot:"/>
+                    <ComboBox fx:id="potBox"/>
+                </HBox>
+
+                <HBox spacing="8">
+                    <Pane HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="limitLabel"
+                           text="Up to 50 flowers allowed in total per Custom Bouquet"
+                           style="-fx-font-style: italic;"/>
+                </HBox>
+
+                <!-- Flower toggles (wrapped in ScrollPane if there are many) -->
+                <Label text="Select Flowers (toggle then qty):"/>
+                <ScrollPane fitToWidth="true" prefHeight="120" style="-fx-background:transparent;">
+                    <content>
+                        <FlowPane fx:id="flowerPane"
+                                  hgap="16"
+                                  vgap="16"
+                                  alignment="TOP_CENTER"
+                                  prefWrapLength="600"/>
+                    </content>
+                </ScrollPane>
+
+                <HBox spacing="10">
+                    <Pane HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="totalPriceLabel"
+                           text="Total Price: ₪0.00"
+                           style="-fx-font-weight:bold;"/>
+                    <Button fx:id="saveButton"
+                            text="Save Bouquet"
+                            onAction="#onSave"
+                            disable="true"/>
+                </HBox>
+            </VBox>
+        </VBox>
+    </center>
+</BorderPane>

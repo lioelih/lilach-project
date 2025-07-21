@@ -19,6 +19,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
@@ -297,6 +298,23 @@ public class OrdersController {
 
         TableColumn<OrderDetailsDTO.Line,String> nameCol = new TableColumn<>("Product");
         nameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getProductName()));
+        nameCol.setCellFactory(tc -> new TableCell<>() {
+            private final Text text = new Text();
+            {
+                // bind to column width, minus a bit padding
+                text.wrappingWidthProperty().bind(nameCol.widthProperty().subtract(10));
+            }
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    text.setText(item);
+                    setGraphic(text);
+                }
+            }
+        });
 
         TableColumn<OrderDetailsDTO.Line,Integer> qtyCol = new TableColumn<>("Qty");
         qtyCol.setCellValueFactory(c -> new SimpleIntegerProperty(c.getValue().getQuantity()).asObject());

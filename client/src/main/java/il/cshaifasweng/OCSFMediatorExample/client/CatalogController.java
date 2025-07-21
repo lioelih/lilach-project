@@ -24,6 +24,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextFlow;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -51,7 +52,7 @@ public class CatalogController {
     @FXML private TilePane productGrid;
     @FXML private ImageView logoImage;
     @FXML private ComboBox<Branch> branchFilter;
-
+    @FXML private Button addCustomBtn;
     private List<Product> products;
     private  List<Sale> sales;
     private List<Product> fullCatalog = new ArrayList<>();
@@ -119,6 +120,27 @@ public class CatalogController {
                 stage.show();
             } catch (IOException err) {
                 err.printStackTrace();
+            }
+        });
+        addCustomBtn.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(
+                        getClass().getResource("custom_bouquet.fxml")
+                );
+                Scene scene = new Scene(loader.load());
+                Stage popup = new Stage();
+                popup.setTitle("Create Custom Bouquet");
+                popup.initModality(Modality.APPLICATION_MODAL);
+                popup.setScene(scene);
+
+                // center on screen (or relative to main window)
+                popup.setWidth(1200);
+                popup.setHeight(800);
+                popup.centerOnScreen();
+                popup.setMaximized(true);
+                popup.showAndWait();
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
         });
 

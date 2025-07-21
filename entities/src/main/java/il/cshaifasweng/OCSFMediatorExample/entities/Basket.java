@@ -23,6 +23,10 @@ public class Basket implements Serializable {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="custom_bouquet_id")
+    private CustomBouquet customBouquet;
+
     private int amount;
     private double price;
 
@@ -75,6 +79,9 @@ public class Basket implements Serializable {
     public String getProductName() {
         return product != null ? product.getName() : "";
     }
+
+    public CustomBouquet getCustomBouquet(){return customBouquet;}
+    public void setCustomBouquet(CustomBouquet cb){ this.customBouquet = cb; }
 
     @Override
     public String toString() {

@@ -66,13 +66,13 @@
             <Label fx:id="totalAfterLabel"/>
 
             <!-- VIP discount (hidden until user is VIP) -->
-            <HBox fx:id="vipBox" spacing="5" visible="false" managed="false">
-                <Label text="VIP Discount (10%):"/>
+            <HBox fx:id="vipBox" spacing="5" visible="false" alignment="CENTER" managed="false">
+                <Label text="VIP Discount (10%):" />
                 <Label fx:id="vipDiscountLabel" text="-₪0.00"/>
             </HBox>
 
             <!-- Delivery fee (hidden until Delivery is chosen) -->
-            <HBox fx:id="deliveryBox" spacing="5" visible="false" managed="false">
+            <HBox fx:id="deliveryBox" spacing="5" visible="false" alignment="CENTER" managed="false">
                 <Label text="Delivery Fee:"/>
                 <Label fx:id="deliveryFeeLabel" text="+₪10"/>
             </HBox>

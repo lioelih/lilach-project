@@ -3,6 +3,7 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -40,6 +41,9 @@ public class BasketController {
     private List<Sale> sales;
     private double total, discount;
 
+    private boolean isVip;        // ← set this at initialize()
+    private static final double VIP_THRESHOLD = 50.0;
+    private static final double VIP_RATE      = 0.10;
     @FXML
     public void initialize() {
         System.out.println("[BasketController] Initializing...");
@@ -48,8 +52,16 @@ public class BasketController {
             EventBus.getDefault().register(this);
         }
 
-        nameColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getProduct().getName()));
+        nameColumn.setCellValueFactory(cellData -> {
+            Basket b = cellData.getValue();
+            if (b.getCustomBouquet() != null) {
+                return new SimpleStringProperty(
+                        "Custom: " + b.getCustomBouquet().getName()
+                );
+            } else {
+                return new SimpleStringProperty(b.getProduct().getName());
+            }
+        });
         amountColumn.setCellValueFactory(new PropertyValueFactory<>("amount"));
         priceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
 
@@ -100,7 +112,23 @@ public class BasketController {
 
                 CheckoutController cc = loader.getController();
                 cc.initData(new ArrayList<>(basketItems), total, discount); // Pass a copy
+                // 1) recompute subtotal (all lines)
+                double subtotal = basketItems.stream()
+                        .mapToDouble(Basket::getPrice)
+                        .sum();
 
+                // 2) recompute sale discount (only on real products, not customs)
+                List<Basket> productLines = basketItems.stream()
+                        .filter(b -> b.getProduct() != null)
+                        .toList();
+                double saleDiscount = Sale.calculateTotalDiscount(productLines, sales);
+
+                // 3) pass those real values into initData()
+                cc.initData(
+                        new ArrayList<>(basketItems),  // copy of the list
+                        subtotal,                      // total before discounts
+                        saleDiscount                   // sale discount amount
+                );
                 Stage st = new Stage();
                 st.setTitle("Checkout");
                 st.setScene(scene);
@@ -114,6 +142,19 @@ public class BasketController {
                 ex.printStackTrace();
             }
         });
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new Msg("FETCH_USER", SceneController.loggedUsername));
+        } catch(IOException ex){ ex.printStackTrace(); }
+    }
+
+    @Subscribe
+    public void onUserFetched(Msg m) {
+        if (!"FETCH_USER".equals(m.getAction())) return;
+        User me = (User) m.getData();
+        isVip = me.isVIP();
+        // now that we know VIP status, we can recalc totals in case
+        Platform.runLater(this::updateTotal);
     }
 
     private void addRemoveButtonToTable() {
@@ -155,20 +196,52 @@ public class BasketController {
         });
     }
 
+    @Subscribe
+    public void onBasketUpdated(Msg msg) {
+        if (!"BASKET_UPDATED".equals(msg.getAction())) return;
+        try {
+            SimpleClient.getClient().sendToServer(
+                    new Msg("FETCH_BASKET", SceneController.loggedUsername));
+        } catch(IOException e) { e.printStackTrace(); }
+    }
+
     private void refreshTable() {
         basketTable.setItems(FXCollections.observableList(basketItems));
     }
 
     private void updateTotal() {
-        total = basketItems.stream()
+        // 1) raw subtotal, all lines:
+        double subtotal = basketItems.stream()
                 .mapToDouble(Basket::getPrice)
                 .sum();
-        discount = Sale.calculateTotalDiscount(basketItems, sales);
-        double totalAfter = total - discount;
-        totalLabel.setText("Total: " + total + " NIS");
-        discountLabel.setText("Discount: " + discount + " NIS");
-        afterDiscountLabel.setText("Total After Discount: " + totalAfter + " NIS");
+
+        // 2) sale discount only applies to product‐lines:
+        List<Basket> productLines = basketItems.stream()
+                .filter(b -> b.getProduct() != null)   // skip custom bouquets
+                .toList();
+        double saleDiscount = Sale.calculateTotalDiscount(productLines, sales);
+
+        // 3) amount after sale discount:
+        double afterSale = subtotal - saleDiscount;
+
+        // 4) VIP discount only if VIP + afterSale ≥ 50:
+        double vipDiscount = 0;
+        if (isVip && afterSale >= VIP_THRESHOLD) {
+            vipDiscount = afterSale * VIP_RATE;
+        }
+
+        // 5) combine discounts, compute final total:
+        double totalDiscount = saleDiscount + vipDiscount;
+        double finalTotal    = subtotal - totalDiscount;
+
+        // 6) push to UI
+        totalLabel.setText(         String.format("Total: %.2f NIS", subtotal));
+        discountLabel.setText(      String.format("Discount: %.2f NIS", totalDiscount));
+        afterDiscountLabel.setText(
+                String.format("Total After Discount: %.2f NIS", finalTotal));
         confirmButton.setDisable(basketItems.isEmpty());
+        this.total    = subtotal;
+        this.discount = saleDiscount;
     }
 
     public void setSales(List<Sale> sales) {
