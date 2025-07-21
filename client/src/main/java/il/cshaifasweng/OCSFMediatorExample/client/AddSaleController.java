@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
 import javafx.collections.FXCollections;
@@ -10,11 +11,14 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AddSaleController {
 
@@ -29,6 +33,7 @@ public class AddSaleController {
     @FXML private Label errorMsg;
 
     private List<Product> products;
+    private List<Sale> sales;
 
     private ComboBox<Product> productSelector1;
     private ComboBox<Product> productSelector2;
@@ -64,7 +69,21 @@ public class AddSaleController {
         addButton.setOnAction(e -> {
             Sale newSale = buildSaleFromInputs();
             if(newSale != null) errorMsg.setText("");
-            System.out.println(newSale);
+            if(saleAlreadyExists(newSale)) errorMsg.setText("There already exists a sale with overlapping dates");
+            else {
+                System.out.println(newSale);
+                errorMsg.setText("");
+                try {
+                    Msg massage = new Msg("ADD_SALE", newSale);
+                    SimpleClient.getClient().sendToServer(massage);
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sale Added!");
+                    alert.showAndWait();
+                    Stage stage = (Stage) addButton.getScene().getWindow();
+                    stage.close();
+                } catch (IOException err) {
+                    showAlert(err.getMessage());
+                }
+            }
         });
     }
 
@@ -245,8 +264,8 @@ public class AddSaleController {
                 buyQty = Integer.parseInt(buyXField.getText());
                 getQty = Integer.parseInt(getYField.getText());
             } catch (NumberFormatException e) {
-                buyQty = null;
-                getQty = null;
+                errorMsg.setText("Please enter BUY X and BUY Y values");
+                return null;
             }
         }
 
@@ -272,7 +291,7 @@ public class AddSaleController {
         return sale;
     }
 
-    public Boolean validInput() {
+    public boolean validInput() {
         if(nameField.getText().isEmpty()) {
             errorMsg.setText("Please enter a name");
             return false;
@@ -315,7 +334,50 @@ public class AddSaleController {
         return  true;
     }
 
+    public boolean saleAlreadyExists(Sale newSale) {
+        for (Sale existing : sales) {
+            // Compare types: treat FIXED and PERCENTAGE as equal
+            boolean sameType =
+                    newSale.getDiscountType() == existing.getDiscountType()
+                            || ((newSale.getDiscountType() == Sale.DiscountType.PERCENTAGE || newSale.getDiscountType() == Sale.DiscountType.FIXED)
+                            && (existing.getDiscountType() == Sale.DiscountType.PERCENTAGE || existing.getDiscountType() == Sale.DiscountType.FIXED));
+
+            if (!sameType) continue;
+
+            // Compare product IDs: exact match (same elements, order doesn't matter)
+            List<Integer> newProducts = new ArrayList<>(newSale.getProductIds());
+            List<Integer> existingProducts = new ArrayList<>(existing.getProductIds());
+
+            newProducts.sort(Integer::compareTo);
+            existingProducts.sort(Integer::compareTo);
+
+            boolean sameProducts = newProducts.equals(existingProducts);
+            if (!sameProducts) continue;
+
+            // Check for date overlap
+            boolean datesOverlap = existing.isActiveBetween(newSale.getStartDate(), newSale.getEndDate());
+
+            if (datesOverlap) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public void setProducts(List<Product> products) {
         this.products = products;
+    }
+
+    public void setSales(List<Sale> sales) {
+        this.sales = sales;
+    }
+
+    private void showAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Input Error");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

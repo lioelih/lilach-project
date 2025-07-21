@@ -42,6 +42,7 @@ public class CatalogController {
     @FXML private Button refreshButton;
     @FXML private Button addProductButton;
     @FXML private Button addSaleButton;
+    @FXML private Button viewSalesButton;
     @FXML private Button filterButton;
     @FXML private TextField stringSearchField;
     @FXML private TextField minPrice;
@@ -112,7 +113,8 @@ public class CatalogController {
 
                 // Get the controller and pass the product list
                 AddSaleController controller = loader.getController();
-                controller.setProducts(fullCatalog); // or use 'products' depending on your needs
+                controller.setProducts(fullCatalog);
+                controller.setSales(sales);
 
                 Stage stage = new Stage();
                 stage.setTitle("Add Sale");
@@ -144,13 +146,22 @@ public class CatalogController {
             }
         });
 
+        viewSalesButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("view_sales.fxml"));
+                Scene scene = new Scene(loader.load());
+                Stage stage = new Stage();
+                stage.setTitle("Sales View");
+                stage.setScene(scene);
+                stage.show();
+            } catch (IOException err) {
+                err.printStackTrace();
+            }
+        });
+
 
         refreshButton.setOnAction(e -> {
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("GET_CATALOG", null));
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            initialize();
         });
 
         filterButton.setOnAction(e -> {
@@ -250,6 +261,8 @@ public class CatalogController {
     @Subscribe
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
+        System.out.println("[Catalog] Received Sales");
+        if(event.getUseCase() == "SALE_ADDED") displayProducts(fullCatalog);
     }
 
     @Subscribe
@@ -266,6 +279,7 @@ public class CatalogController {
             }
         }
     }
+
     @Subscribe
     public void handleBranches(Msg m) {
         if (!"BRANCHES_OK".equals(m.getAction())) return;
@@ -283,8 +297,6 @@ public class CatalogController {
             branchFilter.getSelectionModel().selectFirst();   // default = “All Products”
         });
     }
-
-
 
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
@@ -473,7 +485,6 @@ public class CatalogController {
         }
     }
 
-
     private void updateFilterBox() {
         if (!typeBox.getItems().contains("All Types")) {
             typeBox.getItems().add("All Types");
@@ -511,7 +522,6 @@ public class CatalogController {
 
         displayProducts(base);
     }
-
 
     private void openProductPage(Product product) {
         try {
@@ -551,7 +561,6 @@ public class CatalogController {
             applyLocalFilters();
         });
     }
-
 
     @FXML private void filterButtonFire() {    // called by both Filter-btn and combo
         filterButton.fire();

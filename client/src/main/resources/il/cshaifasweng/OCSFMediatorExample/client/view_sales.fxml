@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.control.cell.PropertyValueFactory?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SalesController"
+            prefWidth="1280" prefHeight="720">
+
+    <!-- Top Bar -->
+    <top>
+        <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-background-color: #D6EAF8; -fx-padding: 10;">
+            <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true"/>
+            <Button fx:id="goHomeButton" text="← Home"/>
+            <Label text="Sales"
+                   style="-fx-font-size: 22; -fx-font-weight: bold;" />
+            <Region HBox.hgrow="ALWAYS"/>
+        </HBox>
+    </top>
+
+    <!-- Table View -->
+    <center>
+        <VBox spacing="12" style="-fx-padding: 20;">
+            <TableView fx:id="salesTable" prefHeight="650" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
+                    <TableColumn fx:id="colName" text="Name" prefWidth="150"/>
+                    <TableColumn fx:id="colType" text="Type" prefWidth="120"/>
+                    <TableColumn fx:id="colValue" text="Value" prefWidth="100"/>
+                    <TableColumn fx:id="colStart" text="Start Date" prefWidth="140"/>
+                    <TableColumn fx:id="colEnd" text="End Date" prefWidth="140"/>
+                    <TableColumn fx:id="colBuyQty" text="Buy Qty" prefWidth="80"/>
+                    <TableColumn fx:id="colGetQty" text="Get Qty" prefWidth="80"/>
+                    <TableColumn fx:id="colProducts" text="Product IDs" prefWidth="200"/>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="140"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>
