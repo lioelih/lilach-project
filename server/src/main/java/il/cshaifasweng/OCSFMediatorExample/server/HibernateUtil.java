@@ -34,6 +34,8 @@ public class HibernateUtil {
             configuration.addAnnotatedClass(Basket.class);
             configuration.addAnnotatedClass(Order.class);
             configuration.addAnnotatedClass(Sale.class);
+            configuration.addAnnotatedClass(CustomBouquet.class);
+            configuration.addAnnotatedClass(CustomBouquetItem.class);
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();
             sessionFactory = configuration.buildSessionFactory(serviceRegistry);

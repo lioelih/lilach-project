@@ -95,7 +95,15 @@ public class CheckoutController implements Initializable {
     @Override public void initialize(URL location, ResourceBundle resources) {
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
 
-        nameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getProductName()));
+        nameCol.setCellValueFactory(c -> {
+            Basket b = c.getValue();
+            if (b.getCustomBouquet() != null) {
+                return new SimpleStringProperty(
+                        "Custom: " + b.getCustomBouquet().getName());
+            } else {
+                return new SimpleStringProperty(b.getProductName());
+            }
+        });
         amtCol .setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(c.getValue().getAmount()).asObject());
         priceCol.setCellValueFactory(c -> new javafx.beans.property.SimpleDoubleProperty(c.getValue().getPrice()).asObject());
 
@@ -353,9 +361,9 @@ public class CheckoutController implements Initializable {
         double afterSale   = totalBefore - saleDiscount;
         double vipDisc     = isVipUser ? afterSale*0.10 : 0.0;
         double deliveryFee = deliveryRadio.isSelected() ? 10.0 : 0.0;
-        double finalTot    = afterSale - vipDisc + deliveryFee;
+        double finalTot    = afterSale - vipDisc;
         double compUsed    = useCompensationBox.isSelected() ? Math.min(userCompBalance, finalTot) : 0.0;
-        double payNow      = finalTot - compUsed;
+        double payNow      = finalTot - compUsed + deliveryFee;
 
         // VIP
         vipBox.setVisible(isVipUser);
@@ -369,7 +377,7 @@ public class CheckoutController implements Initializable {
 
         // Labels
         totalLabel.setText(String.format("Total Before Discount   ₪ %.2f", totalBefore));
-        totalAfterLabel.setText(String.format("Total After Discount    ₪ %.2f", afterSale));
+        totalAfterLabel.setText(String.format("Total After Discount    ₪ %.2f", finalTot));
         if (compUsed>0) {
             compBalanceLabel.setText(String.format("Applied ₪%.2f of store credit", compUsed));
         } else {

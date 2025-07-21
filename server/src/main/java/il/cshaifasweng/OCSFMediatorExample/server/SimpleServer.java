@@ -273,32 +273,32 @@ public class SimpleServer extends AbstractServer {
 
                 case "FETCH_BASKET" -> {
                     String username = (String) data;
-                    System.out.println("[Server] FETCH_BASKET received for: " + username);
-                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
-                                .setParameter("u", username).uniqueResult();
-
-                        if (user != null) {
-                            List<Basket> basketItems = session.createQuery(
-                                            "FROM Basket WHERE user.id = :userId AND order IS NULL", Basket.class)
-                                    .setParameter("userId", user.getId()).list();
-
-                            System.out.println("[Server] Found " + basketItems.size() + " basket items for user " + username);
-
-                            for (Basket item : basketItems) {
-                                Product fullProduct = session.get(Product.class, item.getProduct().getId());
-                                item.setProduct(fullProduct);
-                                System.out.println(" -> Basket item: " + fullProduct.getName() + " x" + item.getAmount());
-                            }
-
-                            client.sendToClient(new Msg("BASKET_FETCHED", basketItems));
-                            System.out.println("[Server] BASKET_FETCHED sent to client.");
-                        } else {
-                            System.out.println("[Server] User not found: " + username);
+                    try ( Session session = HibernateUtil.getSessionFactory().openSession() ) {
+                        User user = session.createQuery(
+                                        "FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
+                        if (user == null) {
+                            client.sendToClient(new Msg("BASKET_FETCHED", List.of()));
+                            return;
                         }
-                    } catch (Exception e) {
-                        System.err.println("[Server] Error fetching basket for " + username);
-                        e.printStackTrace();
+
+                        List<Basket> basketItems = session.createQuery(
+                                        """
+                                        SELECT b
+                                          FROM Basket b
+                                          LEFT JOIN FETCH b.product
+                                          LEFT JOIN FETCH b.customBouquet cb
+                                          LEFT JOIN FETCH cb.items
+                                         WHERE b.user.id = :uid
+                                           AND b.order    IS NULL
+                                        """, Basket.class)
+                                .setParameter("uid", user.getId())
+                                .list();
+                        client.sendToClient(new Msg("BASKET_FETCHED", basketItems));
+                    } catch(Exception ex) {
+                        ex.printStackTrace();
+                        client.sendToClient(new Msg("BASKET_FETCHED", List.of()));
                     }
                 }
 
@@ -458,7 +458,7 @@ public class SimpleServer extends AbstractServer {
                     double compensationUsed = 0;
                     int    newOrderId       = 0;
 
-                    try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                    try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
                         Transaction tx = s.beginTransaction();
 
                         // 1. Fetch user
@@ -470,13 +470,15 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        // 2. Fetch basket items + their products
+                        // 2. Fetch *all* basket items (real products + custom bouquets)
                         List<Basket> basketItems = s.createQuery("""
-            SELECT b FROM Basket b
-            JOIN FETCH b.product
-            WHERE b.id     IN (:ids)
-              AND b.user   = :u
-              AND b.order  IS NULL
+            SELECT b
+              FROM Basket b
+              LEFT JOIN FETCH b.product
+              LEFT JOIN FETCH b.customBouquet
+             WHERE b.id    IN (:ids)
+               AND b.user  = :u
+               AND b.order IS NULL
         """, Basket.class)
                                 .setParameter("ids", dto.getBasketIds())
                                 .setParameter("u",   user)
@@ -486,12 +488,11 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        // 3. If PICKUP, validate and deduct stock across *all* matching storage rows
+                        // 3. If PICKUP, validate & deduct stock (only real products)
                         int branchId = -1;
                         if ("PICKUP".equals(dto.getFulfilType())) {
-                            // 3a. Parse branchId
                             if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
-                                client.sendToClient(new Msg("ORDER_FAIL", "No pick-up branch selected"));
+                                client.sendToClient(new Msg("ORDER_FAIL", "No pick‑up branch selected"));
                                 return;
                             }
                             try {
@@ -501,13 +502,19 @@ public class SimpleServer extends AbstractServer {
                                 return;
                             }
 
-                            // 3b. Build per‑product requested quantities
+                            // build per‑product request map (skip custom bouquets)
                             Map<Integer,Integer> requested = new HashMap<>();
                             for (Basket b : basketItems) {
-                                requested.merge(b.getProduct().getId(), b.getAmount(), Integer::sum);
+                                if (b.getProduct() != null) {
+                                    requested.merge(
+                                            b.getProduct().getId(),
+                                            b.getAmount(),
+                                            Integer::sum
+                                    );
+                                }
                             }
 
-                            // 3c. Check availability
+                            // availability check
                             List<Object[]> chk = checkBranchStock(s, branchId, requested);
                             for (Object[] row : chk) {
                                 Integer have = (Integer) row[2];
@@ -520,12 +527,11 @@ public class SimpleServer extends AbstractServer {
                                 }
                             }
 
-                            // 3d. Deduct across all Storage rows until each want is satisfied
+                            // deduct across all Storage rows
                             for (Object[] row : chk) {
                                 int pid  = (Integer) row[0];
                                 int want = (Integer) row[1];
 
-                                // fetch *all* Storage entries for this pid/branch
                                 List<Storage> rows = s.createQuery("""
                     FROM Storage
                     WHERE product.product_id = :pid
@@ -545,33 +551,56 @@ public class SimpleServer extends AbstractServer {
                                     if (remaining <= 0) break;
                                 }
                             }
+
+                        } else if ("DELIVERY".equals(dto.getFulfilType())) {
+                            // delivery must have an address
+                            if (dto.getFulfilInfo() == null || dto.getFulfilInfo().isBlank()) {
+                                client.sendToClient(new Msg("ORDER_FAIL", "No delivery address provided"));
+                                tx.rollback();
+                                return;
+                            }
                         }
 
                         // 4. Compute discounts & fees
-                        // 4a) Sale discount
+
+                        // 4a) Sale discount (only on real products)
                         double saleDiscount = 0;
-                        try (Session saleSession = HibernateUtil.getSessionFactory().openSession()) {
+                        try ( Session saleSession = HibernateUtil.getSessionFactory().openSession() ) {
                             List<Sale> sales = saleSession.createQuery("FROM Sale", Sale.class).list();
                             for (Sale sale : sales) {
-                                sale.setProductIds(saleSession.createNativeQuery(
-                                                "SELECT product_id FROM sale_products WHERE sale_id = :saleId", Integer.class)
-                                        .setParameter("saleId", sale.getId())
-                                        .getResultList());
+                                sale.setProductIds(
+                                        saleSession.createNativeQuery(
+                                                        "SELECT product_id FROM sale_products WHERE sale_id = :saleId",
+                                                        Integer.class
+                                                )
+                                                .setParameter("saleId", sale.getId())
+                                                .getResultList()
+                                );
                             }
-                            saleDiscount = Sale.calculateTotalDiscount(basketItems, sales);
+                            // filter out any basket row with a null product
+                            List<Basket> productLines = basketItems.stream()
+                                    .filter(b -> b.getProduct() != null)
+                                    .collect(Collectors.toList());
+
+                            saleDiscount = Sale.calculateTotalDiscount(productLines, sales);
                         }
-                        // 4b) Subtotal
+
+                        // 4b) Subtotal (all lines, including custom bouquets)
                         double subtotal = basketItems.stream()
                                 .mapToDouble(Basket::getPrice)
                                 .sum();
-                        // 4c) VIP discount
-                        vipDiscount = user.isVIP()
-                                ? (subtotal - saleDiscount) * 0.10
-                                : 0.0;
-                        // 4d) Delivery fee
-                        deliveryFee = "DELIVERY".equals(dto.getFulfilType())
-                                ? 10.0
-                                : 0.0;
+
+                        // 4c) VIP discount *only* if post‑sale ≥ 50 NIS
+                        double afterSale = subtotal - saleDiscount;
+                        if (user.isVIP() && afterSale >= 50.0) {
+                            vipDiscount = afterSale * 0.10;
+                        }
+
+                        // 4d) Flat delivery fee last
+                        if ("DELIVERY".equals(dto.getFulfilType())) {
+                            deliveryFee = 10.0;
+                        }
+
                         // 4e) Grand total before compensation
                         totalPrice = subtotal - saleDiscount - vipDiscount + deliveryFee;
 
@@ -595,7 +624,9 @@ public class SimpleServer extends AbstractServer {
                         if ("PICKUP".equals(dto.getFulfilType())) {
                             Branch b = s.get(Branch.class, branchId);
                             order.setBranch(b);
+                            order.setDelivery(null);
                         } else {
+                            order.setBranch(null);
                             order.setDelivery(dto.getFulfilInfo());
                         }
                         s.persist(order);
@@ -623,7 +654,6 @@ public class SimpleServer extends AbstractServer {
                     );
                     client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
                 }
-
                 case "HAS_CARD" -> {
                     /* data == username (String) */
                     String username = (String) data;
@@ -866,16 +896,44 @@ public class SimpleServer extends AbstractServer {
                         // Fetch the product names in the order
                         @SuppressWarnings("unchecked")
                         List<Basket> lines = s.createQuery("""
-    SELECT b FROM Basket b
-      JOIN FETCH b.product
+    SELECT b
+      FROM Basket b
+ LEFT JOIN FETCH b.product
+ LEFT JOIN FETCH b.customBouquet cb
+ LEFT JOIN FETCH cb.items i
+ LEFT JOIN FETCH i.product
      WHERE b.order.orderId = :oid
 """, Basket.class)
                                 .setParameter("oid", orderId)
                                 .list();
 
-                        List<String> productNames = lines.stream()
-                                .map(b -> b.getAmount() + " x " + b.getProduct().getName())
-                                .toList();
+// ——— build the display names exactly as in your Order‑Details view ———
+                        List<String> productNames = lines.stream().map(b -> {
+                            // a regular product?
+                            if (b.getProduct() != null) {
+                                return b.getAmount() + " x " + b.getProduct().getName();
+                            }
+                            // otherwise it’s a custom bouquet:
+                            CustomBouquet cb = b.getCustomBouquet();
+                            StringBuilder sb = new StringBuilder();
+                            sb.append(b.getAmount())
+                                    .append(" x Custom: ")
+                                    .append(cb.getName())
+                                    .append(" (Style: ").append(cb.getStyle());
+                            if (cb.getPot() != null) {
+                                sb.append(", Pot: ").append(cb.getPot());
+                            }
+                            // list only the included flowers
+                            List<String> parts = cb.getItems().stream()
+                                    .filter(it -> it.getQuantity() > 0)
+                                    .map(it -> it.getProduct().getName() + " x " + it.getQuantity())
+                                    .toList();
+                            if (!parts.isEmpty()) {
+                                sb.append(", Flowers: ").append(String.join(", ", parts));
+                            }
+                            sb.append(")");
+                            return sb.toString();
+                        }).toList();
                         double totalPaid = order.getTotalPrice();
 
                         // 3) Send the email (don’t let failures kill the server!)
@@ -907,60 +965,113 @@ public class SimpleServer extends AbstractServer {
                 case "FETCH_ORDER_PRODUCTS" -> {
                     int orderId = (int) massage.getData();
                     try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
-                        // 1) load order + its basket lines
+                        // 1) Load the order (for user, delivery flag, etc.)
                         Order o = s.get(Order.class, orderId);
+
+                        // 2) Load all basket rows (products + custom bouquets + bouquet items + item.products)
                         @SuppressWarnings("unchecked")
                         List<Basket> items = s.createQuery("""
-            SELECT b 
+            SELECT b
               FROM Basket b
-              JOIN FETCH b.product
+         LEFT JOIN FETCH b.product
+         LEFT JOIN FETCH b.customBouquet cb
+         LEFT JOIN FETCH cb.items i
+         LEFT JOIN FETCH i.product
              WHERE b.order.orderId = :oid
         """, Basket.class)
                                 .setParameter("oid", orderId)
                                 .list();
 
-                        // 2) build line‐items DTOs & compute subtotal
-                        List<OrderDetailsDTO.Line> lines = new ArrayList<>();
-                        double subtotal = 0;
+                        // 3) Build DTO lines & compute subtotal
+                        List<OrderDetailsDTO.Line> lines   = new ArrayList<>();
+                        double                       subtotal = 0;
                         for (Basket b : items) {
-                            String name = b.getProduct().getName();
-                            double price = b.getPrice();           // quantity * unit price
+                            String name;
+                            if (b.getProduct() != null) {
+                                // a normal catalog product
+                                name = b.getProduct().getName();
+                            } else {
+                                // a custom bouquet → build full description
+                                CustomBouquet cb = b.getCustomBouquet();
+                                StringBuilder   sb = new StringBuilder();
+                                sb.append(cb.getName()).append(" (");
+                                sb.append("Style: ").append(cb.getStyle());
+                                if (cb.getPot() != null) {
+                                    sb.append(", Pot: ").append(cb.getPot());
+                                }
+                                if (!cb.getItems().isEmpty()) {
+                                    sb.append(", Flowers: ");
+                                    List<String> parts = cb.getItems().stream()
+                                            .filter(it -> it.getQuantity() > 0)
+                                            .map(it -> it.getProduct().getName() + " x " + it.getQuantity())
+                                            .collect(Collectors.toList());
+                                    sb.append(String.join(", ", parts));
+                                }
+                                sb.append(")");
+                                name = sb.toString();
+                            }
+
                             int    qty   = b.getAmount();
+                            double price = b.getPrice();
                             lines.add(new OrderDetailsDTO.Line(name, qty, price));
                             subtotal += price;
                         }
 
-                        // 3) load sales for computing saleDiscount
-                        List<Sale> sales = s.createQuery("FROM Sale", Sale.class).list();
-                        sales.forEach(sale -> {
-                            sale.setProductIds(s.createNativeQuery(
-                                            "SELECT product_id FROM sale_products WHERE sale_id = :sid", Integer.class)
-                                    .setParameter("sid", sale.getId())
-                                    .getResultList()
-                            );
-                        });
-                        double saleDiscount = Sale.calculateTotalDiscount(items, sales);
+                        // 4) Sale discount on real products only
+                        double saleDiscount = 0;
+                        try ( Session saleSession = HibernateUtil.getSessionFactory().openSession() ) {
+                            List<Sale> sales = saleSession.createQuery("FROM Sale", Sale.class).list();
+                            for (Sale sale : sales) {
+                                sale.setProductIds(
+                                        saleSession.createNativeQuery(
+                                                        "SELECT product_id FROM sale_products WHERE sale_id = :saleId",
+                                                        Integer.class
+                                                )
+                                                .setParameter("saleId", sale.getId())
+                                                .getResultList()
+                                );
+                            }
+                            // only basket rows where product != null
+                            List<Basket> productLines = items.stream()
+                                    .filter(x -> x.getProduct() != null)
+                                    .collect(Collectors.toList());
+                            saleDiscount = Sale.calculateTotalDiscount(productLines, sales);
+                        }
 
-                        // 4) vip + delivery
-                        boolean isVip = o.getUser().isVIP();
-                        double vipDiscount   = isVip
-                                ? (subtotal - saleDiscount)*0.10
+                        // 5) VIP discount
+                        double afterSale   = subtotal - saleDiscount;
+                        boolean isVip      = o.getUser().isVIP();
+                        double vipDiscount = (isVip && afterSale >= 50.0)
+                                ? afterSale * 0.10
                                 : 0.0;
-                        double deliveryFee   = o.getDelivery()!=null && !o.getDelivery().isBlank()
+
+                        // 6) Delivery fee
+                        double deliveryFee = (o.getDelivery() != null && !o.getDelivery().isBlank())
                                 ? 10.0
                                 : 0.0;
-                        double total         = o.getTotalPrice();
-                        double compUsed    = o.getCompensationUsed();
-                        // 5) send
+
+                        // 7) Stored totals & compensation
+                        double total    = o.getTotalPrice();
+                        double compUsed = o.getCompensationUsed();
+
+                        // 8) Send back the details DTO
                         OrderDetailsDTO dto = new OrderDetailsDTO(
-                                lines, subtotal, saleDiscount, vipDiscount, deliveryFee, total, compUsed
+                                lines,
+                                subtotal,
+                                saleDiscount,
+                                vipDiscount,
+                                deliveryFee,
+                                total,
+                                compUsed
                         );
                         client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_OK", dto));
+
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         client.sendToClient(new Msg("FETCH_ORDER_PRODUCTS_FAIL", "Could not load order details"));
                     }
                 }
+
 
 
                 case "FETCH_ALL_USERS" -> {
@@ -1169,6 +1280,139 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("CANCEL_FAIL", "Server error"));
                     }
                 }
+                case "LIST_CUSTOM_BOUQUETS" -> {
+                    String username = (String) data;
+                    try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
+                        // fetch all customs for this user
+                        List<CustomBouquet> list = s.createQuery(
+                                        "FROM CustomBouquet cb JOIN FETCH cb.items WHERE cb.user.username = :u",
+                                        CustomBouquet.class)
+                                .setParameter("u", username)
+                                .list();
+                        // build DTOs
+                        List<CustomBouquetDTO> dtoList = new ArrayList<>();
+                        for (CustomBouquet cb : list) {
+                            List<CustomBouquetItemDTO> items = cb.getItems().stream()
+                                    .map(i -> new CustomBouquetItemDTO(
+                                            cb.getId(),
+                                            i.getProduct().getId(),
+                                            i.getQuantity()))
+                                    .toList();
+                            dtoList.add(new CustomBouquetDTO(
+                                    cb.getId(),
+                                    cb.getUser().getUsername(),
+                                    cb.getName(),
+                                    cb.getStyle(),
+                                    cb.getDominantColor(),
+                                    cb.getPot(),
+                                    cb.getTotalPrice(),
+                                    cb.getCreatedAt(),
+                                    items
+                            ));
+                        }
+                        client.sendToClient(new Msg("LIST_CUSTOM_BOUQUETS_OK", dtoList));
+                    }
+                }
+
+                case "CREATE_CUSTOM_BOUQUET" -> {
+                    CustomBouquetDTO dto = (CustomBouquetDTO) data;
+                    Integer generatedId = null;
+                    try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
+                        Transaction tx = s.beginTransaction();
+
+                        // 1) build the CustomBouquet
+                        CustomBouquet cb = new CustomBouquet();
+                        User u = s.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", dto.getUsername())
+                                .uniqueResult();
+                        cb.setUser(u);
+                        cb.setName(dto.getName());
+                        cb.setStyle(dto.getStyle());
+                        cb.setDominantColor(dto.getDominantColor());
+                        cb.setPot(dto.getPot());
+                        cb.setTotalPrice(dto.getTotalPrice());
+                        // items:
+                        for (CustomBouquetItemDTO itemDto : dto.getItems()) {
+                            CustomBouquetItem item = new CustomBouquetItem();
+                            item.setProduct(s.get(Product.class, itemDto.getProductId()));
+                            item.setQuantity(itemDto.getQuantity());
+                            cb.addItem(item);
+                        }
+
+                        s.persist(cb);
+                        tx.commit();
+                        generatedId = cb.getId();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    client.sendToClient(new Msg("CREATE_CUSTOM_BOUQUET_OK", generatedId));
+                }
+
+                case "UPDATE_CUSTOM_BOUQUET" -> {
+                    CustomBouquetDTO dto = (CustomBouquetDTO) data;
+                    try ( var sess = HibernateUtil.getSessionFactory().openSession()) {
+                        var tx = sess.beginTransaction();
+                        CustomBouquet cb = sess.get(CustomBouquet.class, dto.getId());
+                        cb.setName(dto.getName());
+                        cb.setStyle(dto.getStyle());
+                        cb.setPot(dto.getPot());
+                        cb.setTotalPrice(dto.getTotalPrice());
+                        cb.getItems().clear();
+                        for (var itemDto : dto.getItems()) {
+                            var item = new CustomBouquetItem();
+                            item.setProduct(sess.get(Product.class, itemDto.getProductId()));
+                            item.setQuantity(itemDto.getQuantity());
+                            cb.addItem(item);
+                        }
+                        sess.merge(cb);
+                        tx.commit();
+                    }
+                    client.sendToClient(new Msg("UPDATE_CUSTOM_BOUQUET_OK", dto.getId()));
+                }
+
+
+                case "ADD_CUSTOM_TO_BASKET" -> {
+                    Object[] arr = (Object[]) data;
+                    String username = (String) arr[0];
+                    Integer customId = (Integer) arr[1];
+                    int amount = (int) arr[2];
+
+                    try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
+                        Transaction tx = s.beginTransaction();
+                        User u = s.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
+                        CustomBouquet cb = s.get(CustomBouquet.class, customId);
+
+                        Basket existing = s.createQuery("""
+            FROM Basket b
+            WHERE b.user = :u
+              AND b.customBouquet.id = :cid
+              AND b.order IS NULL
+        """, Basket.class)
+                                .setParameter("u", u)
+                                .setParameter("cid", customId)
+                                .uniqueResult();
+
+                        if (existing != null) {
+                            existing.setAmount(existing.getAmount() + amount);
+                            existing.setPrice(existing.getAmount() * cb.getTotalPrice());
+                            s.merge(existing);
+                        } else {
+                            Basket b = new Basket();
+                            b.setUser(u);
+                            b.setCustomBouquet(cb);
+                            b.setAmount(amount);
+                            b.setPrice(cb.getTotalPrice());
+                            s.persist(b);
+                        }
+                        tx.commit();
+                        client.sendToClient(new Msg("BASKET_UPDATED", null));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+
 
 
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
