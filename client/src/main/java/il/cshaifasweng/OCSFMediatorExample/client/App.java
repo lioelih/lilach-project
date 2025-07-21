@@ -37,6 +37,7 @@ public class App extends Application {
         client.setHost(connectionInfo[0]);
         client.openConnection();
         SimpleClient.setClient(client);
+        client.sendToServer("add client");
 
         SceneController.setMainStage(stage);
         SceneController.switchScene("home");
