@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class SalesController {
 
     @FXML private ImageView logoImage;
-    @FXML private Button goHomeButton;
+    @FXML private Button addSaleButton;
     @FXML private TableView<Sale> salesTable;
 
     @FXML private TableColumn<Sale, Integer> colId;
@@ -44,6 +44,7 @@ public class SalesController {
     @FXML private TableColumn<Sale, Void> colActions;
 
     private List<Product> products;
+    private List<Sale> sales;
 
     @FXML
     public void initialize() {
@@ -59,13 +60,27 @@ public class SalesController {
             EventBus.getDefault().register(this);
         }
 
-        goHomeButton.setOnAction(e -> {
-            EventBus.getDefault().unregister(this);
-            SceneController.switchScene("home");
-        });
-
         setupTable();
         highlightActiveRows();
+
+        addSaleButton.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
+                Scene scene = new Scene(loader.load());
+
+                // Get the controller and pass the product list
+                AddSaleController controller = loader.getController();
+                controller.setProducts(products);
+                controller.setSales(sales);
+
+                Stage stage = new Stage();
+                stage.setTitle("Add Sale");
+                stage.setScene(scene);
+                stage.show();
+            } catch (IOException err) {
+                err.printStackTrace();
+            }
+        });
     }
 
     private void setupTable() {
@@ -132,7 +147,7 @@ public class SalesController {
 
     @Subscribe
     public void handleSalesFetched(SalesEvent event) {
-        List<Sale> sales = event.getSales();
+        sales = event.getSales();
         System.out.println("[SalesController] fetched sales");
         Platform.runLater(() -> salesTable.getItems().setAll(sales));
     }
