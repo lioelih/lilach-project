@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.util.*;
 import javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory;
 import javafx.scene.Node;      // if you ever refer to Node in your streams
+import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
+import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 public class CustomBouquetController {
 
     @FXML private ImageView       logoImage;
@@ -44,8 +46,11 @@ public class CustomBouquetController {
 
     // track the DTO state
     private final Map<ToggleFlower,Integer> selections = new LinkedHashMap<>();
+    private final Map<String, Product> potProductMap = new HashMap<>();
     private List<CustomBouquetDTO>          myBouquets = List.of();
     private Integer                         currentCustomId = null;
+    private List<Sale>                sales         = new ArrayList<>();
+    private List<Product>             catalogProducts = List.of();
 
     @FXML
     public void initialize() {
@@ -68,13 +73,7 @@ public class CustomBouquetController {
 
         // style & pot selectors
         styleBox.getItems().setAll("Bridal","Tidy","Clustered");
-        potBox.getItems().setAll(
-                "None",
-                "Ceramic Vase (+₪60)",
-                "Glass Vase   (+₪60)",
-                "Ceramic Pot  (+₪50)",
-                "Glass  Pot   (+₪50)"
-        );
+        potBox.getItems().setAll("None");
         potBox.getSelectionModel().select("None");
         potBox.valueProperty().addListener((obs, oldPot, newPot) -> {
             updateSaveEnabled();
@@ -93,6 +92,7 @@ public class CustomBouquetController {
             SimpleClient.getClient().ensureConnected();
             SimpleClient.getClient().sendToServer(new Msg("LIST_CUSTOM_BOUQUETS", SceneController.loggedUsername));
             SimpleClient.getClient().sendToServer(new Msg("GET_CATALOG", null));
+            SimpleClient.getClient().sendToServer(new Msg("GET_SALES",    null));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -119,20 +119,22 @@ public class CustomBouquetController {
     @Subscribe
     @SuppressWarnings("unchecked")
     public void onCatalog(CatalogEvent event) {
-        // now this will actually fire when SimpleClient posts a CatalogEvent
-        var products = event.getProducts();
+        // cache the full product list
+        catalogProducts = event.getProducts();
 
         Platform.runLater(() -> {
+            // 2a) Clear previous flowers & selections
             flowerPane.getChildren().clear();
             selections.clear();
 
-            products.stream()
+            // 2b) Build the flower palette
+            catalogProducts.stream()
                     .filter(p -> "flower".equalsIgnoreCase(p.getType()))
                     .forEach(p -> {
                         ToggleFlower tf = new ToggleFlower(p);
                         tf.setOnToggled(on -> {
                             if (on) {
-                                int used = selections.values().stream().mapToInt(i->i).sum();
+                                int used      = selections.values().stream().mapToInt(i->i).sum();
                                 int remaining = Math.max(0, 50 - used);
                                 selections.put(tf, 1);
                                 tf.showQuantitySelector(
@@ -149,17 +151,54 @@ public class CustomBouquetController {
                                 selections.remove(tf);
                                 tf.removeQuantitySelector();
                             }
-                            updatePrice();
                             updateSaveEnabled();
                             updateQuantityLimits();
+                            updatePrice();
                         });
                         flowerPane.getChildren().add(tf);
                     });
 
+            // 3) Repopulate the potBox (uses potProductMap + rebuildPotBox())
+            rebuildPotBox();
+
+            // 4) Refresh your UI state
+            updateSaveEnabled();
             updateQuantityLimits();
             updatePrice();
         });
     }
+    private void rebuildPotBox() {
+        potProductMap.clear();
+        potBox.getItems().setAll("None");
+
+        catalogProducts.stream()
+                .filter(p -> {
+                    String t = p.getType().toLowerCase();
+                    return t.equals("pot") || t.equals("vase");
+                })
+                .forEach(p -> {
+                    // compute sale price via Sale.calculateTotalDiscount(...)
+                    double basePrice = p.getPrice();
+                    Basket fake = new Basket();
+                    fake.setProduct(p);
+                    fake.setAmount(1);
+                    fake.setPrice(basePrice);
+                    double discount = Sale.calculateTotalDiscount(List.of(fake), sales);
+                    double finalPrice = basePrice - discount;
+
+                    String priceStr = String.format("₪%.2f", finalPrice);
+                    String label    = p.getName()
+                            + " (+"
+                            + priceStr
+                            + (discount>0 ? " after sale!)" : ")");
+
+                    potProductMap.put(label, p);
+                    potBox.getItems().add(label);
+                });
+
+        potBox.getSelectionModel().select("None");
+    }
+
 
     /** Handle switching between “Create New…” & existing bouquets */
     private void onExistingSelected(ActionEvent evt) {
@@ -190,16 +229,15 @@ public class CustomBouquetController {
 
             nameField.setText(dto.getName());
             styleBox.setValue(dto.getStyle());
-            if (dto.getPot()==null) {
+            if (dto.getPot() == null) {
                 potBox.getSelectionModel().select("None");
             } else {
-                String desired = dto.getPot(); // e.g. "Glass Pot"
-                potBox.getItems().stream()
-                        .filter(item -> item.startsWith(desired))
+                potProductMap.keySet().stream()
+                        .filter(label -> label.startsWith(dto.getPot()))  // e.g. “Glass Vase”
                         .findFirst()
                         .ifPresentOrElse(
-                                display -> potBox.getSelectionModel().select(display),
-                                ()       -> potBox.getSelectionModel().select("None")
+                                label -> potBox.getSelectionModel().select(label),
+                                ()     -> potBox.getSelectionModel().select("None")
                         );
             }
 
@@ -221,7 +259,14 @@ public class CustomBouquetController {
         }
     }
 
-    /** Update the “Total flowers:” label */
+    @Subscribe
+    @SuppressWarnings("unchecked")
+    public void onSales(Msg m) {
+        if (!"SENT_SALES".equals(m.getAction())) return;
+        sales = (List<Sale>) m.getData();
+        Platform.runLater(this::rebuildPotBox);
+    }
+
 
 
     /** Enable Save only if style chosen and ≥1 flower */
@@ -369,18 +414,16 @@ public class CustomBouquetController {
     }
 
     private void updatePrice() {
-        // 1) sum of all flower line‐items
-        double sum = selections.entrySet()
-                .stream()
-                .filter(e -> e.getValue() != null)
+        double sum = selections.entrySet().stream()
                 .mapToDouble(e -> e.getKey().getProduct().getPrice() * e.getValue())
                 .sum();
 
-        // 2) surcharge for the pot
         String potLabel = potBox.getValue();
         if (potLabel != null && !potLabel.equals("None")) {
-            if (potLabel.contains("Vase"))   sum += 60;
-            else if (potLabel.contains("Pot")) sum += 50;
+            Product chosenPot = potProductMap.get(potLabel);
+            if (chosenPot != null) {
+                sum += chosenPot.getPrice();
+            }
         }
 
         totalPriceLabel.setText(String.format("Total Price: ₪%.2f", sum));
