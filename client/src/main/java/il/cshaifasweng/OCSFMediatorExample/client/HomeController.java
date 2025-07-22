@@ -33,37 +33,52 @@ public class HomeController {
     @FXML private ImageView logoImage;
     @FXML
     public void initialize() {
-        boolean loggedIn = SceneController.loggedUsername != null;
+        boolean loggedIn  = SceneController.loggedUsername != null;
+        boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
 
-        catalogButton.setOnAction(e -> SceneController.switchScene("catalog"));
-        contactButton.setOnAction(e -> SceneController.switchScene("contact"));
-        loginButton.setOnAction(e -> SceneController.switchScene("login"));
+        // Home nav
+        catalogButton .setOnAction(e -> SceneController.switchScene("catalog"));
+        contactButton .setOnAction(e -> SceneController.switchScene("contact"));
+        vipButton     .setOnAction(e -> SceneController.switchScene("vip"));
+
+        // Login / Register
+        loginButton   .setVisible(!loggedIn);
+        loginButton   .setManaged(!loggedIn);
+        registerButton.setVisible(!loggedIn);
+        registerButton.setManaged(!loggedIn);
+        loginButton   .setOnAction(e -> SceneController.switchScene("login"));
         registerButton.setOnAction(e -> SceneController.switchScene("register"));
-        vipButton.setOnAction(e -> SceneController.switchScene("vip"));
-        ordersButton.setOnAction(e -> SceneController.switchScene("orders"));
-        usersButton.setOnAction(e -> SceneController.switchScene("users"));
-        if (loggedIn) {
-            loginButton.setVisible(false);
-            registerButton.setVisible(false);
-            logoutButton.setVisible(true);
-            ordersButton.setVisible(true);
-            usersButton.setVisible(true);
-            welcomeLabel.setText("Welcome, " + SceneController.loggedUsername);
-        } else {
-            logoutButton.setVisible(false);
-            welcomeLabel.setText("");
-        }
 
-        logoutButton.setOnAction(e -> {
+        // Logout / Orders
+        logoutButton  .setVisible(loggedIn);
+        logoutButton  .setManaged(loggedIn);
+        ordersButton  .setVisible(loggedIn);
+        ordersButton  .setManaged(loggedIn);
+        ordersButton  .setOnAction(e -> SceneController.switchScene("orders"));
+        logoutButton .setOnAction(e -> {
             try {
                 SimpleClient.getClient().sendToServer(new Msg("LOGOUT", SceneController.loggedUsername));
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
             SceneController.loggedUsername = null;
+            SceneController.setCurrentUserRole(SceneController.Role.USER);
             SceneController.switchScene("home");
         });
-        Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
-        logoImage.setImage(logo);
+
+        // Users (WORKER+)
+        usersButton   .setVisible(canWorker);
+        usersButton   .setManaged(canWorker);
+        usersButton   .setOnAction(e -> SceneController.switchScene("users"));
+
+        // welcome
+        if (loggedIn) {
+            welcomeLabel.setText("Welcome, " + SceneController.loggedUsername);
+        } else {
+            welcomeLabel.setText("");
+        }
+
+        // logo
+        logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
     }
 }

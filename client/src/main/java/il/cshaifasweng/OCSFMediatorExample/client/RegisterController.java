@@ -28,11 +28,13 @@ public class RegisterController {
 
     @FXML
     public void initialize() throws IOException {
-        if (!EventBus.getDefault().isRegistered(this)) {
-            EventBus.getDefault().register(this);
-        }
+        EventBus.getDefault().unregister(this);
+        EventBus.getDefault().register(this);
 
-        backButton.setOnAction(e -> SceneController.switchScene("home"));
+        backButton.setOnAction(e -> {
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("home");
+        });
 
         submitButton.setOnAction(event -> {
             Branch selected = branchComboBox.getValue();
@@ -45,12 +47,12 @@ public class RegisterController {
             System.out.println("[Client] Selected branch: " + selected.getName() + ", ID: " + selected.getBranchId());
 
             String[] fields = new String[]{
-                    usernameField.getText(),
-                    emailField.getText(),
-                    phoneNumberField.getText(),
-                    nameField.getText(),
+                    usernameField.getText().trim(),
+                    emailField.getText().trim(),
+                    nameField.getText().trim(),        // fullName first
+                    phoneNumberField.getText().trim(), // phone second
                     passwordField.getText(),
-                    String.valueOf(selected.getBranchId()) // send branch ID as String
+                    String.valueOf(selected.getBranchId())
             };
 
             if (!isValidInput(fields)) return;
@@ -70,28 +72,49 @@ public class RegisterController {
     }
 
     private boolean isValidInput(String[] f) {
-        if (f[0].isBlank() || f[1].isBlank() || f[2].isBlank() || f[3].isBlank() || f[4].isBlank() || f[5] == null) {
-            showAlert("All fields are required.");
-            return false;
+        // f[0]=username, f[1]=email, f[2]=fullName, f[3]=phone, f[4]=password, f[5]=branchId
+
+        // 1) all required
+        for (int i = 0; i < 5; i++) {
+            if (f[i].isBlank()) {
+                showAlert("All fields are required.");
+                return false;
+            }
         }
+
+        // 2) username & password: no spaces
         if (f[0].contains(" ") || f[4].contains(" ")) {
             showAlert("Username or password cannot contain spaces.");
             return false;
         }
+
+        // 3) valid e‑mail
         if (!f[1].matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
             showAlert("Invalid email format.");
             return false;
         }
-        if (!f[2].matches("\\d{10}")) {
-            showAlert("Phone must be 10 digits.");
+
+        // 4) full name: at least two parts separated by a space
+        if (!f[2].matches("^[^\\s]+\\s+[^\\s]+$")) {
+            showAlert("Full Name must include first and last name separated by a space.");
             return false;
         }
+
+        // 5) phone: exactly 10 digits, must start with 05
+        if (!f[3].matches("^05\\d{8}$")) {
+            showAlert("Phone number must be 10 digits starting with 05.");
+            return false;
+        }
+
+        // 6) password length
         if (f[4].length() < 4 || f[4].length() > 16) {
             showAlert("Password must be 4–16 characters.");
             return false;
         }
+
         return true;
     }
+
 
     @Subscribe
     public void onBranchesReceived(Msg message) {

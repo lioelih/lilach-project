@@ -224,6 +224,17 @@ public class CatalogController {
 
             applyLocalFilters();
         });
+
+        boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
+
+        addProductButton .setVisible(canWorker);
+        addProductButton .setManaged(canWorker);
+
+        addSaleButton    .setVisible(canWorker);
+        addSaleButton    .setManaged(canWorker);
+
+        viewSalesButton  .setVisible(canWorker);
+        viewSalesButton  .setManaged(canWorker);
     }
 
     @Subscribe
