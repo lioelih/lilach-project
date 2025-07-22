@@ -84,17 +84,27 @@ public class BasketController {
             Basket basketItem = event.getRowValue();
             int newAmount = event.getNewValue();
             if (newAmount < 1) {
-                // reset to 1 and warn
                 newAmount = 1;
-                Alert alert = new Alert(Alert.AlertType.WARNING,
-                        "Quantity must be at least 1. Resetting to 1.");
-                alert.setHeaderText(null);
-                alert.showAndWait();
+                new Alert(Alert.AlertType.WARNING,
+                        "Quantity must be at least 1. Resetting to 1.")
+                        .showAndWait();
             }
+
             basketItem.setAmount(newAmount);
-            basketItem.setPrice(newAmount * basketItem.getProduct().getPrice());
-            basketTable.refresh();    // make sure table shows the clamped value
-            updateTotal();
+
+            // pick the right unit price: real product vs custom bouquet
+            double unitPrice;
+            if (basketItem.getProduct() != null) {
+                unitPrice = basketItem.getProduct().getPrice();
+            } else {
+                unitPrice = basketItem.getCustomBouquet().getTotalPrice();
+            }
+            basketItem.setPrice(newAmount * unitPrice);
+
+            basketTable.refresh();   // so the new price shows up
+            updateTotal();           // recalc the cart total
+
+            // tell the server about the new amount + price
             try {
                 SimpleClient.getClient().sendToServer(
                         new Msg("UPDATE_BASKET_AMOUNT", basketItem)
@@ -103,6 +113,7 @@ public class BasketController {
                 e.printStackTrace();
             }
         });
+
 
 
         confirmButton.setOnAction(e -> {
