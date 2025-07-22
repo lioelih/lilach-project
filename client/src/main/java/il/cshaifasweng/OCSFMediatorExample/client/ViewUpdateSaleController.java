@@ -123,7 +123,18 @@ public class ViewUpdateSaleController {
                 }
             }
 
-            // TODO: send updated sale to server
+            try {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText("Are you sure?");
+                alert.setContentText("Do you really want to update " + currentSale.getName() + "?");
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    SimpleClient.getClient().sendToServer(new Msg("UPDATE_SALE", currentSale));
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
             ((Stage) saveButton.getScene().getWindow()).close();
         });
 

@@ -256,19 +256,19 @@ public class SimpleServer extends AbstractServer {
                 case "ADD_PRODUCT" -> {
                     Product product = (Product) data;
                     saveNewProduct(product);
-                    client.sendToClient(new Msg("PRODUCT_ADDED", fetchCatalog()));
+                    sendToAllClients(new Msg("PRODUCT_ADDED", fetchCatalog()));
                 }
 
                 case "UPDATE_PRODUCT" -> {
                     Product product = (Product) data;
                     updateFullProduct(product);
-                    client.sendToClient(new Msg("PRODUCT_UPDATED", fetchCatalog()));
+                    sendToAllClients(new Msg("PRODUCT_UPDATED", fetchCatalog()));
                 }
 
                 case "DELETE_PRODUCT" -> {
                     Product product = (Product) data;
                     deleteProduct(product.getId());
-                    client.sendToClient(new Msg("PRODUCT_DELETED", fetchCatalog()));
+                    sendToAllClients(new Msg("PRODUCT_DELETED", fetchCatalog()));
                 }
 
                 case "FETCH_BASKET" -> {
@@ -440,6 +440,12 @@ public class SimpleServer extends AbstractServer {
                     Sale newSale = (Sale) data;
                     saveNewSale(newSale);
                     sendToAllClients(new Msg("SALE_ADDED", fetchSales()));
+                }
+
+                case "UPDATE_SALE" -> {
+                    Sale updatedSale = (Sale) data;
+                    updateSale(updatedSale);
+                    sendToAllClients(new Msg("SALE_UPDATED", fetchSales()));
                 }
 
                 case "DELETE_SALE" -> {
@@ -1420,6 +1426,16 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    private void saveNewProduct(Product product) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            session.beginTransaction();
+            session.save(product);
+            session.getTransaction().commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void updateFullProduct(Product updatedProduct) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
@@ -1434,49 +1450,6 @@ public class SimpleServer extends AbstractServer {
             session.getTransaction().commit();
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private void saveNewProduct(Product product) {
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            session.beginTransaction();
-            session.save(product);
-            session.getTransaction().commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void saveNewSale(Sale sale) {
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            session.beginTransaction();
-            session.save(sale);
-
-            for (int productId : sale.getProductIds()) {
-                session.createNativeQuery("INSERT INTO sale_products (sale_id, product_id) VALUES (:saleId, :productId)")
-                        .setParameter("saleId", sale.getId())
-                        .setParameter("productId", productId)
-                        .executeUpdate();
-            }
-            session.getTransaction().commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private List<Product> fetchProductsByOrderId(int orderId) {
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("""
-            SELECT b.product
-            FROM Basket b
-            WHERE b.order.id = :oid
-        """, Product.class)
-                    .setParameter("oid", orderId)
-                    .list();
-        } catch (Exception e) {
-            System.err.println("[Server] Failed to fetch products for order " + orderId);
-            e.printStackTrace();
-            return List.of();
         }
     }
 
@@ -1505,6 +1478,39 @@ public class SimpleServer extends AbstractServer {
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             System.err.println("[Server] Failed to delete product " + productId);
+            e.printStackTrace();
+        }
+    }
+
+    private void saveNewSale(Sale sale) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            session.beginTransaction();
+            session.save(sale);
+
+            for (int productId : sale.getProductIds()) {
+                session.createNativeQuery("INSERT INTO sale_products (sale_id, product_id) VALUES (:saleId, :productId)")
+                        .setParameter("saleId", sale.getId())
+                        .setParameter("productId", productId)
+                        .executeUpdate();
+            }
+            session.getTransaction().commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSale(Sale updatedSale) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            session.beginTransaction();
+            Sale dbSale = session.get(Sale.class, updatedSale.getId());
+            if (dbSale != null) {
+                dbSale.setDiscountValue(updatedSale.getDiscountValue());
+                dbSale.setStartDate(updatedSale.getStartDate());
+                dbSale.setEndDate(updatedSale.getEndDate());
+                session.update(dbSale);
+            }
+            session.getTransaction().commit();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -1616,6 +1622,22 @@ public class SimpleServer extends AbstractServer {
             result.add(new Object[]{pid, want, have});
         }
         return result;
+    }
+
+    private List<Product> fetchProductsByOrderId(int orderId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery("""
+            SELECT b.product
+            FROM Basket b
+            WHERE b.order.id = :oid
+        """, Product.class)
+                    .setParameter("oid", orderId)
+                    .list();
+        } catch (Exception e) {
+            System.err.println("[Server] Failed to fetch products for order " + orderId);
+            e.printStackTrace();
+            return List.of();
+        }
     }
 
     @Override
