@@ -41,7 +41,6 @@ public class CatalogController {
     @FXML private Button homeButton;
     @FXML private Button refreshButton;
     @FXML private Button addProductButton;
-    @FXML private Button addSaleButton;
     @FXML private Button viewSalesButton;
     @FXML private Button filterButton;
     @FXML private TextField stringSearchField;
@@ -106,24 +105,6 @@ public class CatalogController {
             }
         });
 
-        addSaleButton.setOnAction(e -> {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
-                Scene scene = new Scene(loader.load());
-
-                // Get the controller and pass the product list
-                AddSaleController controller = loader.getController();
-                controller.setProducts(fullCatalog);
-                controller.setSales(sales);
-
-                Stage stage = new Stage();
-                stage.setTitle("Add Sale");
-                stage.setScene(scene);
-                stage.show();
-            } catch (IOException err) {
-                err.printStackTrace();
-            }
-        });
         addCustomBtn.setOnAction(e -> {
             try {
                 FXMLLoader loader = new FXMLLoader(
@@ -159,7 +140,6 @@ public class CatalogController {
             }
         });
 
-
         refreshButton.setOnAction(e -> {
             initialize();
         });
@@ -180,6 +160,7 @@ public class CatalogController {
             }
             displayProducts(filteredProducts);
         });
+
         basketIcon.setOnAction(e -> {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("basket.fxml"));
             Scene scene = null;
@@ -201,6 +182,7 @@ public class CatalogController {
                 throw new RuntimeException(ex);
             }
         });
+
         Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
         logoImage.setImage(logo);
         Image img = new Image(getClass().getResourceAsStream("/image/basket_icon.png"));
@@ -215,6 +197,7 @@ public class CatalogController {
                 setText(empty || b==null ? "" : b.getName());
             }
         });
+
         branchFilter.setCellFactory(lv -> new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b,empty);
@@ -241,10 +224,6 @@ public class CatalogController {
 
             applyLocalFilters();
         });
-
-
-
-
     }
 
     @Subscribe

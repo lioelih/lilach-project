@@ -40,7 +40,6 @@
                 <Button fx:id="addProductButton" text="Add Product" />
 
             <Button fx:id="addCustomBtn" text="Add Custom Bouquet" />
-            <Button fx:id="addSaleButton" text="Add Sale" />
             <Button fx:id="viewSalesButton" text="View Sales" />
             </HBox>
 
