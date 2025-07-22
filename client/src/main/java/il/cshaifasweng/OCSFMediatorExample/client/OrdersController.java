@@ -69,6 +69,9 @@ public class OrdersController {
 
         rbMine.setOnAction(e -> requestOrders("MINE"));
         rbAllOrders.setOnAction(e -> requestOrders("ALL"));
+        boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
+        rbAllOrders.setVisible(canWorker);
+        rbAllOrders.setManaged(canWorker);
 
         requestOrders("MINE");
     }
@@ -164,7 +167,7 @@ public class OrdersController {
                 } else {
                     OrderDisplayDTO o = getCurrent();
                     boolean pending = o.getStatus() == Order.STATUS_PENDING;
-                    markBtn  .setVisible(pending);
+                    markBtn.setVisible(pending && SceneController.hasPermission(SceneController.Role.WORKER));
                     cancelBtn.setVisible(pending);
                     setGraphic(box);
                 }

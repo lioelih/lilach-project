@@ -73,7 +73,11 @@ public class SimpleServer extends AbstractServer {
                             if (!user.isActive()) {
                                 client.sendToClient(new Msg("LOGIN_FAILED", "Your account is frozen. Please contact support."));
                             } else {
-                                client.sendToClient(new Msg("LOGIN_SUCCESS", user.getUsername()));
+                                client.sendToClient(new Msg(
+                                        "LOGIN_SUCCESS",
+                                        new String[]{ user.getUsername(), user.getRole().name() }
+                                ));
+
                             }
                         }
                     }

@@ -48,7 +48,13 @@ public class UsersController {
 
     @FXML
     public void initialize() throws IOException {
+        if (!SceneController.hasPermission(SceneController.Role.WORKER)) {
+            SceneController.switchScene("home");
+            return;
+        }
+        EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
+
 
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
 
@@ -136,23 +142,31 @@ public class UsersController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
+
+                // 1) hide completely if no row or current user not ADMIN
+                boolean isAdmin = SceneController.hasPermission(SceneController.Role.ADMIN);
+                if (empty || !isAdmin) {
                     setGraphic(null);
-                } else {
-                    UserDisplayDTO user = getTableView().getItems().get(getIndex());
-                    toggleButton.setText(user.isActive() ? "Freeze" : "Unfreeze");
-                    toggleButton.setOnAction(e -> {
-                        String action = user.isActive() ? "FREEZE_USER" : "UNFREEZE_USER";
-                        try {
-                            SimpleClient.getClient().sendToServer(new Msg(action, user.getId()));
-                        } catch (IOException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                        user.setActive(!user.isActive());
-                        toggleButton.setText(user.isActive() ? "Freeze" : "Unfreeze");
-                    });
-                    setGraphic(toggleButton);
+                    setManaged(false);
+                    return;
                 }
+                setManaged(true);
+
+                // 2) otherwise bind text & action
+                UserDisplayDTO user = getTableView().getItems().get(getIndex());
+                toggleButton.setText(user.isActive() ? "Freeze" : "Unfreeze");
+                toggleButton.setOnAction(e -> {
+                    String action = user.isActive() ? "FREEZE_USER" : "UNFREEZE_USER";
+                    try {
+                        SimpleClient.getClient().sendToServer(new Msg(action, user.getId()));
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    user.setActive(!user.isActive());
+                    toggleButton.setText(user.isActive() ? "Freeze" : "Unfreeze");
+                });
+
+                setGraphic(toggleButton);
             }
         });
 
