@@ -84,8 +84,18 @@ public class App extends Application {
     public void onLoginResponse(LoginEvent event) {
         Msg msg = event.getMsg();
         Platform.runLater(() -> {
-            if (msg.getAction().equals("LOGIN_SUCCESS")) {
-                SceneController.loggedUsername = (String) msg.getData();
+            if ("LOGIN_SUCCESS".equals(msg.getAction())) {
+                // ← instead of (String) msg.getData(), do:
+                String[] payload = (String[]) msg.getData();
+                String username = payload[0];
+                String roleName = payload[1];
+
+                // save both into your SceneController
+                SceneController.loggedUsername     = username;
+                SceneController.setCurrentUserRole(
+                        SceneController.Role.valueOf(roleName)
+                );
+
                 SceneController.switchScene("home");
             } else {
                 String message = msg.getData().toString();
@@ -101,6 +111,7 @@ public class App extends Application {
             }
         });
     }
+
 
     @Subscribe
     public void onRegisterResponse(RegisterEvent event) {

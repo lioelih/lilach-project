@@ -12,6 +12,33 @@ public class SceneController {
     public static Stage mainStage;
     public static String loggedUsername = null;
 
+    public enum Role {
+        USER,
+        WORKER,
+        MANAGER,
+        ADMIN
+    }
+
+    private static Role currentUserRole;
+
+    /** Call once on successful login to remember the user’s permission level. */
+    public static void setCurrentUserRole(Role role) {
+        currentUserRole = role;
+    }
+
+    /** Returns the currently logged‑in user’s role (may be null if not logged in). */
+    public static Role getCurrentUserRole() {
+        return currentUserRole;
+    }
+
+    /**
+     * Convenience to see if the current user is at least at the given role.
+     * e.g. hasPermission(Role.WORKER) is true for WORKER, MANAGER or ADMIN.
+     */
+    public static boolean hasPermission(Role required) {
+        if (currentUserRole == null) return false;
+        return currentUserRole.ordinal() >= required.ordinal();
+    }
     public static void setMainStage(Stage stage) {
         mainStage = stage;
     }
