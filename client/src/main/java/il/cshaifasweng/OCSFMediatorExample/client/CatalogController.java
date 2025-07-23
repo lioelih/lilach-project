@@ -127,6 +127,7 @@ public class CatalogController {
         });
 
         viewSalesButton.setOnAction(e -> {
+            EventBus.getDefault().unregister(this);
             SceneController.switchScene("view_sales");
         });
 
@@ -222,57 +223,6 @@ public class CatalogController {
 
         viewSalesButton  .setVisible(canWorker);
         viewSalesButton  .setManaged(canWorker);
-    }
-
-    @Subscribe
-    public void onCatalogReceived(CatalogEvent event) {
-        products = event.getProducts();
-        fullCatalog = new ArrayList<>(products);
-        Platform.runLater(() -> {
-            updateFilterBox();
-            displayProducts(products);
-            clearFilters();
-        });
-    }
-
-    @Subscribe
-    public void onSalesReceived(SalesEvent event) {
-        sales = event.getSales();
-        System.out.println("[Catalog] Received Sales");
-        if(Objects.equals(event.getUseCase(), "SALE_ADDED")) displayProducts(fullCatalog);
-    }
-
-    @Subscribe
-    public void handleBasketMessages(Msg msg) {
-        if (msg.getAction().equals("BASKET_FETCHED")) {
-            List<Basket> items = (List<Basket>) msg.getData();
-            int total = items.stream().mapToInt(Basket::getAmount).sum();
-            Platform.runLater(() -> basketCountLabel.setText(total > 99 ? "99+" : String.valueOf(total)));
-        } else if (msg.getAction().equals("BASKET_UPDATED")) {
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    @Subscribe
-    public void handleBranches(Msg m) {
-        if (!"BRANCHES_OK".equals(m.getAction())) return;
-
-        List<Branch> list = new ArrayList<>((List<Branch>) m.getData());
-
-        // build a fake “All Products” branch
-        Branch all = new Branch();
-        all.setName("All Products");
-        all.setBranchId(0);           // never exists in DB
-        list.add(0, all);
-
-        Platform.runLater(() -> {
-            branchFilter.getItems().setAll(list);
-            branchFilter.getSelectionModel().selectFirst();   // default = “All Products”
-        });
     }
 
     private void displayProducts(List<Product> productList) {
@@ -514,6 +464,58 @@ public class CatalogController {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @Subscribe
+    public void onCatalogReceived(CatalogEvent event) {
+        products = event.getProducts();
+        fullCatalog = new ArrayList<>(products);
+        System.out.println("OHH SHIT");
+        Platform.runLater(() -> {
+            updateFilterBox();
+            displayProducts(products);
+            clearFilters();
+        });
+    }
+
+    @Subscribe
+    public void onSalesReceived(SalesEvent event) {
+        sales = event.getSales();
+        System.out.println("[Catalog] Received Sales");
+        if(Objects.equals(event.getUseCase(), "SALE_ADDED")) displayProducts(fullCatalog);
+    }
+
+    @Subscribe
+    public void handleBasketMessages(Msg msg) {
+        if (msg.getAction().equals("BASKET_FETCHED")) {
+            List<Basket> items = (List<Basket>) msg.getData();
+            int total = items.stream().mapToInt(Basket::getAmount).sum();
+            Platform.runLater(() -> basketCountLabel.setText(total > 99 ? "99+" : String.valueOf(total)));
+        } else if (msg.getAction().equals("BASKET_UPDATED")) {
+            try {
+                SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Subscribe
+    public void handleBranches(Msg m) {
+        if (!"BRANCHES_OK".equals(m.getAction())) return;
+
+        List<Branch> list = new ArrayList<>((List<Branch>) m.getData());
+
+        // build a fake “All Products” branch
+        Branch all = new Branch();
+        all.setName("All Products");
+        all.setBranchId(0);           // never exists in DB
+        list.add(0, all);
+
+        Platform.runLater(() -> {
+            branchFilter.getItems().setAll(list);
+            branchFilter.getSelectionModel().selectFirst();   // default = “All Products”
+        });
     }
 
     @Subscribe
