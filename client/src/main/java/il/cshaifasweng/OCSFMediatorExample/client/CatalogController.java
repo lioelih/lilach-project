@@ -31,7 +31,6 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -128,16 +127,7 @@ public class CatalogController {
         });
 
         viewSalesButton.setOnAction(e -> {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("view_sales.fxml"));
-                Scene scene = new Scene(loader.load());
-                Stage stage = new Stage();
-                stage.setTitle("Sales View");
-                stage.setScene(scene);
-                stage.show();
-            } catch (IOException err) {
-                err.printStackTrace();
-            }
+            SceneController.switchScene("view_sales");
         });
 
         refreshButton.setOnAction(e -> {
@@ -230,9 +220,6 @@ public class CatalogController {
         addProductButton .setVisible(canWorker);
         addProductButton .setManaged(canWorker);
 
-        addSaleButton    .setVisible(canWorker);
-        addSaleButton    .setManaged(canWorker);
-
         viewSalesButton  .setVisible(canWorker);
         viewSalesButton  .setManaged(canWorker);
     }
@@ -252,7 +239,7 @@ public class CatalogController {
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
         System.out.println("[Catalog] Received Sales");
-        if(event.getUseCase() == "SALE_ADDED") displayProducts(fullCatalog);
+        if(Objects.equals(event.getUseCase(), "SALE_ADDED")) displayProducts(fullCatalog);
     }
 
     @Subscribe
