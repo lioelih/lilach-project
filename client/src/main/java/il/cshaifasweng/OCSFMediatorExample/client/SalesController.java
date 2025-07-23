@@ -30,6 +30,8 @@ public class SalesController {
 
     @FXML private ImageView logoImage;
     @FXML private Button addSaleButton;
+    @FXML private Button homeButton;
+    @FXML private Button catalogButton;
     @FXML private TableView<Sale> salesTable;
 
     @FXML private TableColumn<Sale, Integer> colId;
@@ -81,6 +83,8 @@ public class SalesController {
                 err.printStackTrace();
             }
         });
+        homeButton.setOnAction(e -> SceneController.switchScene("home"));
+        catalogButton.setOnAction(e -> SceneController.switchScene("catalog"));
     }
 
     private void setupTable() {

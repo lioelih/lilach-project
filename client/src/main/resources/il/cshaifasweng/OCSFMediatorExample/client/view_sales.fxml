@@ -17,12 +17,24 @@
 
     <!-- Top Bar -->
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="20" styleClass="top-bar">
-            <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true" styleClass="image-view" />
-            <Label text="Sales" styleClass="title-label" />
-            <Region HBox.hgrow="ALWAYS" />
-            <Button fx:id="addSaleButton" text="Add New Sale" styleClass="button" />
-        </HBox>
+        <VBox spacing="10" style="-fx-padding: 10 20 10 20;">
+            <!-- Title + Nav Buttons -->
+            <HBox alignment="CENTER_LEFT" spacing="15" styleClass="top-bar">
+                <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true" styleClass="image-view" />
+                <Label text="Sales" styleClass="title-label" />
+
+                <!-- Navigation buttons beside title -->
+                <Button fx:id="homeButton" text="Home" styleClass="button" />
+                <Button fx:id="catalogButton" text="Catalog" styleClass="button" />
+
+                <Region HBox.hgrow="ALWAYS" />
+            </HBox>
+
+            <!-- Add Sale Button below title -->
+            <HBox alignment="CENTER_LEFT">
+                <Button fx:id="addSaleButton" text="Add New Sale" styleClass="button" />
+            </HBox>
+        </VBox>
     </top>
 
     <!-- Sales Table -->
