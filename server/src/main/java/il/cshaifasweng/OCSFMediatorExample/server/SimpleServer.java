@@ -167,7 +167,8 @@ public class SimpleServer extends AbstractServer {
                 case "FETCH_USER" -> {
                     String username = (String) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                        User user = session.createQuery(
+                                        "FROM User u JOIN FETCH u.branch WHERE u.username = :u", User.class)
                                 .setParameter("u", username)
                                 .uniqueResult();
                         client.sendToClient(new Msg("FETCH_USER", user));
@@ -278,8 +279,10 @@ public class SimpleServer extends AbstractServer {
                 case "FETCH_BASKET" -> {
                     String username = (String) data;
                     try ( Session session = HibernateUtil.getSessionFactory().openSession() ) {
+                        // 1) load the user (with branch)
                         User user = session.createQuery(
-                                        "FROM User WHERE username = :u", User.class)
+                                        "FROM User u JOIN FETCH u.branch WHERE u.username = :u",
+                                        User.class)
                                 .setParameter("u", username)
                                 .uniqueResult();
                         if (user == null) {
@@ -287,20 +290,51 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        List<Basket> basketItems = session.createQuery(
-                                        """
-                                        SELECT b
-                                          FROM Basket b
-                                          LEFT JOIN FETCH b.product
-                                          LEFT JOIN FETCH b.customBouquet cb
-                                          LEFT JOIN FETCH cb.items
-                                         WHERE b.user.id = :uid
-                                           AND b.order    IS NULL
-                                        """, Basket.class)
-                                .setParameter("uid", user.getId())
-                                .list();
+                        // 2) decide if they’re privileged
+                        boolean privileged = user.isVIP()
+                                || user.getRole().ordinal() >= User.Role.WORKER.ordinal();
+
+                        List<Basket> basketItems;
+                        if (privileged) {
+                            // VIPs & staff see everything
+                            basketItems = session.createQuery(
+                                            """
+                                            SELECT b
+                                              FROM Basket b
+                                         LEFT JOIN FETCH b.product
+                                         LEFT JOIN FETCH b.customBouquet cb
+                                         LEFT JOIN FETCH cb.items
+                                             WHERE b.user.id = :uid
+                                               AND b.order    IS NULL
+                                            """, Basket.class)
+                                    .setParameter("uid", user.getId())
+                                    .list();
+                        } else {
+                            // Regular users only get
+                            // • custom bouquets
+                            // • OR real products that have stock > 0 at their branch
+                            basketItems = session.createQuery(
+                                            """
+                                            SELECT DISTINCT b
+                                              FROM Basket b
+                                         LEFT JOIN FETCH b.customBouquet cb
+                                         LEFT JOIN FETCH cb.items
+                                         LEFT JOIN FETCH b.product p
+                                         LEFT JOIN Storage st
+                                                ON st.product.product_id = p.id
+                                               AND st.branch.branch_id   = :bid
+                                               AND st.quantity > 0
+                                             WHERE b.user.id = :uid
+                                               AND b.order IS NULL
+                                               AND (b.customBouquet IS NOT NULL OR st.storage_id IS NOT NULL)
+                                            """, Basket.class)
+                                    .setParameter("uid", user.getId())
+                                    .setParameter("bid", user.getBranch().getBranchId())
+                                    .list();
+                        }
+
                         client.sendToClient(new Msg("BASKET_FETCHED", basketItems));
-                    } catch(Exception ex) {
+                    } catch (Exception ex) {
                         ex.printStackTrace();
                         client.sendToClient(new Msg("BASKET_FETCHED", List.of()));
                     }
@@ -1170,17 +1204,19 @@ public class SimpleServer extends AbstractServer {
                     String newBranchName = (String) updateData.get("branchName");
                     String newPassword = (String) updateData.get("password");
                     Boolean newVip = (Boolean) updateData.get("isVIP");
-                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        session.beginTransaction();
 
+                    try ( Session session = HibernateUtil.getSessionFactory().openSession() ) {
+                        session.beginTransaction();
                         User user = session.get(User.class, userId);
                         if (user == null) {
                             client.sendToClient(new Msg("UPDATE_USER_FAILED", "User not found"));
                             return;
                         }
 
+                        // check for username/email conflicts
                         List<User> conflicts = session.createQuery(
-                                        "FROM User WHERE (username = :username OR email = :email) AND id != :id", User.class)
+                                        "FROM User WHERE (username = :username OR email = :email) AND id != :id",
+                                        User.class)
                                 .setParameter("username", newUsername)
                                 .setParameter("email", newEmail)
                                 .setParameter("id", userId)
@@ -1191,6 +1227,7 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
+                        // apply all the updates
                         user.setUsername(newUsername);
                         user.setEmail(newEmail);
                         user.setPhoneNumber(newPhone);
@@ -1199,13 +1236,12 @@ public class SimpleServer extends AbstractServer {
                         if (newVip != null) {
                             user.setVIP(newVip);
                         }
-                        // Update password if provided
                         if (newPassword != null && !newPassword.isBlank()) {
                             user.setPassword(newPassword);
                         }
-
                         if (newBranchName != null && !newBranchName.isBlank()) {
-                            Branch branch = session.createQuery("FROM Branch WHERE branch_name = :name", Branch.class)
+                            Branch branch = session.createQuery(
+                                            "FROM Branch WHERE branch_name = :name", Branch.class)
                                     .setParameter("name", newBranchName)
                                     .uniqueResult();
                             if (branch != null) {
@@ -1217,16 +1253,22 @@ public class SimpleServer extends AbstractServer {
                             }
                         }
 
+                        // persist
                         session.merge(user);
                         session.getTransaction().commit();
 
+                        // --- notify the originating client ---
                         client.sendToClient(new Msg("UPDATE_USER_OK", null));
-                        System.out.println("[Server] Updated user ID " + userId + " successfully.");
+
+                        // --- **broadcast** to every other connected client ---
+                        //    so they can re-fetch and re-apply VIP/branch filters
+                        sendToAllClients(new Msg("USER_UPDATED", user));
                     } catch (Exception e) {
                         e.printStackTrace();
                         client.sendToClient(new Msg("UPDATE_USER_FAILED", "Error updating user"));
                     }
                 }
+
 
                 case "UPDATE_GREETING" -> {
                     Map<String, Object> payload = (Map<String, Object>) data;

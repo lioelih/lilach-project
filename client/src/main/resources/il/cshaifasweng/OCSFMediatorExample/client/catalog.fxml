@@ -74,6 +74,14 @@
             <ScrollPane fitToWidth="true" prefHeight="500.0" prefWidth="1200.0">
                 <TilePane fx:id="productGrid" hgap="20" prefColumns="3" tileAlignment="TOP_LEFT" vgap="20" />
             </ScrollPane>
+            <Label
+                    fx:id="promoLabel"
+                    text="Subscribe now to our VIP Program to get access to the entire selection of items in our catalog!"
+                    visible="false"
+                    style="-fx-font-size: 14px; -fx-text-fill: darkred;"
+                    alignment="CENTER"
+                    wrapText="true"
+            />
         </VBox>
     </center>
 </BorderPane>
