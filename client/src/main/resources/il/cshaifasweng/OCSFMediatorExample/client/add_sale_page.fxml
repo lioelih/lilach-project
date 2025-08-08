@@ -1,46 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
 
-<VBox fx:id="root"
-      xmlns="http://javafx.com/javafx"
-      xmlns:fx="http://javafx.com/fxml"
-      fx:controller="il.cshaifasweng.OCSFMediatorExample.client.AddSaleController"
-      alignment="TOP_CENTER" spacing="15" prefWidth="844.0" prefHeight="700.0">
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.AddSaleController"
+            prefWidth="844.0" prefHeight="700.0"
+            stylesheets="@homepage.css">
 
-    <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
-    </padding>
+    <!-- Top Bar with Logo and Title -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" styleClass="top-bar">
+            <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true" styleClass="image-view"/>
+            <Label text="Add Sale" styleClass="title-label" />
+            <Region HBox.hgrow="ALWAYS"/>
+        </HBox>
+    </top>
 
-    <Label text="Add New Sale" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
+    <!-- Form Content -->
+    <center>
+        <VBox fx:id="root" alignment="TOP_CENTER" spacing="15">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
 
-    <Label text="Name:" />
-    <TextField fx:id="nameField" />
+            <Label text="Name:" />
+            <TextField fx:id="nameField" />
 
-    <Label text="Description:" />
-    <TextField fx:id="descriptionField" />
+            <Label text="Description:" />
+            <TextField fx:id="descriptionField" />
 
-    <Label text="Discount Type:" />
-    <ComboBox fx:id="discountTypeBox" promptText="Select Discount Type" prefWidth="200.0" />
+            <Label text="Discount Type:" />
+            <ComboBox fx:id="discountTypeBox" promptText="Select Discount Type" prefWidth="200.0" />
 
-    <!-- Centered HBox for Start and End Dates -->
-    <HBox spacing="20" alignment="CENTER">
-        <VBox spacing="5" alignment="CENTER">
-            <Label text="Start Date:" />
-            <DatePicker fx:id="startDatePicker" />
+            <!-- Start & End Dates -->
+            <HBox spacing="20" alignment="CENTER">
+                <VBox spacing="5" alignment="CENTER">
+                    <Label text="Start Date:" />
+                    <DatePicker fx:id="startDatePicker" />
+                </VBox>
+                <VBox spacing="5" alignment="CENTER">
+                    <Label text="End Date:" />
+                    <DatePicker fx:id="endDatePicker" />
+                </VBox>
+            </HBox>
+
+            <!-- Dynamic UI like value field or buy/get inputs -->
+            <VBox fx:id="dynamicContainer" spacing="10" alignment="CENTER" />
+
+            <Button fx:id="addButton" text="Add Sale" styleClass="button" />
+            <Label fx:id="errorMsg" textFill="red" />
+
         </VBox>
-        <VBox spacing="5" alignment="CENTER">
-            <Label text="End Date:" />
-            <DatePicker fx:id="endDatePicker" />
-        </VBox>
-    </HBox>
+    </center>
 
-    <!-- Dynamic elements injected by controller -->
-    <VBox fx:id="dynamicContainer" spacing="10" alignment="CENTER" />
-
-    <Button fx:id="addButton" text="Add Sale" />
-    <Label fx:id="errorMsg" textFill="red" />
-
-</VBox>
+</BorderPane>

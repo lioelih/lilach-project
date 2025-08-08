@@ -38,7 +38,6 @@ public class CatalogController {
     @FXML private Button homeButton;
     @FXML private Button refreshButton;
     @FXML private Button addProductButton;
-    @FXML private Button addSaleButton;
     @FXML private Button viewSalesButton;
     @FXML private Button filterButton;
     @FXML private TextField stringSearchField;
@@ -101,7 +100,6 @@ public class CatalogController {
                 err.printStackTrace();
             }
         });
-
         addSaleButton.setOnAction(e -> {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
@@ -137,18 +135,9 @@ public class CatalogController {
         });
 
         viewSalesButton.setOnAction(e -> {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("view_sales.fxml"));
-                Scene scene = new Scene(loader.load());
-                Stage stage = new Stage();
-                stage.setTitle("Sales View");
-                stage.setScene(scene);
-                stage.show();
-            } catch (IOException err) {
-                err.printStackTrace();
-            }
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("view_sales");
         });
-
         refreshButton.setOnAction(e -> initialize());
 
         basketIcon.setOnAction(e -> {
@@ -180,6 +169,7 @@ public class CatalogController {
                 setText(empty || b == null ? "" : b.getName());
             }
         });
+
         branchFilter.setCellFactory(lv -> new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
@@ -347,6 +337,7 @@ public class CatalogController {
             updateFilterBox();
             applyLocalFilters();
         });
+
     }
 
     private void displayProducts(List<Product> productList) {

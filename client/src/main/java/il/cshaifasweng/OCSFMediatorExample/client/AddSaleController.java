@@ -18,10 +18,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public class AddSaleController {
 
+    @FXML private ImageView logoImage;
     @FXML private VBox root;
     @FXML private TextField nameField;
     @FXML private TextField descriptionField;
@@ -45,6 +45,7 @@ public class AddSaleController {
 
     @FXML
     public void initialize() {
+        logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
         discountTypeBox.setItems(FXCollections.observableArrayList(
                 "Percentage", "Fixed", "Bundle", "Buy_X_Get_Y"
         ));
