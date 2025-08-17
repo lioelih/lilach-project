@@ -1,21 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.TilePane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
 
-<BorderPane prefHeight="720.0" prefWidth="1280.0" stylesheets="@homepage.css" xmlns="http://javafx.com/javafx/21.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController">
+<BorderPane prefHeight="720.0" prefWidth="1280.0"
+            stylesheets="@homepage.css"
+            xmlns="http://javafx.com/javafx/21.0.1"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController">
 
+    <!-- TOP BAR (unchanged structure) -->
     <top>
         <StackPane prefHeight="70" styleClass="top-bar">
             <children>
@@ -34,53 +30,109 @@
     </top>
 
     <center>
-        <VBox alignment="TOP_CENTER" spacing="10">
-            <HBox alignment="CENTER" spacing="10">
-                <Button fx:id="refreshButton" text="Refresh" />
-                <Button fx:id="addProductButton" text="Add Product" />
+        <VBox alignment="TOP_CENTER" spacing="18">
+            <padding>
+                <Insets top="16" right="24" bottom="16" left="24"/>
+            </padding>
 
-            <Button fx:id="addCustomBtn" text="Add Custom Bouquet" />
-            <Button fx:id="viewSalesButton" text="View Sales" />
+            <!-- ACTION BAR: all main buttons + basket live together here -->
+            <HBox alignment="CENTER" spacing="10"
+                  style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 12;
+                         -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 14, 0, 0, 4);">
+                <Button fx:id="refreshButton" text="Refresh"
+                        style="-fx-background-radius: 8; -fx-padding: 8 14;" />
+                <Button fx:id="addProductButton" text="Add Product"
+                        style="-fx-background-radius: 8; -fx-padding: 8 14;" />
+                <Button fx:id="addCustomBtn" text="Add Custom Bouquet"
+                        style="-fx-background-radius: 8; -fx-padding: 8 14;" />
+                <Button fx:id="viewSalesButton" text="View Sales"
+                        style="-fx-background-radius: 8; -fx-padding: 8 14;" />
+
+                <Pane HBox.hgrow="ALWAYS" />
+
+                <HBox alignment="CENTER_LEFT" spacing="8">
+                    <Button fx:id="basketIcon" styleClass="icon-button" />
+                    <Label fx:id="basketCountLabel" alignment="CENTER_RIGHT" style="-fx-font-size: 14px;" text="0" />
+                </HBox>
             </HBox>
 
-            <HBox alignment="CENTER" spacing="20">
-                <Button fx:id="basketIcon" styleClass="icon-button" />
-                <Label fx:id="basketCountLabel" alignment="CENTER_RIGHT" style="-fx-font-size: 14px;" text="0" />
-                <HBox alignment="CENTER" prefWidth="220">
-                    <children>
-                        <Label text="Search Name:" />
-                        <TextField fx:id="stringSearchField" promptText="Enter Product Name" />
-                    </children>
-                </HBox>
-                <HBox alignment="CENTER" prefWidth="187">
-                    <children>
-                        <Label text="Type:" />
-                        <ComboBox fx:id="typeBox" prefHeight="26.0" prefWidth="116.0" />
-                    </children>
-                </HBox>
-                <HBox alignment="CENTER" prefWidth="262">
-                    <children>
-                        <Label text="Price from:" />
-                        <TextField fx:id="minPrice" prefWidth="95.0" promptText="Minimum Price" />
-                        <Label text="to:" />
-                        <TextField fx:id="maxPrice" prefWidth="95.0" promptText="Maximum Price" />
-                    </children>
-                </HBox>
-                <ComboBox fx:id="branchFilter" onAction="#filterButtonFire" />
-                <Button fx:id="filterButton" text="Filter" />
-            </HBox>
+            <!-- FILTERS CARD -->
+            <VBox spacing="14" maxWidth="1100"
+                  style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 16;
+                         -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 14, 0, 0, 4);">
+                <GridPane hgap="14" vgap="10">
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="16"/>
+                        <ColumnConstraints percentWidth="34"/>
+                        <ColumnConstraints percentWidth="12"/>
+                        <ColumnConstraints percentWidth="22"/>
+                        <ColumnConstraints percentWidth="16"/>
+                    </columnConstraints>
 
-            <ScrollPane fitToWidth="true" prefHeight="500.0" prefWidth="1200.0">
-                <TilePane fx:id="productGrid" hgap="20" prefColumns="3" tileAlignment="TOP_LEFT" vgap="20" />
+                    <!-- Search -->
+                    <Label text="Search Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"
+                           style="-fx-text-fill:#475569;"/>
+                    <TextField fx:id="stringSearchField" promptText="Enter Product Name"
+                               GridPane.rowIndex="0" GridPane.columnIndex="1"
+                               style="-fx-background-radius: 8; -fx-padding: 8;"/>
+
+                    <!-- Type -->
+                    <Label text="Type:" GridPane.rowIndex="0" GridPane.columnIndex="2"
+                           style="-fx-text-fill:#475569;"/>
+                    <ComboBox fx:id="typeBox" prefHeight="26.0" prefWidth="116.0"
+                              GridPane.rowIndex="0" GridPane.columnIndex="3"
+                              style="-fx-background-radius: 8; -fx-padding: 6;"/>
+
+                    <!-- Branch -->
+                    <Label text="Branch:" GridPane.rowIndex="0" GridPane.columnIndex="4"
+                           style="-fx-text-fill:#475569;"/>
+                    <ComboBox fx:id="branchFilter" onAction="#filterButtonFire"
+                              GridPane.rowIndex="0" GridPane.columnIndex="4"
+                              style="-fx-background-radius: 8; -fx-padding: 6;"
+                              GridPane.halignment="RIGHT"/>
+
+                    <!-- Price -->
+                    <Label text="Price from:" GridPane.rowIndex="1" GridPane.columnIndex="0"
+                           style="-fx-text-fill:#475569;"/>
+                    <HBox spacing="8" GridPane.rowIndex="1" GridPane.columnIndex="1">
+                        <TextField fx:id="minPrice" prefWidth="120" promptText="Minimum"
+                                   style="-fx-background-radius: 8; -fx-padding: 8;"/>
+                        <Label text="to:" style="-fx-text-fill:#64748b;"/>
+                        <TextField fx:id="maxPrice" prefWidth="120" promptText="Maximum"
+                                   style="-fx-background-radius: 8; -fx-padding: 8;"/>
+                    </HBox>
+
+                    <!-- Filter button -->
+                    <Button fx:id="filterButton" text="Filter"
+                            GridPane.rowIndex="1" GridPane.columnIndex="4" GridPane.halignment="RIGHT"
+                            style="-fx-background-color:#2563eb; -fx-text-fill:white; -fx-background-radius: 8; -fx-padding: 8 14;"/>
+                </GridPane>
+            </VBox>
+
+            <!-- CATALOG SCROLLER (centered content) -->
+            <ScrollPane fitToWidth="true" fitToHeight="false" prefHeight="500.0" prefWidth="1200.0"
+                        pannable="true"
+                        style="-fx-background-color: transparent; -fx-background: transparent;">
+                <content>
+                    <!-- StackPane centers the TilePane -->
+                    <StackPane alignment="TOP_CENTER" style="-fx-padding: 16;">
+                        <TilePane fx:id="productGrid"
+                                  hgap="24" vgap="24"
+                                  prefColumns="4"
+                                  tileAlignment="TOP_LEFT"
+                                  style="-fx-alignment: CENTER;">
+                            <!-- the product cards are injected here -->
+                        </TilePane>
+                    </StackPane>
+                </content>
             </ScrollPane>
-            <Label
-                    fx:id="promoLabel"
-                    text="Subscribe now to our VIP Program to get access to the entire selection of items in our catalog!"
-                    visible="false"
-                    style="-fx-font-size: 14px; -fx-text-fill: darkred;"
-                    alignment="CENTER"
-                    wrapText="true"
-            />
+
+            <Label fx:id="promoLabel"
+                   text="Subscribe now to our VIP Program to get access to the entire selection of items in our catalog!"
+                   visible="false"
+                   style="-fx-font-size: 14px; -fx-text-fill: darkred;"
+                   alignment="CENTER"
+                   wrapText="true"/>
         </VBox>
     </center>
 </BorderPane>

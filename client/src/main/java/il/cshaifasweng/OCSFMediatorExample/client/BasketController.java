@@ -4,7 +4,6 @@ import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import il.cshaifasweng.OCSFMediatorExample.entities.Sale;
 import il.cshaifasweng.OCSFMediatorExample.entities.User;
-import il.cshaifasweng.StockLineDTO;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -43,7 +42,6 @@ public class BasketController {
     private boolean isPrivileged;
     private double total, discount;
 
-    // ── NEW FIELDS ─────────────────────────────────────────────────────────────
     private boolean isVip;
     private int     userBranchId;
 
@@ -100,7 +98,7 @@ public class BasketController {
             int newAmt = event.getNewValue() < 1 ? 1 : event.getNewValue();
             if (event.getNewValue() < 1) {
                 new Alert(Alert.AlertType.WARNING,
-                        "Quantity must be at least 1. Resetting to 1.").showAndWait();
+                        "Quantity must be at least 1. Resetting to 1.").showAndWait(); // we cant have anything below 1 inside basket
             }
             item.setAmount(newAmt);
 
@@ -161,7 +159,7 @@ public class BasketController {
                 || SceneController.hasPermission(SceneController.Role.WORKER);
         userBranchId  = me.getBranch().getBranchId();
 
-        // if they’re *not* VIP or Worker, prune any out-of-branch items:
+        // if they’re not VIP or Worker, prune any out-of-branch items, since its illegal
         if (!isPrivileged) {
             try {
                 SimpleClient.getClient().sendToServer(
@@ -265,7 +263,7 @@ public class BasketController {
         if (!"USER_UPDATED".equals(m.getAction())) return;
         User updated = (User) m.getData();
 
-        // if it’s _this_ client’s user, re-fetch both profile and basket
+        // if the user was updated (perhaps his status was changed) then we'd need to fetch it again to see in case that he is still eligble to have the items he has in his basket
         if (updated.getUsername().equals(SceneController.loggedUsername)) {
             try {
                 SimpleClient.getClient().sendToServer(
