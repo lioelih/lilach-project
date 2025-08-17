@@ -67,6 +67,34 @@
     -fx-cursor: hand;
 }
 
+.plain-button {
+    -fx-background-color: -fx-shadow-highlight-color,
+                          -fx-outer-border,
+                          -fx-inner-border,
+                          -fx-body-color;
+    -fx-background-insets: 0, 1, 2, 3;
+    -fx-background-radius: 3, 2, 2, 2;
+    -fx-text-fill: -fx-text-inner-color;
+    -fx-font-size: 13px;
+    -fx-font-weight: normal;
+    -fx-effect: null;
+    -fx-cursor: hand;
+    -fx-padding: 0.416667em 0.833333em 0.416667em 0.833333em; /* same as Modena */
+}
+
+.plain-button:hover {
+    -fx-background-color: -fx-shadow-highlight-color,
+                          -fx-outer-border,
+                          -fx-inner-border,
+                          derive(-fx-body-color, -2%);
+}
+
+.plain-button:pressed {
+    -fx-background-color: -fx-shadow-highlight-color,
+                          -fx-outer-border,
+                          -fx-inner-border,
+                          derive(-fx-body-color, -6%);
+}
 
 .title-label {
     -fx-font-size: 24px;

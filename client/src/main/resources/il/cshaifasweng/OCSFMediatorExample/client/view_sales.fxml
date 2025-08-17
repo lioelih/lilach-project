@@ -1,40 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
 
+<?import javafx.geometry.Insets?>
 <BorderPane fx:id="root" prefHeight="720.0" prefWidth="1280.0"
-            xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.SalesController"
             stylesheets="@homepage.css">
 
     <!-- Top Bar -->
     <top>
-        <VBox spacing="10" style="-fx-padding: 10 20 10 20;">
-            <!-- Title + Nav Buttons -->
-            <HBox alignment="CENTER_LEFT" spacing="15" styleClass="top-bar">
-                <ImageView fx:id="logoImage" fitHeight="40" preserveRatio="true" styleClass="image-view" />
-                <Label text="Sales" styleClass="title-label" />
-
-                <!-- Navigation buttons beside title -->
-                <Button fx:id="homeButton" text="Home" styleClass="button" />
-                <Button fx:id="catalogButton" text="Catalog" styleClass="button" />
-
-                <Region HBox.hgrow="ALWAYS" />
-            </HBox>
-
-            <!-- Add Sale Button below title -->
-            <HBox alignment="CENTER_LEFT">
-                <Button fx:id="addSaleButton" text="Add New Sale" styleClass="button" />
-            </HBox>
-        </VBox>
+        <StackPane prefHeight="70" styleClass="top-bar">
+            <children>
+                <HBox spacing="15" alignment="CENTER_LEFT" styleClass="top-bar">
+                    <padding>
+                        <Insets right="20" left="80"/>
+                    </padding>
+                    <children>
+                        <ImageView fx:id="logoImage"
+                                   fitHeight="100" fitWidth="100"
+                                   pickOnBounds="true" preserveRatio="true"/>
+                        <Label text="Sales" styleClass="title-label"/>
+                        <Button fx:id="homeButton" text="Home" styleClass="nav-button"/>
+                        <Button fx:id="catalogButton" text="Catalog" styleClass="nav-button"/>
+                        <Pane HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="addSaleButton" text="Add New Sale" styleClass="nav-button"/>
+                    </children>
+                </HBox>
+            </children>
+        </StackPane>
     </top>
 
     <!-- Sales Table -->
@@ -42,16 +39,16 @@
         <VBox spacing="12" style="-fx-padding: 20;">
             <TableView fx:id="salesTable" prefHeight="650.0" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="colId" prefWidth="50" text="ID" />
-                    <TableColumn fx:id="colName" prefWidth="150" text="Name" />
-                    <TableColumn fx:id="colType" prefWidth="120" text="Type" />
-                    <TableColumn fx:id="colValue" prefWidth="100" text="Value" />
-                    <TableColumn fx:id="colStart" prefWidth="140" text="Start Date" />
-                    <TableColumn fx:id="colEnd" prefWidth="140" text="End Date" />
-                    <TableColumn fx:id="colBuyQty" prefWidth="80" text="Buy Qty" />
-                    <TableColumn fx:id="colGetQty" prefWidth="80" text="Get Qty" />
-                    <TableColumn fx:id="colProducts" prefWidth="200" text="Product IDs" />
-                    <TableColumn fx:id="colActions" prefWidth="140" text="Actions" />
+                    <TableColumn fx:id="colId" prefWidth="50" text="ID"/>
+                    <TableColumn fx:id="colName" prefWidth="150" text="Name"/>
+                    <TableColumn fx:id="colType" prefWidth="120" text="Type"/>
+                    <TableColumn fx:id="colValue" prefWidth="100" text="Value"/>
+                    <TableColumn fx:id="colStart" prefWidth="140" text="Start Date"/>
+                    <TableColumn fx:id="colEnd" prefWidth="140" text="End Date"/>
+                    <TableColumn fx:id="colBuyQty" prefWidth="80" text="Buy Qty"/>
+                    <TableColumn fx:id="colGetQty" prefWidth="80" text="Get Qty"/>
+                    <TableColumn fx:id="colProducts" prefWidth="200" text="Product IDs"/>
+                    <TableColumn fx:id="colActions" prefWidth="140" text="Actions"/>
                 </columns>
             </TableView>
         </VBox>

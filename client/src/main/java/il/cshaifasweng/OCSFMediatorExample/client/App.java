@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import Events.CatalogEvent;
 import Events.LoginEvent;
 import Events.RegisterEvent;
 import Events.WarningEvent;
@@ -14,6 +15,7 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class App extends Application {
 

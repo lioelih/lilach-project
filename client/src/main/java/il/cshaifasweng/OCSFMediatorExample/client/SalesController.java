@@ -50,6 +50,10 @@ public class SalesController {
 
     @FXML
     public void initialize() {
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this);
+        }
+
         try {
             SimpleClient.getClient().sendToServer(new Msg("GET_CATALOG", null));
             SimpleClient.getClient().sendToServer(new Msg("GET_SALES", null));
@@ -57,10 +61,6 @@ public class SalesController {
             System.out.println(e.getMessage());
         }
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
-
-        if (!EventBus.getDefault().isRegistered(this)) {
-            EventBus.getDefault().register(this);
-        }
 
         setupTable();
         highlightActiveRows();
@@ -83,8 +83,14 @@ public class SalesController {
                 err.printStackTrace();
             }
         });
-        homeButton.setOnAction(e -> SceneController.switchScene("home"));
-        catalogButton.setOnAction(e -> SceneController.switchScene("catalog"));
+        homeButton.setOnAction(e -> {
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("home");
+        });
+        catalogButton.setOnAction(e -> {
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("catalog");
+        });
     }
 
     private void setupTable() {
@@ -112,6 +118,7 @@ public class SalesController {
             private final Button editBtn = new Button("Edit");
 
             {
+                editBtn.getStyleClass().add("plain-button");
                 editBtn.setOnAction(e -> {
                     Sale selectedSale = getTableView().getItems().get(getIndex());
                     openEditPopup(selectedSale);
@@ -159,6 +166,11 @@ public class SalesController {
     @Subscribe
     public void handleItemsFetched(CatalogEvent event) {
         products = event.getProducts();
+        if (products == null) {
+            System.out.println("[SalesController] products are null");
+        } else {
+            System.out.println("[SalesController] products are not null");
+        }
     }
 
     private void openEditPopup(Sale sale) {
