@@ -25,7 +25,6 @@ public class ContactController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        // Adjust the path according to your actual structure
         Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
         logoImage.setImage(logo);
     }

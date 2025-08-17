@@ -24,14 +24,8 @@ import ui.ToggleFlower;
 import java.io.IOException;
 import java.util.*;
 
-/**
- * CustomBouquetController now supports sale‐adjusted pricing on both
- * flowers and pots, and only rebuilds its UI once both the catalog
- * and the sales list have arrived from the server.
- */
 public class CustomBouquetController {
 
-    // ─── FXML Injected Controls ───────────────────────────────────────────────
     @FXML private ImageView        logoImage;
     @FXML private Button           backButton;
     @FXML private Button           addToBasketButton;
@@ -46,7 +40,6 @@ public class CustomBouquetController {
     @FXML private Button           saveButton;
     @FXML private Label            totalPriceLabel;
 
-    // ─── Internal State ──────────────────────────────────────────────────────
     private final Map<ToggleFlower,Integer> selections    = new LinkedHashMap<>();
     private final Map<String,Product>        potProductMap = new HashMap<>();
     private final Map<String,Double>         potPriceMap   = new HashMap<>();
@@ -56,34 +49,28 @@ public class CustomBouquetController {
     private List<Sale>             sales           = List.of();
     private Integer                currentCustomId;
 
-    // Flags to know when we have both pieces of data:
     private boolean haveCatalog = false;
     private boolean haveSales   = false;
 
     @FXML
     public void initialize() {
-        // Logo
+        // basic ui wiring + initial server requests
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
 
-        // Flower grid styling
         flowerPane.setAlignment(Pos.CENTER);
         flowerPane.setHgap(8);
         flowerPane.setVgap(8);
 
-        // Limit label
         limitLabel.setText("Up to 50 flowers allowed in total per Custom Bouquet");
         limitLabel.setStyle("-fx-font-style: italic; -fx-text-fill: #555;");
 
-        // “My Bouquets” dropdown
         existingCombo.getItems().add("Create New…");
         existingCombo.getSelectionModel().selectFirst();
         existingCombo.setOnAction(this::onExistingSelected);
 
-        // Style selector
         styleBox.getItems().setAll("Bridal", "Tidy", "Clustered");
         styleBox.valueProperty().addListener((o,ov,nv) -> updateSaveEnabled());
 
-        // Pot selector
         potBox.getItems().setAll("None");
         potBox.getSelectionModel().select("None");
         potBox.valueProperty().addListener((o,ov,nv) -> {
@@ -91,13 +78,10 @@ public class CustomBouquetController {
             updatePrice();
         });
 
-        // Show the “new” pane
         newPane.setVisible(true);
 
-        // Register for both CatalogEvent & SalesEvent
         EventBus.getDefault().register(this);
 
-        // Fire off the three requests
         try {
             var client = SimpleClient.getClient();
             client.ensureConnected();
@@ -108,12 +92,11 @@ public class CustomBouquetController {
             e.printStackTrace();
         }
 
-        // initial UI state
         updateSaveEnabled();
         addToBasketButton.setDisable(true);
     }
 
-    // ─── 1) Receive list of existing custom bouquets ─────────────────────────
+    // got list of user's saved bouquets -> refill dropdown
     @Subscribe @SuppressWarnings("unchecked")
     public void onCustomList(Msg m) {
         if (!"LIST_CUSTOM_BOUQUETS_OK".equals(m.getAction())) return;
@@ -127,7 +110,7 @@ public class CustomBouquetController {
         });
     }
 
-    // ─── 2) Receive the catalog ───────────────────────────────────────────────
+    // got catalog -> build flower toggles now; final pot list waits for sales
     @Subscribe
     public void onCatalog(CatalogEvent event) {
         catalogProducts = event.getProducts();
@@ -168,8 +151,7 @@ public class CustomBouquetController {
         });
     }
 
-
-    // ─── 3) Receive the sales list ───────────────────────────────────────────
+    // got sales -> now we can rebuild pot options with discounted prices
     @Subscribe
     public void onSales(SalesEvent e) {
         if (!"SENT_SALES".equals(e.getUseCase())
@@ -187,8 +169,7 @@ public class CustomBouquetController {
         tryRebuildPotBox();
     }
 
-
-    // ─── Only rebuild flower grid once both catalog & sales are present ────
+    // only run once both datasets are ready (kept for symmetry; not called in current flow)
     private void tryRebuildFlowerGrid() {
         System.out.println(">>> tryRebuildFlowerGrid(): haveCatalog=" +
                 haveCatalog + " haveSales=" + haveSales);
@@ -196,7 +177,7 @@ public class CustomBouquetController {
         Platform.runLater(this::rebuildFlowerGrid);
     }
 
-    // ─── Only rebuild potBox once both catalog & sales are present ──────────
+    // only rebuild pot dropdown when catalog + sales are present
     private void tryRebuildPotBox() {
         System.out.println(">>> tryRebuildPotBox(): haveCatalog="
                 + haveCatalog + " haveSales=" + haveSales
@@ -209,7 +190,7 @@ public class CustomBouquetController {
         });
     }
 
-    // ─── Rebuild flower palette with discounted prices ───────────────────────
+    // full rebuild of flower palette; each toggle manages its own quantity spinner
     private void rebuildFlowerGrid() {
         flowerPane.getChildren().clear();
         selections.clear();
@@ -240,7 +221,7 @@ public class CustomBouquetController {
         }
     }
 
-    // ─── Rebuild pot/vase dropdown with discounted prices ────────────────────
+    // rebuild pot/vase entries with discounted labels; try to keep previous selection
     private void rebuildPotBox() {
         String prev = potBox.getValue();
         String prevName = (prev != null && !"None".equals(prev) && prev.contains(" (+"))
@@ -280,7 +261,7 @@ public class CustomBouquetController {
         }
     }
 
-    // ─── Handle switching between “Create New…” & existing bouquets ──────────
+    // switch between "create new" and an existing bouquet; restores state when existing
     private void onExistingSelected(ActionEvent evt) {
         int idx       = existingCombo.getSelectionModel().getSelectedIndex();
         boolean isNew = idx <= 0;
@@ -290,7 +271,6 @@ public class CustomBouquetController {
         selections.clear();
         currentCustomId = null;
 
-        // clear any selected toggles
         flowerPane.getChildren().stream()
                 .filter(n -> n instanceof ToggleFlower)
                 .map(n -> (ToggleFlower) n)
@@ -308,7 +288,6 @@ public class CustomBouquetController {
             styleBox.setValue(dto.getStyle());
             addToBasketButton.setDisable(false);
 
-            // restore pot
             if (dto.getPot() == null) {
                 potBox.getSelectionModel().select("None");
             } else {
@@ -321,7 +300,6 @@ public class CustomBouquetController {
                         );
             }
 
-            // restore flower quantities
             for (var item : dto.getItems()) {
                 flowerPane.getChildren().stream()
                         .filter(n -> n instanceof ToggleFlower)
@@ -340,7 +318,8 @@ public class CustomBouquetController {
         }
     }
 
-    // ─── Helpers for UI state ────────────────────────────────────────────────
+    // ui helpers --------------------------------------------------------------
+
     private void updateSaveEnabled() {
         boolean can = styleBox.getValue() != null && !selections.isEmpty();
         saveButton.setDisable(!can);
@@ -389,7 +368,8 @@ public class CustomBouquetController {
         totalPriceLabel.setText(String.format("Total Price: ₪%.2f", sum));
     }
 
-    // ─── Save / Add to Basket / Back ─────────────────────────────────────────
+    // save / add-to-basket / close -------------------------------------------
+
     @FXML private void onSave(ActionEvent evt) {
         String name  = nameField.getText().trim();
         String style = styleBox.getValue();

@@ -20,16 +20,8 @@ public class GreetingController {
     @FXML private Button      cancelGreetingBtn;
     @FXML private Region      rootPane;
 
-    // Callback to deliver the (text, hexColor) back to CheckoutController
     private BiConsumer<String, String> onSave;
 
-    /**
-     * Must be called *after* FXML load, to initialize state and callback.
-     *
-     * @param initialText   the existing greeting text (or null)
-     * @param initialHex    the existing hex color (e.g. "#FFFFFF") (or null)
-     * @param onSave        callback invoked on Save: (text, hexColor)
-     */
     public void init(String initialText, String initialHex,
                      BiConsumer<String,String> onSave) {
         this.onSave = onSave;

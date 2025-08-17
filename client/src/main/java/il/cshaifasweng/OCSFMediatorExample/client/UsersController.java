@@ -48,10 +48,17 @@ public class UsersController {
 
     @FXML
     public void initialize() throws IOException {
-        if (!SceneController.hasPermission(SceneController.Role.WORKER)) {
+        boolean canView =
+                SceneController.hasPermission(SceneController.Role.WORKER) ||
+                        SceneController.hasPermission(SceneController.Role.MANAGER) ||
+                        SceneController.hasPermission(SceneController.Role.ADMIN);
+        if (!canView) {
             SceneController.switchScene("home");
             return;
         }
+        final boolean canEdit =
+                SceneController.hasPermission(SceneController.Role.MANAGER) ||
+                        SceneController.hasPermission(SceneController.Role.ADMIN);
         EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
 
@@ -61,6 +68,7 @@ public class UsersController {
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colUsername.setCellFactory(TextFieldTableCell.forTableColumn());
         colUsername.setOnEditCommit(event -> {
+            if (!canEdit) return;
             UserDisplayDTO user = event.getRowValue();
             user.setUsername(event.getNewValue());
             sendUpdateUser(user);
@@ -69,15 +77,18 @@ public class UsersController {
         colPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
         colPassword.setCellFactory(TextFieldTableCell.forTableColumn());
         colPassword.setOnEditCommit(event -> {
+            if (!canEdit) return;
             UserDisplayDTO user = event.getRowValue();
             user.setPassword(event.getNewValue());
             sendUpdateUser(user);
         });
 
 
+
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
         colEmail.setCellFactory(TextFieldTableCell.forTableColumn());
         colEmail.setOnEditCommit(event -> {
+            if (!canEdit) return;
             UserDisplayDTO user = event.getRowValue();
             user.setEmail(event.getNewValue());
             sendUpdateUser(user);
@@ -86,24 +97,29 @@ public class UsersController {
         colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
         colPhone.setCellFactory(TextFieldTableCell.forTableColumn());
         colPhone.setOnEditCommit(event -> {
+            if (!canEdit) return;
             UserDisplayDTO user = event.getRowValue();
             user.setPhone(event.getNewValue());
             sendUpdateUser(user);
         });
 
         colRole.setCellValueFactory(new PropertyValueFactory<>("role"));
-        colRole.setCellFactory(ComboBoxTableCell.forTableColumn("USER", "WORKER", "MANAGER", "ADMIN"));
+        if (canEdit) {
+            colRole.setCellFactory(ComboBoxTableCell.forTableColumn("USER", "WORKER", "MANAGER", "ADMIN"));
+        }
         colRole.setOnEditCommit(event -> {
+            if (!canEdit) return;
             UserDisplayDTO user = event.getRowValue();
             user.setRole(event.getNewValue());
             sendUpdateUser(user);
         });
 
         colBranch.setCellValueFactory(new PropertyValueFactory<>("branchName"));
-
-        // Use dynamic branchNames ObservableList for ComboBoxTableCell
-        colBranch.setCellFactory(ComboBoxTableCell.forTableColumn(branchNames));
+        if (canEdit) {
+            colBranch.setCellFactory(ComboBoxTableCell.forTableColumn(branchNames));
+        }
         colBranch.setOnEditCommit(event -> {
+            if (!canEdit) return;
             UserDisplayDTO user = event.getRowValue();
             user.setBranchName(event.getNewValue());
             sendUpdateUser(user);
@@ -169,6 +185,14 @@ public class UsersController {
                 setGraphic(toggleButton);
             }
         });
+        usersTable.setEditable(canEdit);
+        colUsername.setEditable(canEdit);
+        colPassword.setEditable(canEdit);
+        colEmail.setEditable(canEdit);
+        colPhone.setEditable(canEdit);
+        colRole.setEditable(canEdit);
+        colBranch.setEditable(canEdit);
+        colIsVIP.setEditable(canEdit);
 
         FilteredList<UserDisplayDTO> filteredUsers = new FilteredList<>(usersList, p -> true);
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {

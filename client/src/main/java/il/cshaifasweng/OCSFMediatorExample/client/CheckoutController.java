@@ -35,7 +35,6 @@ import java.util.stream.IntStream;
 
 public class CheckoutController implements Initializable {
 
-    /* ------------ FXML -------------- */
     @FXML private TableView<Basket>          basketTable;
     @FXML private TableColumn<Basket,String> nameCol;
     @FXML private TableColumn<Basket,Integer> amtCol;
@@ -67,7 +66,6 @@ public class CheckoutController implements Initializable {
     @FXML private Button     completeBtn;
     @FXML private ImageView  logoImage;
 
-    /* ------------ data -------------- */
     private final List<Basket>  items             = new ArrayList<>();
     private final BooleanProperty hasCardProperty = new SimpleBooleanProperty(false);
     private final List<Branch>  branchList        = new ArrayList<>();
@@ -76,7 +74,6 @@ public class CheckoutController implements Initializable {
     private double  saleDiscount;     // set in initData
     private double  userCompBalance = 0.0;
 
-    /* ------------ init from BasketController -------------- */
     public void initData(List<Basket> copy, double totalBefore, double discount) {
         this.totalBefore  = totalBefore;
         this.saleDiscount = discount;
@@ -89,7 +86,7 @@ public class CheckoutController implements Initializable {
         totalAfterLabel.setText(String.format("Total After Discount    ₪ %.2f", totalBefore - saleDiscount));
 
         updateSummary();
-        // no server calls here; will be requested in initialize
+
     }
 
     @Override public void initialize(URL location, ResourceBundle resources) {
@@ -221,7 +218,8 @@ public class CheckoutController implements Initializable {
     }
 
     private OrderDTO buildDto() {
-        // 1) figure out fulfilment type & info (unchanged)
+        // incase we need to remember, i wrote here step by step instructions on building an orderDTO which is used later in tables and such
+        // 1) figure out fulfilment type & info
         String type = pickupRadio.isSelected() ? "PICKUP" : "DELIVERY";
         String info = type.equals("PICKUP")
                 ? String.valueOf(branchCombo.getValue().getBranchId())
@@ -229,7 +227,7 @@ public class CheckoutController implements Initializable {
                 cityField.getText(), streetField.getText(),
                 houseField.getText(), zipField.getText());
 
-        // 2) deadline logic (unchanged)
+        // 2) deadline logic
         LocalDateTime deadline = asapRadio.isSelected()
                 ? LocalDateTime.now().plusHours(3)
                 : deadlineDatePicker.getValue().atTime(deadlineHourCombo.getValue(), 0);

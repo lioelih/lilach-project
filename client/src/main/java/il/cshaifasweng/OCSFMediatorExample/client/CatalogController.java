@@ -57,7 +57,7 @@ public class CatalogController {
 
     private boolean isVip;
     private Branch userBranch;
-
+    private boolean actionsDisabled = false;
     private List<Integer> pendingAllowedIds;
 
     @FXML
@@ -94,21 +94,6 @@ public class CatalogController {
                 Scene scene = new Scene(loader.load());
                 Stage stage = new Stage();
                 stage.setTitle("Add Product");
-                stage.setScene(scene);
-                stage.show();
-            } catch (IOException err) {
-                err.printStackTrace();
-            }
-        });
-        addSaleButton.setOnAction(e -> {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
-                Scene scene = new Scene(loader.load());
-                AddSaleController controller = loader.getController();
-                controller.setProducts(fullCatalog);
-                controller.setSales(sales);
-                Stage stage = new Stage();
-                stage.setTitle("Add Sale");
                 stage.setScene(scene);
                 stage.show();
             } catch (IOException err) {
@@ -179,10 +164,16 @@ public class CatalogController {
 
         branchFilter.setOnAction(e -> {
             Branch sel = branchFilter.getValue();
-            if (sel == null || sel.getBranchId() == 0) {
+            if (sel == null) return;
+
+            boolean privileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
+
+            if (sel.getBranchId() == 0) {           // "All Products"
                 products = new ArrayList<>(fullCatalog);
-                applyLocalFilters();
+                actionsDisabled = !privileged;      // disable actions only for non-VIP
+                applyLocalFilters();                // local filters on full catalog
             } else {
+                actionsDisabled = false;            // on a specific branch, actions allowed
                 try {
                     SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", sel.getBranchId()));
                 } catch (IOException ex) {
@@ -208,8 +199,6 @@ public class CatalogController {
         boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
         addProductButton.setVisible(canWorker);
         addProductButton.setManaged(canWorker);
-        addSaleButton.setVisible(canWorker);
-        addSaleButton.setManaged(canWorker);
         viewSalesButton.setVisible(canWorker);
         viewSalesButton.setManaged(canWorker);
     }
@@ -278,13 +267,22 @@ public class CatalogController {
                 displayProducts(fullCatalog);
             } else {
                 promoLabel.setVisible(true);
-                branchFilter.getItems().setAll(userBranch);
-                branchFilter.getSelectionModel().selectFirst();
-                branchFilter.setDisable(true);
+
+                // Build a tiny list: [All Products, user's branch]
+                Branch all = new Branch();
+                all.setBranchId(0);
+                all.setName("All Products");
+
+                branchFilter.setDisable(false);                 // allow choosing between the two
+                branchFilter.getItems().setAll(all, userBranch);
+                branchFilter.getSelectionModel().select(userBranch);
+
+                actionsDisabled = false;                        // user’s own branch -> actions enabled
                 try {
                     SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", userBranch.getBranchId()));
                 } catch (IOException ignore) {}
             }
+
             try {
                 SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
             } catch (IOException ignore) {}
@@ -310,7 +308,8 @@ public class CatalogController {
         safe.add(0, all);
 
         Platform.runLater(() -> {
-            if (!branchFilter.isDisabled()) {
+            boolean privileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
+            if (privileged) {
                 branchFilter.getItems().setAll(safe);
                 branchFilter.getSelectionModel().selectFirst();
             }
@@ -343,10 +342,10 @@ public class CatalogController {
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
         for (Product product : productList) {
-            VBox card = new VBox(5);
-            card.setStyle("-fx-border-color: lightgray; -fx-border-radius: 10; -fx-padding: 10; -fx-background-color: white;");
+            VBox card = new VBox(8);
+            card.setStyle("-fx-border-color: lightgray; -fx-border-radius: 10; -fx-padding: 12; -fx-background-color: white;");
             card.setPrefWidth(225);
-            card.setPrefHeight(275);
+            card.setPrefHeight(320); // was 275
             card.setAlignment(Pos.CENTER);
 
             StackPane imageStack = new StackPane();
@@ -394,10 +393,19 @@ public class CatalogController {
                 }
             }
 
-            Label nameLabel = new Label(product.getName());
-            nameLabel.setStyle("-fx-font-size: 14; -fx-font-weight: bold;");
+            Label nameLabel = new Label(Objects.toString(product.getName(), ""));
+            nameLabel.setWrapText(true);
+            nameLabel.setMaxWidth(180);
+            nameLabel.setAlignment(Pos.CENTER);
+            nameLabel.setTextAlignment(TextAlignment.CENTER);
+            nameLabel.setStyle("-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: #1f2937;");
 
-            Label typeLabel = new Label(product.getType());
+            Label typeLabel = new Label(Objects.toString(product.getType(), ""));
+            typeLabel.setWrapText(true);
+            typeLabel.setMaxWidth(180);
+            typeLabel.setAlignment(Pos.CENTER);
+            typeLabel.setTextAlignment(TextAlignment.CENTER);
+            typeLabel.setStyle("-fx-font-size: 12; -fx-text-fill: #64748b;");
 
             Button viewButton = new Button("View");
             viewButton.setOnAction(e -> openProductPage(product));
@@ -469,7 +477,14 @@ public class CatalogController {
                     }
                 }
             });
-
+            boolean canDetails = canOpenProductDetails();
+            if (!canDetails) {
+                viewButton.setVisible(false);
+                viewButton.setManaged(false);
+            } else {
+                viewButton.setDisable(actionsDisabled);
+            }
+            addToBasketButton.setDisable(actionsDisabled);
             card.getChildren().addAll(imageStack, nameLabel, typeLabel, priceFlow, viewButton, addToBasketButton);
             productGrid.getChildren().add(card);
         }
@@ -507,6 +522,14 @@ public class CatalogController {
     }
 
     private void openProductPage(Product product) {
+        if (!canOpenProductDetails()) {
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Restricted");
+            a.setHeaderText(null);
+            a.setContentText("Only workers and managers can view product details.");
+            a.showAndWait();
+            return;
+        }
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("product_view.fxml"));
             Scene scene = new Scene(loader.load());
@@ -537,7 +560,11 @@ public class CatalogController {
     @FXML private void filterButtonFire() {
         filterButton.fire();
     }
-
+    private static boolean canOpenProductDetails() {
+        return SceneController.hasPermission(SceneController.Role.WORKER)
+                || SceneController.hasPermission(SceneController.Role.MANAGER)
+                || SceneController.hasPermission(SceneController.Role.ADMIN);
+    }
     @FXML
     private void onClose() {
         EventBus.getDefault().unregister(this);

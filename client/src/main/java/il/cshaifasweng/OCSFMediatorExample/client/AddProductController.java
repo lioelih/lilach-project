@@ -21,7 +21,7 @@ public class AddProductController {
     @FXML private Button addButton;
     @FXML private ImageView imageDrop;
 
-    private File droppedImageFile = null; // holds the file temporarily
+    private File droppedImageFile = null; // holds the file temporarily (image)
 
     @FXML
     public void initialize() {
@@ -61,7 +61,7 @@ public class AddProductController {
         String type = typeField.getText().trim();
         String priceStr = priceField.getText().trim();
 
-        if (name.isEmpty() || type.isEmpty() || priceStr.isEmpty()) {
+        if (name.isEmpty() || type.isEmpty() || priceStr.isEmpty()) { // Must surpass all necessary checks before input
             showAlert("Please fill in all fields.");
             return;
         }

@@ -27,6 +27,7 @@ import java.util.List;
 import static java.util.stream.Collectors.toList;
 
 public class SimpleServer extends AbstractServer {
+    // central broadcast list and periodic scheduler
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
     private ScheduledExecutorService scheduler;
 
@@ -41,6 +42,7 @@ public class SimpleServer extends AbstractServer {
 
     @Override
     protected void handleMessageFromClient(Object msg, ConnectionToClient client) throws IOException {
+        // simple string channel for test/control; main flow uses Msg
         if (msg instanceof String msgString) {
             if (msgString.startsWith("#warning")) {
                 client.sendToClient(new Warning("Warning from server!"));
@@ -55,6 +57,7 @@ public class SimpleServer extends AbstractServer {
             Object data = massage.getData();
 
             switch (action) {
+                // authentication
                 case "LOGIN" -> {
                     String[] credentials = (String[]) data;
                     String username = credentials[0];
@@ -83,6 +86,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // registration
                 case "REGISTER" -> {
                     String[] regData = (String[]) data;
                     String username = regData[0], email = regData[1], fullName = regData[2],
@@ -153,6 +157,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // logout bookkeeping
                 case "LOGOUT" -> {
                     String username = (String) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -164,6 +169,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // user fetch with branch prefetch
                 case "FETCH_USER" -> {
                     String username = (String) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -175,6 +181,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // store/update payment info
                 case "PAYMENT_INFO" -> {
                     String[] pData = (String[]) data;
                     String username = pData[0], id = pData[1], card = pData[2],
@@ -199,6 +206,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // read payment info to prefill form
                 case "PAYMENT_PREFILL" -> {
                     String username = (String) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -218,6 +226,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // vip activation/cancel
                 case "ACTIVATE_VIP" -> {
                     String username = (String) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -253,6 +262,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // catalog crud
                 case "GET_CATALOG" -> {
                     List<Product> catalog = fetchCatalog();
                     client.sendToClient(new Msg("SENT_CATALOG", catalog));
@@ -276,10 +286,10 @@ public class SimpleServer extends AbstractServer {
                     sendToAllClients(new Msg("PRODUCT_DELETED", fetchCatalog()));
                 }
 
+                // basket fetch respects non-privileged branch visibility
                 case "FETCH_BASKET" -> {
                     String username = (String) data;
                     try ( Session session = HibernateUtil.getSessionFactory().openSession() ) {
-                        // 1) load the user (with branch)
                         User user = session.createQuery(
                                         "FROM User u JOIN FETCH u.branch WHERE u.username = :u",
                                         User.class)
@@ -290,13 +300,11 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        // 2) decide if they’re privileged
                         boolean privileged = user.isVIP()
                                 || user.getRole().ordinal() >= User.Role.WORKER.ordinal();
 
                         List<Basket> basketItems;
                         if (privileged) {
-                            // VIPs & staff see everything
                             basketItems = session.createQuery(
                                             """
                                             SELECT b
@@ -310,9 +318,6 @@ public class SimpleServer extends AbstractServer {
                                     .setParameter("uid", user.getId())
                                     .list();
                         } else {
-                            // Regular users only get
-                            // • custom bouquets
-                            // • OR real products that have stock > 0 at their branch
                             basketItems = session.createQuery(
                                             """
                                             SELECT DISTINCT b
@@ -340,6 +345,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // add catalog product to basket (merges same product)
                 case "ADD_TO_BASKET" -> {
                     Object[] arr = (Object[]) data;
                     String username = (String) arr[0];
@@ -349,7 +355,7 @@ public class SimpleServer extends AbstractServer {
                         User user = session.createQuery("FROM User WHERE username = :u", User.class)
                                 .setParameter("u", username).uniqueResult();
 
-                        Product dbProduct = session.get(Product.class, product.getId());  // 🔥 IMPORTANT
+                        Product dbProduct = session.get(Product.class, product.getId());
 
                         if (user != null && dbProduct != null) {
                             session.beginTransaction();
@@ -367,7 +373,7 @@ public class SimpleServer extends AbstractServer {
                             } else {
                                 Basket basket = new Basket();
                                 basket.setUser(user);
-                                basket.setProduct(dbProduct);  // ✅ use managed object
+                                basket.setProduct(dbProduct);
                                 basket.setAmount(1);
                                 basket.setPrice(dbProduct.getPrice());
                                 session.persist(basket);
@@ -379,10 +385,11 @@ public class SimpleServer extends AbstractServer {
                             System.err.println("User or Product not found");
                         }
                     } catch (Exception ex) {
-                        ex.printStackTrace(); // ✅ make sure exception shows up
+                        ex.printStackTrace();
                     }
                 }
 
+                // add x amount (bundle etc.)
                 case "ADD_TO_BASKET_X_AMOUNT" -> {
                     Object[] arr = (Object[]) data;
                     String username = (String) arr[0];
@@ -393,7 +400,7 @@ public class SimpleServer extends AbstractServer {
                         User user = session.createQuery("FROM User WHERE username = :u", User.class)
                                 .setParameter("u", username).uniqueResult();
 
-                        Product dbProduct = session.get(Product.class, product.getId());  // 🔥 IMPORTANT
+                        Product dbProduct = session.get(Product.class, product.getId());
 
                         if (user != null && dbProduct != null) {
                             session.beginTransaction();
@@ -411,7 +418,7 @@ public class SimpleServer extends AbstractServer {
                             } else {
                                 Basket basket = new Basket();
                                 basket.setUser(user);
-                                basket.setProduct(dbProduct);  // ✅ use managed object
+                                basket.setProduct(dbProduct);
                                 basket.setAmount(amount);
                                 basket.setPrice(dbProduct.getPrice());
                                 session.persist(basket);
@@ -423,10 +430,11 @@ public class SimpleServer extends AbstractServer {
                             System.err.println("User or Product not found");
                         }
                     } catch (Exception ex) {
-                        ex.printStackTrace(); // ✅ make sure exception shows up
+                        ex.printStackTrace();
                     }
                 }
 
+                // remove item from basket
                 case "REMOVE_BASKET_ITEM" -> {
                     Basket basketItem = (Basket) data;
                     System.out.println("[Server] REMOVE_BASKET_ITEM received with ID: " + basketItem.getId());
@@ -443,8 +451,6 @@ public class SimpleServer extends AbstractServer {
                         }
 
                         session.getTransaction().commit();
-
-                        // Notify client that basket is updated (you may choose to send updated basket)
                         client.sendToClient(new Msg("BASKET_UPDATED", null));
                     } catch (Exception e) {
                         System.err.println("[Server] Error removing basket item: " + e.getMessage());
@@ -452,6 +458,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // update basket quantity/price
                 case "UPDATE_BASKET_AMOUNT" -> {
                     Basket updatedItem = (Basket) data;
                     System.out.println("[Server] Updating amount for basket ID: " + updatedItem.getId());
@@ -468,6 +475,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // sales crud/load
                 case "GET_SALES" -> {
                     List<Sale> sales = fetchSales();
                     System.out.println("Sending sales to client");
@@ -492,6 +500,7 @@ public class SimpleServer extends AbstractServer {
                     sendToAllClients(new Msg("SALE_DELETED", fetchSales()));
                 }
 
+                // order creation: validate stock, compute discounts, persist
                 case "NEW_ORDER" -> {
                     OrderDTO dto = (OrderDTO) data;
                     boolean ok = false;
@@ -698,8 +707,9 @@ public class SimpleServer extends AbstractServer {
                     );
                     client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
                 }
+
+                // card presence check
                 case "HAS_CARD" -> {
-                    /* data == username (String) */
                     String username = (String) data;
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -717,22 +727,21 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // branches list (trim heavy relations)
                 case "LIST_BRANCHES" -> {
                     System.out.println("[Server] Listing BRANCHES");
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         List<Branch> list = s.createQuery("FROM Branch", Branch.class).list();
 
-                        // Debug print branches sent
                         System.out.println("[Server] Branches found in DB:");
                         for (Branch b : list) {
                             System.out.println("[Server] Branch: " + b.getName() + ", ID: " + b.getBranchId());
                         }
 
-                        // force Hibernate to initialize collections before clearing
                         list.forEach(b -> {
-                            b.getStockLines().size();  // trigger fetch to avoid LazyInitEx
-                            b.setManager(null);        // manager is still a proxy — okay
-                            b.getStockLines().clear(); // now we can clear safely
+                            b.getStockLines().size();
+                            b.setManager(null);
+                            b.getStockLines().clear();
                         });
 
                         System.out.println("[Server] Sending BRANCHES_OK with " + list.size() + " branches");
@@ -743,8 +752,9 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // stock view per branch (null means all)
                 case "STOCK_BY_BRANCH" -> {
-                    Integer branchId = (Integer) data;   // null ⇒ all branches
+                    Integer branchId = (Integer) data;
 
                     String hql = """
                     SELECT new il.cshaifasweng.StockLineDTO(
@@ -775,7 +785,8 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-                case "ADD_STOCK" -> {        // payload = int[productId, branchId, qty]
+                // add or increase stock (payload: [productId, branchId, qty])
+                case "ADD_STOCK" -> {
                     System.out.println("[Server] Adding stock line");
                     int[] arr  = (int[]) data;
                     int pid    = arr[0];
@@ -796,8 +807,8 @@ public class SimpleServer extends AbstractServer {
 
                         if (st == null) {
                             st = new Storage();
-                            st.setProduct(s.get(Product.class, pid));   // product_id FK
-                            st.setBranch (s.get(Branch.class,  bid));   // branch_id  FK
+                            st.setProduct(s.get(Product.class, pid));
+                            st.setBranch (s.get(Branch.class,  bid));
                             st.setQuantity(qtyAdd);
                             s.persist(st);
                         } else {
@@ -810,8 +821,8 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // fetch qty for a product in a branch (payload: { productId, branchId })
                 case "FETCH_STOCK_SINGLE" -> {
-                    /* payload = { productId, branchId } */
                     Object[] arr   = (Object[]) data;
                     int pid        = (Integer) arr[0];
                     int bid        = (Integer) arr[1];
@@ -828,12 +839,12 @@ public class SimpleServer extends AbstractServer {
                                 .setMaxResults(1)
                                 .uniqueResult();
 
-                        /* if null → no row yet → treat as 0 */
                         client.sendToClient(new Msg("STOCK_SINGLE_OK",
                                 qty == null ? 0 : qty));
                     }
                 }
 
+                // order queries (scope-based)
                 case "FETCH_ORDERS" -> {
                     Object[] payload = (Object[]) data;
                     String username = (String) payload[0];
@@ -903,13 +914,12 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // mark order received + email notification
                 case "MARK_ORDER_RECEIVED" -> {
                     int orderId = (int) data;
-                    // We’ll need a new Session for fetching details and for email:
                     try (Session s = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = s.beginTransaction();
 
-                        // 1) Load and mark the order
                         Order order = s.get(Order.class, orderId);
                         if (order != null && order.getStatus() != Order.STATUS_RECEIVED) {
                             order.setStatus(Order.STATUS_RECEIVED);
@@ -917,11 +927,9 @@ public class SimpleServer extends AbstractServer {
                         }
                         tx.commit();
 
-                        // 2) Gather everything we need to send the email:
                         User user = order.getUser();
                         String toAddress     = user.getEmail();
                         String username      = user.getUsername();
-                        // Parse out just the name from the recipient string "Name (phone)"
                         String recipientRaw  = order.getRecipient();
                         String recipientName = recipientRaw != null
                                 ? recipientRaw.split("\\s*\\(")[0].trim()
@@ -937,7 +945,6 @@ public class SimpleServer extends AbstractServer {
                             fulfilInfo = order.getDelivery();
                         }
 
-                        // Fetch the product names in the order
                         @SuppressWarnings("unchecked")
                         List<Basket> lines = s.createQuery("""
     SELECT b
@@ -951,13 +958,10 @@ public class SimpleServer extends AbstractServer {
                                 .setParameter("oid", orderId)
                                 .list();
 
-// ——— build the display names exactly as in your Order‑Details view ———
                         List<String> productNames = lines.stream().map(b -> {
-                            // a regular product?
                             if (b.getProduct() != null) {
                                 return b.getAmount() + " x " + b.getProduct().getName();
                             }
-                            // otherwise it’s a custom bouquet:
                             CustomBouquet cb = b.getCustomBouquet();
                             StringBuilder sb = new StringBuilder();
                             sb.append(b.getAmount())
@@ -967,7 +971,6 @@ public class SimpleServer extends AbstractServer {
                             if (cb.getPot() != null) {
                                 sb.append(", Pot: ").append(cb.getPot());
                             }
-                            // list only the included flowers
                             List<String> parts = cb.getItems().stream()
                                     .filter(it -> it.getQuantity() > 0)
                                     .map(it -> it.getProduct().getName() + " x " + it.getQuantity())
@@ -980,7 +983,6 @@ public class SimpleServer extends AbstractServer {
                         }).toList();
                         double totalPaid = order.getTotalPrice();
 
-                        // 3) Send the email (don’t let failures kill the server!)
                         try {
                             EmailService.sendOrderReceivedEmail(
                                     toAddress,
@@ -993,26 +995,24 @@ public class SimpleServer extends AbstractServer {
                                     productNames,
                                     totalPaid
                             );
-                            System.out.println("[Server] Sent receive‑notification email to " + toAddress);
+                            System.out.println("[Server] Sent receive-notification email to " + toAddress);
                         } catch (MessagingException mex) {
                             mex.printStackTrace();
-                            System.err.println("[Server] Failed to send e‑mail for order " + orderId);
+                            System.err.println("[Server] Failed to send e-mail for order " + orderId);
                         }
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }
 
-                    // 4) Finally notify the client
                     client.sendToClient(new Msg("MARK_ORDER_RECEIVED_OK", List.of()));
                 }
 
+                // full order details for receipt view
                 case "FETCH_ORDER_PRODUCTS" -> {
                     int orderId = (int) massage.getData();
                     try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
-                        // 1) Load the order (for user, delivery flag, etc.)
                         Order o = s.get(Order.class, orderId);
 
-                        // 2) Load all basket rows (products + custom bouquets + bouquet items + item.products)
                         @SuppressWarnings("unchecked")
                         List<Basket> items = s.createQuery("""
             SELECT b
@@ -1026,16 +1026,13 @@ public class SimpleServer extends AbstractServer {
                                 .setParameter("oid", orderId)
                                 .list();
 
-                        // 3) Build DTO lines & compute subtotal
                         List<OrderDetailsDTO.Line> lines   = new ArrayList<>();
                         double                       subtotal = 0;
                         for (Basket b : items) {
                             String name;
                             if (b.getProduct() != null) {
-                                // a normal catalog product
                                 name = b.getProduct().getName();
                             } else {
-                                // a custom bouquet → build full description
                                 CustomBouquet cb = b.getCustomBouquet();
                                 StringBuilder   sb = new StringBuilder();
                                 sb.append(cb.getName()).append(" (");
@@ -1061,7 +1058,6 @@ public class SimpleServer extends AbstractServer {
                             subtotal += price;
                         }
 
-                        // 4) Sale discount on real products only
                         double saleDiscount = 0;
                         try ( Session saleSession = HibernateUtil.getSessionFactory().openSession() ) {
                             List<Sale> sales = saleSession.createQuery("FROM Sale", Sale.class).list();
@@ -1075,30 +1071,25 @@ public class SimpleServer extends AbstractServer {
                                                 .getResultList()
                                 );
                             }
-                            // only basket rows where product != null
                             List<Basket> productLines = items.stream()
                                     .filter(x -> x.getProduct() != null)
                                     .collect(Collectors.toList());
                             saleDiscount = Sale.calculateTotalDiscount(productLines, sales);
                         }
 
-                        // 5) VIP discount
                         double afterSale   = subtotal - saleDiscount;
                         boolean isVip      = o.getUser().isVIP();
                         double vipDiscount = (isVip && afterSale >= 50.0)
                                 ? afterSale * 0.10
                                 : 0.0;
 
-                        // 6) Delivery fee
                         double deliveryFee = (o.getDelivery() != null && !o.getDelivery().isBlank())
                                 ? 10.0
                                 : 0.0;
 
-                        // 7) Stored totals & compensation
                         double total    = o.getTotalPrice();
                         double compUsed = o.getCompensationUsed();
 
-                        // 8) Send back the details DTO
                         OrderDetailsDTO dto = new OrderDetailsDTO(
                                 lines,
                                 subtotal,
@@ -1116,8 +1107,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-
-
+                // users listing for admin views
                 case "FETCH_ALL_USERS" -> {
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         List<User> users = session.createQuery("FROM User", User.class).list();
@@ -1148,6 +1138,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // account state changes
                 case "FREEZE_USER" -> {
                     int userId = (int) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -1176,6 +1167,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // change role
                 case "CHANGE_ROLE" -> {
                     Map<String, Object> map = (Map<String, Object>) data;
                     int userId = (int) map.get("id");
@@ -1193,6 +1185,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
+                // update user (validates conflicts, updates branch/role/etc.)
                 case "UPDATE_USER" -> {
                     Map<String, Object> updateData = (Map<String, Object>) data;
                     int userId = (int) updateData.get("id");
@@ -1213,7 +1206,6 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        // check for username/email conflicts
                         List<User> conflicts = session.createQuery(
                                         "FROM User WHERE (username = :username OR email = :email) AND id != :id",
                                         User.class)
@@ -1227,7 +1219,6 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        // apply all the updates
                         user.setUsername(newUsername);
                         user.setEmail(newEmail);
                         user.setPhoneNumber(newPhone);
@@ -1253,15 +1244,10 @@ public class SimpleServer extends AbstractServer {
                             }
                         }
 
-                        // persist
                         session.merge(user);
                         session.getTransaction().commit();
 
-                        // --- notify the originating client ---
                         client.sendToClient(new Msg("UPDATE_USER_OK", null));
-
-                        // --- **broadcast** to every other connected client ---
-                        //    so they can re-fetch and re-apply VIP/branch filters
                         sendToAllClients(new Msg("USER_UPDATED", user));
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -1269,7 +1255,7 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-
+                // greeting text update on order
                 case "UPDATE_GREETING" -> {
                     Map<String, Object> payload = (Map<String, Object>) data;
                     int orderId = (Integer) payload.get("orderId");
@@ -1282,20 +1268,20 @@ public class SimpleServer extends AbstractServer {
                         tx.commit();
                     }
                 }
+
+                // cancellation with time-based refund
                 case "CANCEL_ORDER" -> {
                     int orderId = (int) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         Transaction tx = session.beginTransaction();
                         Order o = session.get(Order.class, orderId);
 
-                        // 1) Already received?
                         if (o.isReceived()) {
                             tx.rollback();
                             client.sendToClient(new Msg("CANCEL_FAIL", "Already received"));
                             return;
                         }
 
-                        // 2) Past deadline?
                         LocalDateTime now = LocalDateTime.now();
                         if (now.isAfter(o.getDeadline())) {
                             tx.rollback();
@@ -1303,14 +1289,12 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
-                        // 3) Compute refund %
                         long minsLeft = Duration.between(now, o.getDeadline()).toMinutes();
                         double pct = minsLeft >= 180 ? 1.0
                                 : minsLeft >= 60  ? 0.5
                                 :                   0.0;
                         double refundAmt = o.getTotalPrice() * pct;
 
-                        // 4) Mark cancelled + update compensation
                         o.setStatus(Order.STATUS_CANCELLED);
                         session.merge(o);
                         User u = o.getUser();
@@ -1319,7 +1303,6 @@ public class SimpleServer extends AbstractServer {
 
                         tx.commit();
 
-                        // 5) Reply
                         Map<String,Object> payload = Map.of(
                                 "orderId",  orderId,
                                 "refundPct", pct,
@@ -1332,16 +1315,16 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("CANCEL_FAIL", "Server error"));
                     }
                 }
+
+                // custom bouquets: list/create/update/add-to-basket
                 case "LIST_CUSTOM_BOUQUETS" -> {
                     String username = (String) data;
                     try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
-                        // fetch all customs for this user
                         List<CustomBouquet> list = s.createQuery(
                                         "FROM CustomBouquet cb JOIN FETCH cb.items WHERE cb.user.username = :u",
                                         CustomBouquet.class)
                                 .setParameter("u", username)
                                 .list();
-                        // build DTOs
                         List<CustomBouquetDTO> dtoList = new ArrayList<>();
                         for (CustomBouquet cb : list) {
                             List<CustomBouquetItemDTO> items = cb.getItems().stream()
@@ -1372,7 +1355,6 @@ public class SimpleServer extends AbstractServer {
                     try ( Session s = HibernateUtil.getSessionFactory().openSession() ) {
                         Transaction tx = s.beginTransaction();
 
-                        // 1) build the CustomBouquet
                         CustomBouquet cb = new CustomBouquet();
                         User u = s.createQuery("FROM User WHERE username = :u", User.class)
                                 .setParameter("u", dto.getUsername())
@@ -1383,7 +1365,6 @@ public class SimpleServer extends AbstractServer {
                         cb.setDominantColor(dto.getDominantColor());
                         cb.setPot(dto.getPot());
                         cb.setTotalPrice(dto.getTotalPrice());
-                        // items:
                         for (CustomBouquetItemDTO itemDto : dto.getItems()) {
                             CustomBouquetItem item = new CustomBouquetItem();
                             item.setProduct(s.get(Product.class, itemDto.getProductId()));
@@ -1421,7 +1402,6 @@ public class SimpleServer extends AbstractServer {
                     }
                     client.sendToClient(new Msg("UPDATE_CUSTOM_BOUQUET_OK", dto.getId()));
                 }
-
 
                 case "ADD_CUSTOM_TO_BASKET" -> {
                     Object[] arr = (Object[]) data;
@@ -1465,13 +1445,13 @@ public class SimpleServer extends AbstractServer {
                     }
                 }
 
-
-
+                // fallback
                 default -> client.sendToClient(new Msg("ERROR", "Unknown action: " + action));
             }
         }
     }
 
+    // basic product crud helpers
     private void saveNewProduct(Product product) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
@@ -1504,14 +1484,12 @@ public class SimpleServer extends AbstractServer {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
 
-            /* 1. detach from baskets (prevents FK violation) */
             int removed = session.createQuery(
                             "DELETE FROM Basket b WHERE b.product.id = :pid")
                     .setParameter("pid", productId)
                     .executeUpdate();
             System.out.println("[Server] Removed " + removed + " basket rows");
 
-            /* 2. delete the product itself */
             Product dbProduct = session.get(Product.class, productId);
             if (dbProduct != null) {
                 session.delete(dbProduct);
@@ -1528,6 +1506,7 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    // sales crud helpers
     private void saveNewSale(Sale sale) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
@@ -1581,6 +1560,7 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    // daily vip expiry (deactivate expired and cancelled)
     public void expireVIPAccountsIfNeeded() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
@@ -1605,6 +1585,7 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    // broadcast to all subscribed clients
     public void sendToAllClients(Msg message) {
         for (SubscribedClient subscribedClient : SubscribersList) {
             try {
@@ -1616,6 +1597,7 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    // data loaders
     private List<Product> fetchCatalog() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createQuery("FROM Product", Product.class).list();
@@ -1636,10 +1618,10 @@ public class SimpleServer extends AbstractServer {
         }
     }
 
+    // branch stock check helper (returns [pid, want, have] triplets)
     private List<Object[]> checkBranchStock(Session s,
                                             int branchId,
                                             Map<Integer,Integer> requested) {
-        // HQL fetches only needed rows from storage
         String hql = """
         SELECT st.product.product_id ,
                SUM(st.quantity)
@@ -1654,17 +1636,15 @@ public class SimpleServer extends AbstractServer {
                 .setParameterList("ids", requested.keySet())
                 .getResultList();
 
-        /* put into map → product_id → quantityInBranch */
         Map<Integer,Integer> available = new HashMap<>();
         stock.forEach(row -> available.put( (Integer)row[0] ,
                 ((Long)row[1]).intValue() ));
 
-        // build answer list in same order as requested map
         List<Object[]> result = new ArrayList<>();
         for (var e : requested.entrySet()) {
             Integer pid    = e.getKey();
             int      want  = e.getValue();
-            Integer have   = available.get(pid);   // may be null
+            Integer have   = available.get(pid);
             result.add(new Object[]{pid, want, have});
         }
         return result;
@@ -1688,6 +1668,7 @@ public class SimpleServer extends AbstractServer {
 
     @Override
     protected void serverStopped() {
+        // ensure scheduled executor is stopped with the server
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdownNow();
         }
