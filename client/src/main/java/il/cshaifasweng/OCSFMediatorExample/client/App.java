@@ -7,8 +7,6 @@ import Events.WarningEvent;
 import il.cshaifasweng.Msg;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextInputDialog;
@@ -26,10 +24,10 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        EventBus.getDefault().register(this);
+        EventBus.getDefault().register(this); // register first event bus on start
 
         String[] connectionInfo = showConnectionDialog();
-        if (connectionInfo == null) {
+        if (connectionInfo == null) { // if no info was put into connection
             System.exit(1);
             return;
         }
@@ -42,7 +40,7 @@ public class App extends Application {
         client.sendToServer("add client");
 
         SceneController.setMainStage(stage);
-        SceneController.switchScene("home");
+        SceneController.switchScene("home"); // if we connected, then we switch to home
         stage.setMaximized(true);
 
 
@@ -50,7 +48,7 @@ public class App extends Application {
             try {
                 if (SceneController.loggedUsername != null) {
                     client.sendToServer(new Msg("LOGOUT", SceneController.loggedUsername));
-                }
+                } // must remember to logout once user finishes his session
                 client.sendToServer("remove client");
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -61,20 +59,20 @@ public class App extends Application {
     @Override
     public void stop() throws Exception {
         EventBus.getDefault().unregister(this);
-        client.sendToServer("remove client");
+        client.sendToServer("remove client"); // close / stop
         client.closeConnection();
         super.stop();
     }
 
     public static void main(String[] args) {
         launch();
-    }
+    } // calls launch function
 
     private String[] showConnectionDialog() {
         TextInputDialog dialog = new TextInputDialog("localhost:3000");
         dialog.setTitle("Connect to Server");
         dialog.setHeaderText("Enter Server IP and Port (e.g. 127.0.0.1:3000)");
-        dialog.setContentText("Format: ip:port");
+        dialog.setContentText("Format: ip:port"); // we use a textinputdialog to get the ip and start up the home page
 
         return dialog.showAndWait()
                 .map(input -> input.split(":"))
@@ -86,20 +84,20 @@ public class App extends Application {
     public void onLoginResponse(LoginEvent event) {
         Msg msg = event.getMsg();
         Platform.runLater(() -> {
-            if ("LOGIN_SUCCESS".equals(msg.getAction())) {
-                // ← instead of (String) msg.getData(), do:
+            if ("LOGIN_SUCCESS".equals(msg.getAction())) { // if login is successful, we keep the important info such as role and name
+
                 String[] payload = (String[]) msg.getData();
                 String username = payload[0];
                 String roleName = payload[1];
 
-                // save both into your SceneController
+                // save both into SceneController
                 SceneController.loggedUsername     = username;
                 SceneController.setCurrentUserRole(
                         SceneController.Role.valueOf(roleName)
                 );
 
                 SceneController.switchScene("home");
-            } else {
+            } else { // otherwise we send out an error
                 String message = msg.getData().toString();
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Login Error");
@@ -120,7 +118,7 @@ public class App extends Application {
         Msg msg = event.getMsg();
         Platform.runLater(() -> {
             if (msg.getAction().equals("REGISTER_SUCCESS")) {
-                SceneController.switchScene("login");
+                SceneController.switchScene("login"); // switches to login once user was created
             }
             // Do nothing if failed
         });

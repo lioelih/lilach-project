@@ -8,7 +8,6 @@
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CustomBouquetController"
             stylesheets="@homepage.css">
 
-    <!-- Top bar with logo, back arrow, title and “Add to Basket” -->
     <top>
         <StackPane styleClass="top-bar" prefHeight="70">
             <children>
@@ -16,91 +15,90 @@
                     <padding>
                         <Insets top="0" right="20" bottom="0" left="80"/>
                     </padding>
-                    <!-- Your app’s logo -->
                     <ImageView fx:id="logoImage" fitHeight="40" fitWidth="40"/>
-
-                    <!-- Back button -->
-                    <Button fx:id="backButton"
-                            text="← Back"
-                            onAction="#onBack"
-                            styleClass="nav-button"/>
-
-                    <!-- Title -->
-                    <Label text="Custom Bouquet"
-                           styleClass="header-title"/>
-
+                    <Button fx:id="backButton" text="← Back" onAction="#onBack" styleClass="nav-button"/>
+                    <Label text="Custom Bouquet" styleClass="header-title"/>
                     <Pane HBox.hgrow="ALWAYS"/>
-
-                    <!-- Add to Basket button (disabled until something is saved) -->
-                    <Button fx:id="addToBasketButton"
-                            text="Add to Basket"
-                            onAction="#onAddToBasket"
-                            disable="true"/>
+                    <Button fx:id="addToBasketButton" text="Add to Basket" onAction="#onAddToBasket"
+                            disable="true"
+                            style="-fx-background-color:#16a34a; -fx-text-fill:white; -fx-background-radius:10; -fx-padding:8 16;"/>
                 </HBox>
             </children>
         </StackPane>
     </top>
 
-    <!-- Main content -->
     <center>
-        <VBox spacing="15">
+        <StackPane style="-fx-background-color: linear-gradient(to bottom, #f6f9fc, #eef3f7);">
             <padding>
-                <Insets top="20" right="20" bottom="20" left="20"/>
+                <Insets top="24" right="24" bottom="24" left="24"/>
             </padding>
+            <VBox alignment="TOP_CENTER" spacing="18" maxWidth="1000">
+                <VBox spacing="14" maxWidth="1000"
+                      style="-fx-background-color:white; -fx-background-radius:14; -fx-padding:18;
+                             -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 18, 0, 0, 6);">
+                    <GridPane hgap="14" vgap="12">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="18"/>
+                            <ColumnConstraints percentWidth="82"/>
+                        </columnConstraints>
 
-            <!-- Choose from existing or start new -->
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="My Bouquets:"/>
-                <ComboBox fx:id="existingCombo"
-                          promptText="Create New…"/>
-            </HBox>
+                        <Label text="My Bouquets:" GridPane.rowIndex="0" GridPane.columnIndex="0"
+                               style="-fx-text-fill:#334155;"/>
+                        <ComboBox fx:id="existingCombo" promptText="Create New…"
+                                  GridPane.rowIndex="0" GridPane.columnIndex="1"
+                                  style="-fx-background-radius:10; -fx-padding:8;"/>
 
-            <!-- This container is only shown when “Create New…” is selected -->
-            <VBox fx:id="newPane" spacing="12">
-                <!-- Style & Pot selectors -->
-                <HBox spacing="10" alignment="CENTER_LEFT">
-                    <Label text="Name:"/>
-                    <TextField fx:id="nameField"
-                               promptText="Enter bouquet name…"/>
-                </HBox>
-                <HBox spacing="15" alignment="CENTER_LEFT">
-                    <Label text="Style:"/>
-                    <ComboBox fx:id="styleBox"/>
+                        <VBox fx:id="newPane" spacing="12" GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="2">
+                            <GridPane hgap="14" vgap="12">
+                                <columnConstraints>
+                                    <ColumnConstraints percentWidth="18"/>
+                                    <ColumnConstraints percentWidth="82"/>
+                                </columnConstraints>
 
-                    <Label text="Pot:"/>
-                    <ComboBox fx:id="potBox"/>
-                </HBox>
+                                <Label text="Name:" GridPane.rowIndex="0" GridPane.columnIndex="0" style="-fx-text-fill:#334155;"/>
+                                <TextField fx:id="nameField" promptText="Enter bouquet name…"
+                                           GridPane.rowIndex="0" GridPane.columnIndex="1"
+                                           style="-fx-background-radius:10; -fx-padding:10;"/>
 
-                <HBox spacing="8">
-                    <Pane HBox.hgrow="ALWAYS"/>
-                    <Label fx:id="limitLabel"
-                           text="Up to 50 flowers allowed in total per Custom Bouquet"
-                           style="-fx-font-style: italic;"/>
-                </HBox>
+                                <Label text="Style:" GridPane.rowIndex="1" GridPane.columnIndex="0" style="-fx-text-fill:#334155;"/>
+                                <ComboBox fx:id="styleBox" GridPane.rowIndex="1" GridPane.columnIndex="1"
+                                          style="-fx-background-radius:10; -fx-padding:8;"/>
 
-                <!-- Flower toggles (wrapped in ScrollPane if there are many) -->
-                <Label text="Select Flowers (toggle then qty):"/>
-                <ScrollPane fitToWidth="true" prefHeight="120" style="-fx-background:transparent;">
-                    <content>
-                        <FlowPane fx:id="flowerPane"
-                                  hgap="16"
-                                  vgap="16"
-                                  alignment="TOP_CENTER"
-                                  prefWrapLength="600"/>
-                    </content>
-                </ScrollPane>
+                                <Label text="Pot:" GridPane.rowIndex="2" GridPane.columnIndex="0" style="-fx-text-fill:#334155;"/>
+                                <ComboBox fx:id="potBox" GridPane.rowIndex="2" GridPane.columnIndex="1"
+                                          style="-fx-background-radius:10; -fx-padding:8;"/>
+                            </GridPane>
 
-                <HBox spacing="10">
-                    <Pane HBox.hgrow="ALWAYS"/>
-                    <Label fx:id="totalPriceLabel"
-                           text="Total Price: ₪0.00"
-                           style="-fx-font-weight:bold;"/>
-                    <Button fx:id="saveButton"
-                            text="Save Bouquet"
-                            onAction="#onSave"
-                            disable="true"/>
-                </HBox>
+                            <HBox spacing="8" alignment="CENTER_RIGHT">
+                                <Label fx:id="limitLabel"
+                                       text="Up to 50 flowers allowed in total per Custom Bouquet"
+                                       style="-fx-text-fill:#64748b; -fx-font-style:italic;"/>
+                            </HBox>
+                        </VBox>
+                    </GridPane>
+                </VBox>
+
+                <VBox spacing="14" maxWidth="1000"
+                      style="-fx-background-color:white; -fx-background-radius:14; -fx-padding:18;
+                             -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 18, 0, 0, 6);">
+                    <Label text="Select Flowers" style="-fx-font-size:14px; -fx-text-fill:#334155; -fx-font-weight:bold;"/>
+                    <Label text="Toggle a flower and choose quantity"
+                           style="-fx-text-fill:#64748b;"/>
+                    <ScrollPane fitToWidth="true" prefHeight="260" style="-fx-background:transparent; -fx-background-color:transparent;">
+                        <content>
+                            <FlowPane fx:id="flowerPane"
+                                      hgap="16" vgap="16" alignment="TOP_CENTER" prefWrapLength="920"/>
+                        </content>
+                    </ScrollPane>
+
+                    <HBox alignment="CENTER_RIGHT" spacing="12">
+                        <Label fx:id="totalPriceLabel" text="Total Price: ₪0.00"
+                               style="-fx-font-weight:bold; -fx-text-fill:#0f172a;"/>
+                        <Button fx:id="saveButton" text="Save Bouquet" onAction="#onSave" disable="true"
+                                style="-fx-background-color:#2563eb; -fx-text-fill:white; -fx-background-radius:10; -fx-padding:10 16;"/>
+                    </HBox>
+                </VBox>
             </VBox>
-        </VBox>
+        </StackPane>
     </center>
 </BorderPane>
