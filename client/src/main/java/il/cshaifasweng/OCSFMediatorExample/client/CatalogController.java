@@ -100,21 +100,6 @@ public class CatalogController {
                 err.printStackTrace();
             }
         });
-        addSaleButton.setOnAction(e -> {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
-                Scene scene = new Scene(loader.load());
-                AddSaleController controller = loader.getController();
-                controller.setProducts(fullCatalog);
-                controller.setSales(sales);
-                Stage stage = new Stage();
-                stage.setTitle("Add Sale");
-                stage.setScene(scene);
-                stage.show();
-            } catch (IOException err) {
-                err.printStackTrace();
-            }
-        });
 
         addCustomBtn.setOnAction(e -> {
             try {
@@ -208,8 +193,6 @@ public class CatalogController {
         boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
         addProductButton.setVisible(canWorker);
         addProductButton.setManaged(canWorker);
-        addSaleButton.setVisible(canWorker);
-        addSaleButton.setManaged(canWorker);
         viewSalesButton.setVisible(canWorker);
         viewSalesButton.setManaged(canWorker);
     }

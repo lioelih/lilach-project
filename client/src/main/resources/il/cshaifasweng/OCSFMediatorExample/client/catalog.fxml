@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="720.0" prefWidth="1280.0" stylesheets="@homepage.css" xmlns="http://javafx.com/javafx/21.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController">
+<BorderPane prefHeight="720.0" prefWidth="1280.0" stylesheets="@homepage.css" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CatalogController">
 
     <top>
         <StackPane prefHeight="70" styleClass="top-bar">
@@ -25,8 +25,8 @@
                     </padding>
                     <children>
                         <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true" />
-                        <Pane HBox.hgrow="ALWAYS" />
                         <Button fx:id="homeButton" styleClass="nav-button" text="Home" />
+                        <Pane prefHeight="100.0" prefWidth="625.0" HBox.hgrow="ALWAYS" />
                     </children>
                 </HBox>
             </children>
@@ -73,14 +73,7 @@
             <ScrollPane fitToWidth="true" prefHeight="500.0" prefWidth="1200.0">
                 <TilePane fx:id="productGrid" hgap="20" prefColumns="3" tileAlignment="TOP_LEFT" vgap="20" />
             </ScrollPane>
-            <Label
-                    fx:id="promoLabel"
-                    text="Subscribe now to our VIP Program to get access to the entire selection of items in our catalog!"
-                    visible="false"
-                    style="-fx-font-size: 14px; -fx-text-fill: darkred;"
-                    alignment="CENTER"
-                    wrapText="true"
-            />
+            <Label fx:id="promoLabel" alignment="CENTER" style="-fx-font-size: 14px; -fx-text-fill: darkred;" text="Subscribe now to our VIP Program to get access to the entire selection of items in our catalog!" visible="false" wrapText="true" />
         </VBox>
     </center>
 </BorderPane>
