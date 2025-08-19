@@ -89,73 +89,67 @@ public class SimpleServer extends AbstractServer {
                 // registration
                 case "REGISTER" -> {
                     String[] regData = (String[]) data;
-                    String username = regData[0], email = regData[1], fullName = regData[2],
-                            phoneNumber = regData[3], password = regData[4], branchIdString = regData[5];
-
-                    System.out.println("[Server] REGISTER received with username: " + username + ", branchIdString: " + branchIdString);
+                    String username   = regData[0];
+                    String email      = regData[1];
+                    String fullName   = regData[2];
+                    String phone      = regData[3];
+                    String id9        = regData[4];
+                    String password   = regData[5];
+                    String branchStr  = regData[6];
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         Query<User> check = session.createQuery("FROM User WHERE username = :u OR email = :e");
                         check.setParameter("u", username);
                         check.setParameter("e", email);
-
                         if (!check.list().isEmpty()) {
                             client.sendToClient(new Msg("REGISTER_FAILED", "User already exists"));
-                            System.out.println("[Server] REGISTER failed: user already exists");
                             return;
                         }
 
                         int branchId;
                         try {
-                            branchId = Integer.parseInt(branchIdString);
-                            System.out.println("[Server] Parsed branchId: " + branchId);
+                            branchId = Integer.parseInt(branchStr);
                         } catch (NumberFormatException e) {
                             client.sendToClient(new Msg("REGISTER_FAILED", "Invalid branch ID"));
-                            System.out.println("[Server] REGISTER failed: invalid branch ID");
                             return;
                         }
 
-                        Query<Branch> branchQuery = session.createQuery("FROM Branch WHERE branch_id = :bid", Branch.class);
-                        branchQuery.setParameter("bid", branchId);
-                        Branch selectedBranch = branchQuery.uniqueResult();
-
+                        Branch selectedBranch = session.createQuery(
+                                        "FROM Branch WHERE branch_id = :bid", Branch.class)
+                                .setParameter("bid", branchId)
+                                .uniqueResult();
                         if (selectedBranch == null) {
                             client.sendToClient(new Msg("REGISTER_FAILED", "Selected branch does not exist"));
-                            System.out.println("[Server] REGISTER failed: selected branch does not exist for ID: " + branchId);
                             return;
-                        } else {
-                            System.out.println("[Server] Found branch for registration: " + selectedBranch.getName() + ", ID: " + selectedBranch.getBranchId());
                         }
 
-                        User newUser = new User();
-                        newUser.setUsername(username);
-                        newUser.setEmail(email);
-                        newUser.setPhoneNumber(phoneNumber);
-                        newUser.setFullName(fullName);
-                        newUser.setPassword(password);
-                        newUser.setBranch(selectedBranch);
-                        newUser.setRole(User.Role.USER);
-                        newUser.setActive(true);
+                        User u = new User();
+                        u.setUsername(username);
+                        u.setEmail(email);
+                        u.setPhoneNumber(phone);
+                        u.setFullName(fullName);
+                        u.setPassword(password);
+                        u.setIdentificationNumber(id9);   // <-- save 9-digit ID here
+                        u.setBranch(selectedBranch);
+                        u.setRole(User.Role.USER);
+                        u.setActive(true);
 
                         session.beginTransaction();
-
                         try {
-                            session.persist(newUser);
+                            session.persist(u);
                             session.getTransaction().commit();
-                            System.out.println("[Server] Registered new user: " + username + " with branch ID: " + branchId);
                             client.sendToClient(new Msg("REGISTER_SUCCESS", null));
                         } catch (Exception ex) {
                             session.getTransaction().rollback();
-                            System.out.println("[Server] REGISTER failed: exception during persist");
                             ex.printStackTrace();
                             client.sendToClient(new Msg("REGISTER_FAILED", "Server error during registration."));
                         }
                     } catch (Exception e) {
-                        System.out.println("[Server] REGISTER failed: outer exception");
                         e.printStackTrace();
                         client.sendToClient(new Msg("REGISTER_FAILED", "Server error during registration."));
                     }
                 }
+
 
                 // logout bookkeeping
                 case "LOGOUT" -> {

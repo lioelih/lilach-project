@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
+<?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
 
 <BorderPane xmlns="http://javafx.com/javafx/23.0.1"
             xmlns:fx="http://javafx.com/fxml/1"
@@ -29,11 +29,39 @@
     </top>
 
     <center>
-        <VBox alignment="TOP_CENTER" spacing="10">
-            <Label text="Login" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
-            <TextField fx:id="usernameField" promptText="Username"/>
-            <PasswordField fx:id="passwordField" promptText="Password"/>
-            <Button fx:id="submitButton" text="Login"/>
-        </VBox>
+        <StackPane>
+            <children>
+                <VBox alignment="CENTER" spacing="18" fillWidth="false" StackPane.alignment="TOP_CENTER">
+                    <children>
+                        <Label text="Login" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+
+                        <VBox spacing="12" alignment="CENTER"
+                              prefWidth="400" maxWidth="400"
+                              style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 18; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 6);">
+
+                            <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="360" maxWidth="360">
+                                <ImageView fitHeight="20" fitWidth="20" preserveRatio="true">
+                                    <image><Image url="@/image/user.png"/></image>
+                                </ImageView>
+                                <TextField fx:id="usernameField" promptText="Username" prefWidth="330"/>
+                            </HBox>
+
+                            <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="360" maxWidth="360">
+                                <ImageView fitHeight="20" fitWidth="20" preserveRatio="true">
+                                    <image><Image url="@/image/lock.png"/></image>
+                                </ImageView>
+                                <PasswordField fx:id="passwordField" promptText="Password" prefWidth="330"/>
+                            </HBox>
+
+                            <Button fx:id="submitButton" text="Login"
+                                    prefWidth="360" maxWidth="360"
+                                    style="-fx-padding: 12 0; -fx-font-size: 14px; -fx-background-radius: 10;"/>
+                        </VBox>
+
+                        <Label text="Welcome back 🌸" style="-fx-text-fill: #777; -fx-font-size: 11px;"/>
+                    </children>
+                </VBox>
+            </children>
+        </StackPane>
     </center>
 </BorderPane>
