@@ -4,82 +4,123 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Rectangle?>
 
-<BorderPane prefHeight="600.0" prefWidth="900.0" stylesheets="@homepage.css" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="il.cshaifasweng.OCSFMediatorExample.client.HomeController">
+<BorderPane prefHeight="720.0" prefWidth="1100.0"
+            stylesheets="@homepage.css"
+            xmlns="http://javafx.com/javafx/21.0.1"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="il.cshaifasweng.OCSFMediatorExample.client.HomeController">
 
-    <!-- ─────────── TOP BAR ─────────── -->
+    <!-- ─────────── TOP BAR (unchanged) ─────────── -->
     <top>
         <StackPane prefHeight="70" styleClass="top-bar">
             <children>
                 <HBox alignment="CENTER_LEFT" spacing="15" styleClass="top-bar">
-                    <padding>
-                        <Insets left="80" right="20" />
-                    </padding>
+                    <padding><Insets left="80" right="20"/></padding>
                     <children>
-                        <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true" />
+                        <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true"/>
 
-                        <Button fx:id="catalogButton" styleClass="nav-button" text="Catalog" />
-                        <Button fx:id="contactButton" styleClass="nav-button" text="Contact Support" />
-                        <Button fx:id="vipButton" styleClass="nav-button" text="VIP Subscription" />
-                        <Button fx:id="ordersButton" styleClass="nav-button" text="Orders" visible="false" />
-                        <Button fx:id="usersButton" styleClass="nav-button" text="Users" visible="false" />
+                        <Button fx:id="catalogButton" styleClass="nav-button" text="Catalog"/>
+                        <Button fx:id="contactButton" styleClass="nav-button" text="Contact Support"/>
+                        <Button fx:id="vipButton" styleClass="nav-button" text="VIP Subscription"/>
+                        <Button fx:id="ordersButton" styleClass="nav-button" text="Orders" visible="false"/>
+                        <Button fx:id="usersButton" styleClass="nav-button" text="Users" visible="false"/>
 
-                        <Pane prefHeight="100.0" prefWidth="0.0" HBox.hgrow="ALWAYS" />
-                        <Button fx:id="registerButton" styleClass="nav-button" text="Register" />
-                        <Button fx:id="loginButton" styleClass="nav-button" text="Login" />
-                        <Button fx:id="logoutButton" styleClass="nav-button" text="Logout" visible="false" />
-
+                        <Pane prefHeight="100.0" prefWidth="0.0" HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="registerButton" styleClass="nav-button" text="Register"/>
+                        <Button fx:id="loginButton" styleClass="nav-button" text="Login"/>
+                        <Button fx:id="logoutButton" styleClass="nav-button" text="Logout" visible="false"/>
                     </children>
                 </HBox>
             </children>
         </StackPane>
     </top>
 
-
-    <!-- ─────────── HERO / CENTRE ─────────── -->
+    <!-- ─────────── CONTENT ─────────── -->
     <center>
-        <VBox alignment="CENTER" spacing="20">
-            <children>
-                <ImageView fx:id="storeImage" fitHeight="250" fitWidth="800" preserveRatio="true" />
-                <Label styleClass="hero-heading" text="Welcome to Lilach Store" />
-                <Label styleClass="hero-subheading" text="All your needs for flowers" />
-                <Label fx:id="welcomeLabel" styleClass="welcome-text" />
-            </children>
+        <VBox spacing="28" alignment="TOP_CENTER">
+
+            <!-- HERO with animated GIF support -->
+            <StackPane styleClass="hero-section" prefHeight="380">
+                <children>
+                    <!-- Drop any GIF/PNG/JPG here; GIF will animate automatically -->
+                    <ImageView fx:id="storeImage" fitHeight="380" fitWidth="1100"
+                               preserveRatio="false" pickOnBounds="true"/>
+
+                    <!-- Overlay to keep text readable on bright images -->
+                    <Rectangle managed="false" mouseTransparent="true" width="Infinity" height="Infinity" styleClass="hero-overlay"/>
+
+                    <!-- Hero text + optional CTAs (no handlers required) -->
+                    <VBox alignment="CENTER" spacing="12">
+                        <Label styleClass="hero-heading" text="Welcome to Lilach Store"/>
+                        <Label styleClass="hero-subheading" text="All your needs for flowers"/>
+                        <Label fx:id="welcomeLabel" styleClass="welcome-text"/>
+                        <HBox spacing="10" alignment="CENTER">
+                            <Button text="Explore Catalog" styleClass="cta-primary"/>
+                            <Button text="Become VIP" styleClass="cta-secondary"/>
+                        </HBox>
+                    </VBox>
+                </children>
+                <padding><Insets top="10" right="24" bottom="10" left="24"/></padding>
+            </StackPane>
+
+            <!-- Feature cards -->
+            <HBox spacing="18" alignment="CENTER">
+                <padding><Insets left="24" right="24"/></padding>
+
+                <StackPane styleClass="feature-card" prefWidth="320" prefHeight="140">
+                    <VBox alignment="CENTER" spacing="6">
+                        <Label styleClass="icon" text="💐"/>
+                        <Label styleClass="feature-title" text="Curated Bouquets"/>
+                        <Label styleClass="feature-sub" text="Hand-picked, seasonal designs"/>
+                    </VBox>
+                </StackPane>
+
+                <StackPane styleClass="feature-card" prefWidth="320" prefHeight="140">
+                    <VBox alignment="CENTER" spacing="6">
+                        <Label styleClass="icon" text="⚡"/>
+                        <Label styleClass="feature-title" text="Same-Day Delivery"/>
+                        <Label styleClass="feature-sub" text="Order by 17:00, we’ll rush it"/>
+                    </VBox>
+                </StackPane>
+
+                <StackPane styleClass="feature-card" prefWidth="320" prefHeight="140">
+                    <VBox alignment="CENTER" spacing="6">
+                        <Label styleClass="icon" text="🎁"/>
+                        <Label styleClass="feature-title" text="Gifts &amp; Add-ons"/>
+                        <Label styleClass="feature-sub" text="Cards, chocolates &amp; more"/>
+                    </VBox>
+                </StackPane>
+            </HBox>
+
+            <!-- Stats strip -->
+            <HBox alignment="CENTER" spacing="48" styleClass="stats-strip">
+                <padding><Insets top="12" bottom="20"/></padding>
+                <VBox alignment="CENTER">
+                    <Label styleClass="stat-number" text="30,000+"/>
+                    <Label styleClass="stat-label" text="Happy Customers"/>
+                </VBox>
+                <VBox alignment="CENTER">
+                    <Label styleClass="stat-number" text="🌿"/>
+                    <Label styleClass="stat-label" text="100% Organic"/>
+                </VBox>
+                <VBox alignment="CENTER">
+                    <Label styleClass="stat-number" text="2,600+"/>
+                    <Label styleClass="stat-label" text="5-Star Reviews"/>
+                </VBox>
+            </HBox>
         </VBox>
     </center>
 
-
-    <!-- ─────────── BOTTOM HIGHLIGHTS ─────────── -->
+    <!-- Optional footer -->
     <bottom>
-        <!-- Outer holder stretches full width but centres its inner bar.
-             Extra bottom padding (taskbarOffset) keeps it off-screen bars -->
-        <HBox alignment="CENTER">
-            <!--          top   right bottom left  -->
-            <padding><Insets bottom="50" left="10" right="10" top="10" /></padding>
-
-            <HBox alignment="CENTER" maxWidth="-1" prefWidth="800" spacing="40">
-                <children>
-                    <VBox alignment="CENTER">
-                        <Label styleClass="icon" text="✔" />
-                        <Label styleClass="highlight" text="30,000+ Happy Customers" />
-                    </VBox>
-                    <VBox alignment="CENTER">
-                        <Label styleClass="icon" text="🌿" />
-                        <Label styleClass="highlight" text="Organic Flowers" />
-                    </VBox>
-                    <VBox alignment="CENTER">
-                        <Label styleClass="icon" text="⭐" />
-                        <Label styleClass="highlight" text="2,600+ 5 Star Reviews" />
-                    </VBox>
-                </children>
-            </HBox>
+        <HBox alignment="CENTER" styleClass="footer">
+            <padding><Insets top="14" bottom="14"/></padding>
+            <children>
+                <Label text="© Lilach Store"/>
+            </children>
         </HBox>
     </bottom>
-
-
 </BorderPane>
