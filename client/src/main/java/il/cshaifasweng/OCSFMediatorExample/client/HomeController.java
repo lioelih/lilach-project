@@ -31,6 +31,7 @@ public class HomeController {
     @FXML private Button vipButton;
     @FXML private Button ordersButton;
     @FXML private ImageView logoImage;
+    @FXML private ImageView storeImage;
     @FXML
     public void initialize() {
         boolean loggedIn  = SceneController.loggedUsername != null;
@@ -80,5 +81,10 @@ public class HomeController {
 
         // logo
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
+
+        // animated roses
+        storeImage.setImage(new javafx.scene.image.Image(
+                getClass().getResourceAsStream("/image/rose_GIF.gif"),
+                1100, 380, /*preserveRatio=*/false, /*smooth=*/true));
     }
 }
