@@ -1,27 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
 
 <AnchorPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.PaymentController">
+    <StackPane AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+        <VBox alignment="CENTER" spacing="18" fillWidth="false">
+            <Label text="Payment Information" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
 
-    <VBox spacing="10.0" alignment="CENTER" layoutX="50.0" layoutY="30.0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0">
-        <Label text="Payment Information" style="-fx-font-size: 18;" />
+            <VBox spacing="12" alignment="CENTER"
+                  prefWidth="400" maxWidth="400"
+                  style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 18; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 6);">
 
-        <TextField fx:id="idNumberField" promptText="Identification Number (9 digits)" maxWidth="250"/>
+                <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="360" maxWidth="360">
+                    <ImageView fitHeight="20" fitWidth="20" preserveRatio="true">
+                        <image><Image url="@/image/num.png"/></image>
+                    </ImageView>
+                    <TextField fx:id="cardNumberField" promptText="Card Number (16 digits)" prefWidth="330"/>
+                </HBox>
 
-        <TextField fx:id="cardNumberField" promptText="Credit Card Number (16 digits)" maxWidth="250"/>
+                <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="360" maxWidth="360">
+                    <ImageView fitHeight="20" fitWidth="20" preserveRatio="true">
+                        <image><Image url="@/image/date.png"/></image>
+                    </ImageView>
+                    <TextField fx:id="expDateField" promptText="Expiration (MM/YY)" prefWidth="330"/>
+                </HBox>
 
-        <TextField fx:id="expDateField" promptText="Expiration Date (MM/YY)" maxWidth="250"/>
+                <HBox spacing="10" alignment="CENTER_LEFT" prefWidth="360" maxWidth="360">
+                    <ImageView fitHeight="20" fitWidth="20" preserveRatio="true">
+                        <image><Image url="@/image/sec.png"/></image>
+                    </ImageView>
+                    <TextField fx:id="cvvField" promptText="Security Code (CVV)" prefWidth="330"/>
+                </HBox>
 
-        <TextField fx:id="cvvField" promptText="Security Code (CVV)" maxWidth="250"/>
-
-        <HBox spacing="15">
-            <Button fx:id="confirmButton" text="Confirm Payment"/>
-            <Button fx:id="cancelButton" text="Cancel"/>
-        </HBox>
-    </VBox>
+                <HBox spacing="15" alignment="CENTER">
+                    <Button fx:id="confirmButton" text="Save" prefWidth="170"/>
+                    <Button fx:id="cancelButton" text="Cancel" prefWidth="170"/>
+                </HBox>
+            </VBox>
+        </VBox>
+    </StackPane>
 </AnchorPane>

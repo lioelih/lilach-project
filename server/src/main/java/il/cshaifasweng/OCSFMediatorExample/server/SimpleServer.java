@@ -64,27 +64,25 @@ public class SimpleServer extends AbstractServer {
                     String password = credentials[1];
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        Query<User> query = session.createQuery("FROM User WHERE username = :u AND password = :p", User.class);
-                        query.setParameter("u", username);
-                        query.setParameter("p", password);
-                        List<User> users = query.list();
+                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
+                                .setParameter("u", username)
+                                .uniqueResult();
 
-                        if (users.isEmpty()) {
+                        if (user == null || !password.equals(user.getPassword())) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
-                        } else {
-                            User user = users.get(0);
-                            if (!user.isActive()) {
-                                client.sendToClient(new Msg("LOGIN_FAILED", "Your account is frozen. Please contact support."));
-                            } else {
-                                client.sendToClient(new Msg(
-                                        "LOGIN_SUCCESS",
-                                        new String[]{ user.getUsername(), user.getRole().name() }
-                                ));
-
-                            }
+                            return;
                         }
+
+                        if (!user.isActive()) {
+                            client.sendToClient(new Msg("LOGIN_FAILED", "Your account is frozen. Please contact support."));
+                            return;
+                        }
+
+                        client.sendToClient(new Msg("LOGIN_SUCCESS",
+                                new String[]{ user.getUsername(), user.getRole().name() }));
                     }
                 }
+
 
                 // registration
                 case "REGISTER" -> {
@@ -178,8 +176,10 @@ public class SimpleServer extends AbstractServer {
                 // store/update payment info
                 case "PAYMENT_INFO" -> {
                     String[] pData = (String[]) data;
-                    String username = pData[0], id = pData[1], card = pData[2],
-                            exp = pData[3], cvv = pData[4];
+                    String username = pData[0];
+                    String card     = pData[1];
+                    String exp      = pData[2];
+                    String cvv      = pData[3];
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         User user = session.createQuery("FROM User WHERE username = :u", User.class)
@@ -187,7 +187,6 @@ public class SimpleServer extends AbstractServer {
 
                         if (user != null) {
                             session.beginTransaction();
-                            user.setIdentificationNumber(id);
                             user.setCreditCardNumber(card);
                             user.setCreditCardExpiration(exp);
                             user.setCreditCardSecurityCode(cvv);
@@ -208,14 +207,13 @@ public class SimpleServer extends AbstractServer {
                                 .setParameter("u", username).uniqueResult();
                         if (user != null) {
                             String[] cardData = new String[]{
-                                    user.getIdentificationNumber(),
                                     user.getCreditCardNumber(),
                                     user.getCreditCardExpiration(),
                                     user.getCreditCardSecurityCode()
                             };
                             client.sendToClient(new Msg("PAYMENT_PREFILL", cardData));
                         } else {
-                            client.sendToClient(new Msg("PAYMENT_PREFILL", new String[]{"", "", "", ""}));
+                            client.sendToClient(new Msg("PAYMENT_PREFILL", new String[]{"", "", ""}));
                         }
                     }
                 }

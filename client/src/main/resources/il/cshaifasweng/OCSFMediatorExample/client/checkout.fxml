@@ -1,29 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.RadioButton?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
 
-<?import javafx.scene.control.ToggleGroup?>
-
-<?import javafx.scene.control.CheckBox?>
 <BorderPane prefHeight="600" prefWidth="900" stylesheets="@homepage.css"
             xmlns="http://javafx.com/javafx/23.0.1"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CheckoutController">
 
-    <!-- Top bar -->
+
     <top>
         <HBox alignment="CENTER_LEFT" spacing="10" styleClass="top-bar">
             <padding><Insets bottom="5" left="15" right="15" top="5"/></padding>
@@ -33,105 +21,153 @@
         </HBox>
     </top>
 
-    <!-- Main content -->
     <center>
-        <VBox alignment="TOP_CENTER" spacing="20" BorderPane.alignment="CENTER">
-            <fx:define>
-                <!-- fulfilment group -->
-                <ToggleGroup fx:id="fulfilGroup"/>
-                <!-- scheduling group -->
-                <ToggleGroup fx:id="timeGroup"/>
-            </fx:define>
-            <!-- Recipient details-->
+        <VBox alignment="TOP_CENTER" spacing="16" BorderPane.alignment="CENTER">
+            <padding><Insets top="12" left="20" right="20" bottom="12"/></padding>
+
+
+            <Label text="Basket Summary" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+
             <HBox spacing="10" alignment="CENTER_LEFT">
+                <ImageView fitHeight="18" fitWidth="18" preserveRatio="true">
+                    <image><Image url="@/image/user.png"/></image>
+                </ImageView>
                 <Label text="Recipient:"/>
-                <TextField fx:id="recipientNameField" promptText="Full Name"/>
-                <TextField fx:id="recipientPhoneField" promptText="Phone #"/>
+                <TextField fx:id="recipientNameField" promptText="Full Name" prefWidth="180"/>
+                <TextField fx:id="recipientPhoneField" promptText="Phone #"  prefWidth="140"/>
             </HBox>
 
-            <!-- Basket table -->
-            <TableView fx:id="basketTable" maxWidth="600" prefHeight="200">
+
+            <TableView fx:id="basketTable" maxWidth="820" prefHeight="240">
                 <columns>
-                    <TableColumn fx:id="nameCol" text="Product"/>
-                    <TableColumn fx:id="amtCol"  text="Qty"/>
-                    <TableColumn fx:id="priceCol" text="Total ₪"/>
+                    <TableColumn fx:id="imgCol"   text=""           prefWidth="60"/>
+                    <TableColumn fx:id="nameCol"  text="Product"    prefWidth="420"/>
+                    <TableColumn fx:id="amtCol"   text="Qty"        prefWidth="80"/>
+                    <TableColumn fx:id="priceCol" text="Total ₪"    prefWidth="120"/>
                 </columns>
             </TableView>
 
-            <CheckBox fx:id="useCompensationBox" text="Use store credit?" />
-            <Label    fx:id="compBalanceLabel" text="You have ₪0.00 credit" />
 
-            <!-- Totals before/after sale discount -->
-            <Label fx:id="totalLabel"      styleClass="hero-heading"/>
-            <Label fx:id="totalAfterLabel"/>
+            <HBox spacing="28" alignment="TOP_LEFT" maxWidth="820">
 
-            <!-- VIP discount (hidden until user is VIP) -->
-            <HBox fx:id="vipBox" spacing="5" visible="false" alignment="CENTER" managed="false">
-                <Label text="VIP Discount (10%):" />
-                <Label fx:id="vipDiscountLabel" text="-₪0.00"/>
-            </HBox>
+                <VBox spacing="10" prefWidth="390">
 
-            <!-- Delivery fee (hidden until Delivery is chosen) -->
-            <HBox fx:id="deliveryBox" spacing="5" visible="false" alignment="CENTER" managed="false">
-                <Label text="Delivery Fee:"/>
-                <Label fx:id="deliveryFeeLabel" text="+₪10"/>
-            </HBox>
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Label text="Store Credit"/>
+                        <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                            <image><Image url="@/image/credit.png"/></image>
+                        </ImageView>
+                        <Pane HBox.hgrow="ALWAYS"/>
+                        <CheckBox fx:id="useCompensationBox" text="Use store credit?"/>
+                    </HBox>
+                    <Label fx:id="compBalanceLabel" text="You have ₪0.00 credit"/>
 
-            <!-- Payment vs. fulfilment -->
-            <HBox alignment="CENTER" spacing="40">
-                <!-- Payment -->
-                <VBox spacing="8">
-                    <Label text="Payment"/>
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                            <image><Image url="@/image/total.png"/></image>
+                        </ImageView>
+                        <Label fx:id="totalLabel" text="Total: ₪0.00"/>
+                    </HBox>
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                            <image><Image url="@/image/discount.png"/></image>
+                        </ImageView>
+                        <Label fx:id="discountLabel" text="Discount: ₪0.00"/>
+                    </HBox>
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                            <image><Image url="@/image/aftdiscount.png"/></image>
+                        </ImageView>
+                        <Label fx:id="totalAfterLabel" text="Total After Discount: ₪0.00"/>
+                    </HBox>
+
+
+                    <HBox fx:id="vipBox" spacing="6" visible="false" managed="false" alignment="CENTER_LEFT">
+                        <Label text="VIP Discount (10%):"/>
+                        <Label fx:id="vipDiscountLabel" text="-₪0.00"/>
+                    </HBox>
+
+                    <HBox fx:id="deliveryBox" spacing="6" visible="false" managed="false" alignment="CENTER_LEFT">
+                        <Label text="Delivery Fee:"/>
+                        <Label fx:id="deliveryFeeLabel" text="+₪10.00"/>
+                    </HBox>
+                </VBox>
+
+
+                <VBox spacing="10" prefWidth="390">
+                    <!-- Fulfilment header with icon -->
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                            <image><Image url="@/image/fulfillment.png"/></image>
+                        </ImageView>
+                        <Label text="Fulfilment"/>
+                    </HBox>
+
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <RadioButton fx:id="pickupRadio" text="Pick-up">
+                            <graphic>
+                                <ImageView fitHeight="14" fitWidth="14" preserveRatio="true">
+                                    <image><Image url="@/image/pickup.png"/></image>
+                                </ImageView>
+                            </graphic>
+                        </RadioButton>
+                        <ComboBox fx:id="branchCombo" prefWidth="200" promptText="Select branch"/>
+                    </HBox>
+
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <RadioButton fx:id="deliveryRadio" text="Delivery">
+                            <graphic>
+                                <ImageView fitHeight="14" fitWidth="14" preserveRatio="true">
+                                    <image><Image url="@/image/delivery.png"/></image>
+                                </ImageView>
+                            </graphic>
+                        </RadioButton>
+                    </HBox>
+                    <HBox spacing="6">
+                        <TextField fx:id="cityField"   promptText="City"   prefWidth="90"/>
+                        <TextField fx:id="streetField" promptText="Street" prefWidth="110"/>
+                        <TextField fx:id="houseField"  promptText="House #" prefWidth="70"/>
+                        <TextField fx:id="zipField"    promptText="ZIP"     prefWidth="70"/>
+                    </HBox>
+
+
+                    <HBox spacing="8" alignment="CENTER_LEFT" style="-fx-padding: 6 0 0 0;">
+                        <Label text="Schedule"/>
+                        <ImageView fitHeight="16" fitWidth="16" preserveRatio="true">
+                            <image><Image url="@/image/date.png"/></image>
+                        </ImageView>
+                    </HBox>
+
+
+                    <HBox spacing="16" alignment="CENTER_LEFT">
+                        <RadioButton fx:id="asapRadio" text="As soon as possible"/>
+                        <RadioButton fx:id="scheduleRadio" text="Schedule for later"/>
+                    </HBox>
+
+
+                    <HBox fx:id="scheduleBox" spacing="8" visible="false" managed="false" alignment="CENTER_LEFT">
+                        <DatePicker fx:id="deadlineDatePicker"/>
+                        <ComboBox fx:id="deadlineHourCombo" promptText="Hour" prefWidth="90"/>
+                    </HBox>
+
+
+                    <Label text="Payment" style="-fx-padding: 6 0 0 0;"/>
                     <RadioButton fx:id="savedCardRadio" text="Use saved card"/>
-                    <HBox spacing="6">
-                        <RadioButton fx:id="addCardRadio"  text="New card"/>
-                        <Button    fx:id="addCardButton" text="Add / Edit"/>
-                    </HBox>
-                </VBox>
-
-                <!-- Fulfilment -->
-                <VBox spacing="8">
-                    <Label text="Fulfilment"/>
-                    <RadioButton fx:id="pickupRadio"
-                                 toggleGroup="$fulfilGroup"
-                                 text="Pick‑up"/>
-                    <ComboBox    fx:id="branchCombo"   prefWidth="140" promptText="Select branch"/>
-                    <RadioButton fx:id="deliveryRadio"
-                                 toggleGroup="$fulfilGroup"
-                                 text="Delivery"/>
-                    <HBox spacing="6">
-                        <TextField fx:id="cityField"   prefWidth="80" promptText="City"/>
-                        <TextField fx:id="streetField" prefWidth="80" promptText="Street"/>
-                    </HBox>
-                    <HBox spacing="6">
-                        <TextField fx:id="houseField" prefWidth="60" promptText="House #"/>
-                        <TextField fx:id="zipField"   prefWidth="60" promptText="ZIP"/>
+                    <HBox spacing="6" alignment="CENTER_LEFT">
+                        <RadioButton fx:id="addCardRadio" text="New card"/>
+                        <Button fx:id="addCardButton" text="Add / Edit"/>
                     </HBox>
                 </VBox>
             </HBox>
 
-            <!-- ASAP vs. Scheduled delivery/pickup -->
-            <HBox spacing="20" alignment="CENTER">
-                <RadioButton fx:id="asapRadio"
-                             toggleGroup="$timeGroup"
-                             text="As soon as possible"/>
-                <RadioButton fx:id="scheduleRadio"
-                             toggleGroup="$timeGroup"
-                             text="Schedule for later"/>
-            </HBox>
-
-            <!-- Date & hour picker, only when scheduling -->
-            <HBox fx:id="scheduleBox" spacing="10" visible="false" managed="false">
-                <DatePicker fx:id="deadlineDatePicker"/>
-                <ComboBox fx:id="deadlineHourCombo" promptText="Hour"/>
-            </HBox>
-
-            <!-- Complete button shows live total -->
-            <Button fx:id="completeBtn"
-                    styleClass="nav-button"
-                    text="Complete Order (₪0.00)"/>
+            <Button fx:id="completeBtn" styleClass="nav-button" text="Complete Order (₪0.00)"/>
             <Label fx:id="statusLabel"/>
-
         </VBox>
     </center>
 </BorderPane>
