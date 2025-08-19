@@ -70,6 +70,7 @@ public class VIPController  {
             boolean isVipAndActive = user != null && user.isVIP() && !user.getVipCanceled();
             subscribeButton.setDisable(isVipAndActive);
             cancelVipButton.setVisible(isVipAndActive);
+            cancelVipButton.setManaged(isVipAndActive);
         });
     }
 
