@@ -156,7 +156,7 @@ public class BasketController {
 
         isVip         = me.isVIP();
         boolean isPrivileged = isVip
-                || SceneController.hasPermission(SceneController.Role.WORKER);
+                || SceneController.hasPermission(User.Role.WORKER);
         userBranchId  = me.getBranch().getBranchId();
 
         // if they’re not VIP or Worker, prune any out-of-branch items, since its illegal

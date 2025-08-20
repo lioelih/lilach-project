@@ -74,13 +74,9 @@ public class SimpleServer extends AbstractServer {
                         } else {
                             User user = users.get(0);
                             if (!user.isActive()) {
-                                client.sendToClient(new Msg("LOGIN_FAILED", "Your account is frozen. Please contact support."));
+                                client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
                             } else {
-                                client.sendToClient(new Msg(
-                                        "LOGIN_SUCCESS",
-                                        new String[]{ user.getUsername(), user.getRole().name() }
-                                ));
-
+                                client.sendToClient(new Msg("LOGIN_SUCCESS", user));
                             }
                         }
                     }
@@ -1065,6 +1061,40 @@ public class SimpleServer extends AbstractServer {
                                 sale.setProductIds(
                                         saleSession.createNativeQuery(
                                                         "SELECT product_id FROM sale_products WHERE sale_id = :saleId",
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                                                         Integer.class
                                                 )
                                                 .setParameter("saleId", sale.getId())

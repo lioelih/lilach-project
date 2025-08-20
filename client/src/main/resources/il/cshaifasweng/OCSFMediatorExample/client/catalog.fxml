@@ -57,58 +57,63 @@
                 </HBox>
             </HBox>
 
-            <!-- FILTERS CARD -->
-            <VBox spacing="14" maxWidth="1100"
-                  style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 16;
-                         -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 14, 0, 0, 4);">
-                <GridPane hgap="14" vgap="10">
-                    <columnConstraints>
-                        <ColumnConstraints percentWidth="16"/>
-                        <ColumnConstraints percentWidth="34"/>
-                        <ColumnConstraints percentWidth="12"/>
-                        <ColumnConstraints percentWidth="22"/>
-                        <ColumnConstraints percentWidth="16"/>
-                    </columnConstraints>
+            <!-- FILTERS (collapsible) -->
+            <TitledPane text="Filters" expanded="false" maxWidth="1100"
+                        style="-fx-background-color: transparent;">
+                <content>
+                    <VBox spacing="14"
+                          style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 16;
+                     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 14, 0, 0, 4);">
+                        <GridPane hgap="14" vgap="10">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="16"/>
+                                <ColumnConstraints percentWidth="34"/>
+                                <ColumnConstraints percentWidth="12"/>
+                                <ColumnConstraints percentWidth="22"/>
+                                <ColumnConstraints percentWidth="16"/>
+                            </columnConstraints>
 
-                    <!-- Search -->
-                    <Label text="Search Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"
-                           style="-fx-text-fill:#475569;"/>
-                    <TextField fx:id="stringSearchField" promptText="Enter Product Name"
-                               GridPane.rowIndex="0" GridPane.columnIndex="1"
-                               style="-fx-background-radius: 8; -fx-padding: 8;"/>
+                            <!-- Search -->
+                            <Label text="Search Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"
+                                   style="-fx-text-fill:#475569;"/>
+                            <TextField fx:id="stringSearchField" promptText="Enter Product Name"
+                                       GridPane.rowIndex="0" GridPane.columnIndex="1"
+                                       style="-fx-background-radius: 8; -fx-padding: 8;"/>
 
-                    <!-- Type -->
-                    <Label text="Type:" GridPane.rowIndex="0" GridPane.columnIndex="2"
-                           style="-fx-text-fill:#475569;"/>
-                    <ComboBox fx:id="typeBox" prefHeight="26.0" prefWidth="116.0"
-                              GridPane.rowIndex="0" GridPane.columnIndex="3"
-                              style="-fx-background-radius: 8; -fx-padding: 6;"/>
+                            <!-- Type -->
+                            <Label text="Type:" GridPane.rowIndex="0" GridPane.columnIndex="2"
+                                   style="-fx-text-fill:#475569;"/>
+                            <ComboBox fx:id="typeBox" prefHeight="26.0" prefWidth="116.0"
+                                      GridPane.rowIndex="0" GridPane.columnIndex="3"
+                                      style="-fx-background-radius: 8; -fx-padding: 6;"/>
 
-                    <!-- Branch -->
-                    <Label text="Branch:" GridPane.rowIndex="0" GridPane.columnIndex="4"
-                           style="-fx-text-fill:#475569;"/>
-                    <ComboBox fx:id="branchFilter" onAction="#filterButtonFire"
-                              GridPane.rowIndex="0" GridPane.columnIndex="4"
-                              style="-fx-background-radius: 8; -fx-padding: 6;"
-                              GridPane.halignment="RIGHT"/>
+                            <!-- Branch -->
+                            <Label text="Branch:" GridPane.rowIndex="0" GridPane.columnIndex="4"
+                                   style="-fx-text-fill:#475569;"/>
+                            <ComboBox fx:id="branchFilter" onAction="#filterButtonFire"
+                                      GridPane.rowIndex="0" GridPane.columnIndex="4"
+                                      style="-fx-background-radius: 8; -fx-padding: 6;"
+                                      GridPane.halignment="RIGHT"/>
 
-                    <!-- Price -->
-                    <Label text="Price from:" GridPane.rowIndex="1" GridPane.columnIndex="0"
-                           style="-fx-text-fill:#475569;"/>
-                    <HBox spacing="8" GridPane.rowIndex="1" GridPane.columnIndex="1">
-                        <TextField fx:id="minPrice" prefWidth="120" promptText="Minimum"
-                                   style="-fx-background-radius: 8; -fx-padding: 8;"/>
-                        <Label text="to:" style="-fx-text-fill:#64748b;"/>
-                        <TextField fx:id="maxPrice" prefWidth="120" promptText="Maximum"
-                                   style="-fx-background-radius: 8; -fx-padding: 8;"/>
-                    </HBox>
+                            <!-- Price -->
+                            <Label text="Price from:" GridPane.rowIndex="1" GridPane.columnIndex="0"
+                                   style="-fx-text-fill:#475569;"/>
+                            <HBox spacing="8" GridPane.rowIndex="1" GridPane.columnIndex="1">
+                                <TextField fx:id="minPrice" prefWidth="120" promptText="Minimum"
+                                           style="-fx-background-radius: 8; -fx-padding: 8;"/>
+                                <Label text="to:" style="-fx-text-fill:#64748b;"/>
+                                <TextField fx:id="maxPrice" prefWidth="120" promptText="Maximum"
+                                           style="-fx-background-radius: 8; -fx-padding: 8;"/>
+                            </HBox>
 
-                    <!-- Filter button -->
-                    <Button fx:id="filterButton" text="Filter"
-                            GridPane.rowIndex="1" GridPane.columnIndex="4" GridPane.halignment="RIGHT"
-                            style="-fx-background-color:#2563eb; -fx-text-fill:white; -fx-background-radius: 8; -fx-padding: 8 14;"/>
-                </GridPane>
-            </VBox>
+                            <!-- Apply -->
+                            <Button fx:id="filterButton" text="Apply Filters"
+                                    GridPane.rowIndex="1" GridPane.columnIndex="4" GridPane.halignment="RIGHT"
+                                    style="-fx-background-color:#2563eb; -fx-text-fill:white; -fx-background-radius: 8; -fx-padding: 8 14;"/>
+                        </GridPane>
+                    </VBox>
+                </content>
+            </TitledPane>
 
             <!-- CATALOG SCROLLER (centered content) -->
             <ScrollPane fitToWidth="true" fitToHeight="false" prefHeight="500.0" prefWidth="1200.0"

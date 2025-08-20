@@ -5,6 +5,7 @@ import Events.LoginEvent;
 import Events.RegisterEvent;
 import Events.WarningEvent;
 import il.cshaifasweng.Msg;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -86,15 +87,15 @@ public class App extends Application {
         Platform.runLater(() -> {
             if ("LOGIN_SUCCESS".equals(msg.getAction())) { // if login is successful, we keep the important info such as role and name
 
-                String[] payload = (String[]) msg.getData();
-                String username = payload[0];
-                String roleName = payload[1];
+                User user = (User) msg.getData();
+                String username = user.getUsername();
+                User.Role roleName = user.getRole();
+                boolean isVip = user.isVIP();
 
-                // save both into SceneController
+                // save into SceneController
                 SceneController.loggedUsername     = username;
-                SceneController.setCurrentUserRole(
-                        SceneController.Role.valueOf(roleName)
-                );
+                SceneController.setCurrentUserRole(roleName);
+                SceneController.isVIP = isVip;
 
                 SceneController.switchScene("home");
             } else { // otherwise we send out an error

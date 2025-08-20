@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -11,23 +12,17 @@ import java.io.IOException;
 public class SceneController {
     public static Stage mainStage;
     public static String loggedUsername = null;
+    public static boolean isVIP = false;
 
-    public enum Role {
-        USER,
-        WORKER,
-        MANAGER,
-        ADMIN
-    }
-
-    private static Role currentUserRole;
+    private static User.Role currentUserRole;
 
     /** Call once on successful login to remember the user’s permission level. */
-    public static void setCurrentUserRole(Role role) {
+    public static void setCurrentUserRole(User.Role role) {
         currentUserRole = role;
     }
 
     /** Returns the currently logged‑in user’s role (may be null if not logged in). */
-    public static Role getCurrentUserRole() {
+    public static User.Role getCurrentUserRole() {
         return currentUserRole;
     }
 
@@ -35,7 +30,7 @@ public class SceneController {
      * Convenience to see if the current user is at least at the given role.
      * e.g. hasPermission(Role.WORKER) is true for WORKER, MANAGER or ADMIN.
      */
-    public static boolean hasPermission(Role required) {
+    public static boolean hasPermission(User.Role required) {
         if (currentUserRole == null) return false;
         return currentUserRole.ordinal() >= required.ordinal();
     }

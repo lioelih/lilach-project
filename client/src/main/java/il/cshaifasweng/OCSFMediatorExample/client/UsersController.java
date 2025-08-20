@@ -3,6 +3,7 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.*;
 import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -49,16 +50,16 @@ public class UsersController {
     @FXML
     public void initialize() throws IOException {
         boolean canView =
-                SceneController.hasPermission(SceneController.Role.WORKER) ||
-                        SceneController.hasPermission(SceneController.Role.MANAGER) ||
-                        SceneController.hasPermission(SceneController.Role.ADMIN);
+                SceneController.hasPermission(User.Role.WORKER) ||
+                        SceneController.hasPermission(User.Role.MANAGER) ||
+                        SceneController.hasPermission(User.Role.ADMIN);
         if (!canView) {
             SceneController.switchScene("home");
             return;
         }
         final boolean canEdit =
-                SceneController.hasPermission(SceneController.Role.MANAGER) ||
-                        SceneController.hasPermission(SceneController.Role.ADMIN);
+                SceneController.hasPermission(User.Role.MANAGER) ||
+                        SceneController.hasPermission(User.Role.ADMIN);
         EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
 
@@ -160,7 +161,7 @@ public class UsersController {
                 super.updateItem(item, empty);
 
                 // 1) hide completely if no row or current user not ADMIN
-                boolean isAdmin = SceneController.hasPermission(SceneController.Role.ADMIN);
+                boolean isAdmin = SceneController.hasPermission(User.Role.ADMIN);
                 if (empty || !isAdmin) {
                     setGraphic(null);
                     setManaged(false);

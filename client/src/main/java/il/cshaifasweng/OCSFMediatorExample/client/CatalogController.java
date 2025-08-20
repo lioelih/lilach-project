@@ -166,7 +166,7 @@ public class CatalogController {
             Branch sel = branchFilter.getValue();
             if (sel == null) return;
 
-            boolean privileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
+            boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
 
             if (sel.getBranchId() == 0) {           // "All Products"
                 products = new ArrayList<>(fullCatalog);
@@ -196,7 +196,7 @@ public class CatalogController {
             }
         });
 
-        boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
+        boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
         addProductButton.setVisible(canWorker);
         addProductButton.setManaged(canWorker);
         viewSalesButton.setVisible(canWorker);
@@ -208,7 +208,7 @@ public class CatalogController {
         products = event.getProducts();
         fullCatalog = new ArrayList<>(products);
 
-        boolean privileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
+        boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
         if (!privileged && pendingAllowedIds != null) {
             products = fullCatalog.stream()
                     .filter(p -> pendingAllowedIds.contains(p.getId()))
@@ -255,7 +255,7 @@ public class CatalogController {
         userBranch.setBranchId(me.getBranch().getBranchId());
         userBranch.setName(me.getBranch().getBranchName());
 
-        boolean privileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
+        boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
 
         Platform.runLater(() -> {
             if (privileged) {
@@ -308,7 +308,7 @@ public class CatalogController {
         safe.add(0, all);
 
         Platform.runLater(() -> {
-            boolean privileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
+            boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
             if (privileged) {
                 branchFilter.getItems().setAll(safe);
                 branchFilter.getSelectionModel().selectFirst();
@@ -561,9 +561,9 @@ public class CatalogController {
         filterButton.fire();
     }
     private static boolean canOpenProductDetails() {
-        return SceneController.hasPermission(SceneController.Role.WORKER)
-                || SceneController.hasPermission(SceneController.Role.MANAGER)
-                || SceneController.hasPermission(SceneController.Role.ADMIN);
+        return SceneController.hasPermission(User.Role.WORKER)
+                || SceneController.hasPermission(User.Role.MANAGER)
+                || SceneController.hasPermission(User.Role.ADMIN);
     }
     @FXML
     private void onClose() {

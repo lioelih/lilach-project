@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.Msg;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -22,6 +23,7 @@ import java.util.ResourceBundle;
 public class HomeController {
 
     @FXML public Label welcomeLabel;
+    @FXML public Button catalogButton2Button;
     @FXML private Button usersButton;
     @FXML private Button logoutButton;
     @FXML private Button catalogButton;
@@ -30,17 +32,22 @@ public class HomeController {
     @FXML private Button registerButton;
     @FXML private Button vipButton;
     @FXML private Button ordersButton;
+    @FXML public Button vip2Button;
     @FXML private ImageView logoImage;
     @FXML private ImageView storeImage;
     @FXML
     public void initialize() {
         boolean loggedIn  = SceneController.loggedUsername != null;
-        boolean canWorker = SceneController.hasPermission(SceneController.Role.WORKER);
+        boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
 
         // Home nav
         catalogButton .setOnAction(e -> SceneController.switchScene("catalog"));
+        catalogButton2Button .setOnAction(e -> SceneController.switchScene("catalog"));
         contactButton .setOnAction(e -> SceneController.switchScene("contact"));
         vipButton     .setOnAction(e -> SceneController.switchScene("vip"));
+        vip2Button     .setOnAction(e -> SceneController.switchScene("vip"));
+        vip2Button.setVisible(!SceneController.isVIP);
+        vip2Button.setManaged(!SceneController.isVIP);
 
         // Login / Register
         loginButton   .setVisible(!loggedIn);
@@ -63,7 +70,8 @@ public class HomeController {
                 ex.printStackTrace();
             }
             SceneController.loggedUsername = null;
-            SceneController.setCurrentUserRole(SceneController.Role.USER);
+            SceneController.isVIP = false;
+            SceneController.setCurrentUserRole(User.Role.USER);
             SceneController.switchScene("home");
         });
 
@@ -75,8 +83,10 @@ public class HomeController {
         // welcome
         if (loggedIn) {
             welcomeLabel.setText("Welcome, " + SceneController.loggedUsername);
+            welcomeLabel.setVisible(true);
         } else {
             welcomeLabel.setText("");
+            welcomeLabel.setVisible(false);
         }
 
         // logo
@@ -84,7 +94,7 @@ public class HomeController {
 
         // animated roses
         storeImage.setImage(new javafx.scene.image.Image(
-                getClass().getResourceAsStream("/image/rose_GIF.gif"),
-                1100, 380, /*preserveRatio=*/false, /*smooth=*/true));
+                getClass().getResourceAsStream("/image/rose.png"),
+                1100, 500, /*preserveRatio=*/false, /*smooth=*/true));
     }
 }
