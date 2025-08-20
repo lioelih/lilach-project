@@ -9,7 +9,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
-import Events.RegisterEvent; // make sure this is imported
+import Events.RegisterEvent;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,6 +20,7 @@ public class RegisterController {
     @FXML private TextField emailField;
     @FXML private TextField phoneNumberField;
     @FXML private TextField nameField;
+    @FXML private TextField idField;
     @FXML private PasswordField passwordField;
     @FXML private ComboBox<Branch> branchComboBox;
     @FXML private Button submitButton;
@@ -28,7 +29,9 @@ public class RegisterController {
 
     @FXML
     public void initialize() throws IOException {
-        EventBus.getDefault().unregister(this);
+        if (EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().unregister(this);
+        }
         EventBus.getDefault().register(this);
 
         backButton.setOnAction(e -> {
@@ -43,16 +46,14 @@ public class RegisterController {
                 return;
             }
 
-            System.out.println("[Client] Register button clicked.");
-            System.out.println("[Client] Selected branch: " + selected.getName() + ", ID: " + selected.getBranchId());
-
             String[] fields = new String[]{
-                    usernameField.getText().trim(),
-                    emailField.getText().trim(),
-                    nameField.getText().trim(),        // fullName first
-                    phoneNumberField.getText().trim(), // phone second
-                    passwordField.getText(),
-                    String.valueOf(selected.getBranchId())
+                    usernameField.getText().trim(),      // f[0] username
+                    emailField.getText().trim(),         // f[1] email
+                    nameField.getText().trim(),          // f[2] full name
+                    phoneNumberField.getText().trim(),   // f[3] phone
+                    idField.getText().trim(),            // f[4] 9-digit ID
+                    passwordField.getText(),             // f[5] password
+                    String.valueOf(selected.getBranchId()) // f[6] branchId
             };
 
             if (!isValidInput(fields)) return;
@@ -66,16 +67,14 @@ public class RegisterController {
         });
 
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
-
-        System.out.println("[Client] Requesting branch list from server...");
         SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
     }
 
     private boolean isValidInput(String[] f) {
-        // f[0]=username, f[1]=email, f[2]=fullName, f[3]=phone, f[4]=password, f[5]=branchId
+        // f[0]=username, f[1]=email, f[2]=fullName, f[3]=phone, f[4]=id, f[5]=password, f[6]=branchId
 
         // 1) all required
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i <= 5; i++) {
             if (f[i].isBlank()) {
                 showAlert("All fields are required.");
                 return false;
@@ -83,20 +82,20 @@ public class RegisterController {
         }
 
         // 2) username & password: no spaces
-        if (f[0].contains(" ") || f[4].contains(" ")) {
+        if (f[0].contains(" ") || f[5].contains(" ")) {
             showAlert("Username or password cannot contain spaces.");
             return false;
         }
 
         // 3) valid e‑mail
-        if (!f[1].matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+        if (!f[1].matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,}$")) {
             showAlert("Invalid email format.");
             return false;
         }
 
-        // 4) full name: at least two parts separated by a space
-        if (!f[2].matches("^[^\\s]+\\s+[^\\s]+$")) {
-            showAlert("Full Name must include first and last name separated by a space.");
+        // 4) full name: at least two parts separated by a space, each at least 2 letters
+        if (!f[2].matches("^[A-Za-z]{2,}\\s+[A-Za-z]{2,}$")) {
+            showAlert("Full Name must include first and last name, each at least 2 letters long.");
             return false;
         }
 
@@ -106,8 +105,14 @@ public class RegisterController {
             return false;
         }
 
-        // 6) password length
-        if (f[4].length() < 4 || f[4].length() > 16) {
+        // 6) id: exactly 9 digits
+        if (!f[4].matches("^\\d{9}$")) {
+            showAlert("ID must be exactly 9 digits.");
+            return false;
+        }
+
+        // 7) password length
+        if (f[5].length() < 4 || f[5].length() > 16) {
             showAlert("Password must be 4–16 characters.");
             return false;
         }
@@ -115,17 +120,10 @@ public class RegisterController {
         return true;
     }
 
-
     @Subscribe
     public void onBranchesReceived(Msg message) {
         if ("BRANCHES_OK".equals(message.getAction())) {
             List<Branch> branches = (List<Branch>) message.getData();
-
-            System.out.println("[Client] Received branches from server:");
-            for (Branch b : branches) {
-                System.out.println("[Client] Branch: " + b.getName() + ", ID: " + b.getBranchId());
-            }
-
             Platform.runLater(() -> {
                 branchComboBox.getItems().clear();
                 branchComboBox.getItems().addAll(branches);
@@ -133,11 +131,9 @@ public class RegisterController {
         }
     }
 
-    // THIS IS THE NEW ADDITION: Listen for server register response!
     @Subscribe
     public void onRegisterEvent(RegisterEvent event) {
         Msg msg = event.getMsg();
-
         if ("REGISTER_SUCCESS".equals(msg.getAction())) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -145,7 +141,6 @@ public class RegisterController {
                 alert.setHeaderText(null);
                 alert.setContentText("Registration successful! You can now log in.");
                 alert.showAndWait();
-                // Optionally, redirect to login or home scene after success
                 SceneController.switchScene("login");
             });
         } else if ("REGISTER_FAILED".equals(msg.getAction())) {
@@ -170,7 +165,6 @@ public class RegisterController {
         });
     }
 
-    // Optional: Call this on controller close or scene change to unregister EventBus
     public void onClose() {
         if (EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().unregister(this);

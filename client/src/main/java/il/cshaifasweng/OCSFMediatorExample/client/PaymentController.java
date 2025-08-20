@@ -3,26 +3,23 @@ package il.cshaifasweng.OCSFMediatorExample.client;
 import il.cshaifasweng.Msg;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
+import java.time.YearMonth;
 
 public class PaymentController {
 
-    @FXML private TextField idNumberField;
-    @FXML private TextField cardNumberField;
-    @FXML private TextField expDateField;
-    @FXML private TextField cvvField;
+    @FXML private TextField cardNumberField;   // 16 digits, grouped 4
+    @FXML private TextField expDateField;      // MM/YY
+    @FXML private TextField cvvField;          // 3 digits
     @FXML private Button confirmButton;
     @FXML private Button cancelButton;
 
     private Runnable onSuccess;
-
     public void setOnSuccess(Runnable onSuccess) { this.onSuccess = onSuccess; }
 
     @FXML
@@ -31,7 +28,6 @@ public class PaymentController {
             EventBus.getDefault().register(this);
         }
 
-        setupIdField();
         setupCardNumberField();
         setupExpirationField();
         setupCVVField();
@@ -43,16 +39,15 @@ public class PaymentController {
         }
 
         confirmButton.setOnAction(e -> {
-            if (!validateFields()) return;
+            if (!validateAndAlert()) return;
             try {
-                String[] paymentData = new String[]{
+                String[] payload = new String[]{
                         SceneController.loggedUsername,
-                        getIdNumber(),
                         getCardNumber(),
                         getExpDate(),
                         getCVV()
                 };
-                SimpleClient.getClient().sendToServer(new Msg("PAYMENT_INFO", paymentData));
+                SimpleClient.getClient().sendToServer(new Msg("PAYMENT_INFO", payload));
                 if (onSuccess != null) onSuccess.run();
                 closeWindow();
             } catch (Exception ex) {
@@ -72,12 +67,10 @@ public class PaymentController {
         if (!(dataObj instanceof String[] arr)) return;
 
         Platform.runLater(() -> {
-            String id  = safe(arr, 0);
-            String cardDigits = stripNonDigits(safe(arr, 1));
-            String expDigits  = stripNonDigits(safe(arr, 2));
-            String cvvDigits  = stripNonDigits(safe(arr, 3));
+            String cardDigits = stripNonDigits(safe(arr, 0));
+            String expDigits  = stripNonDigits(safe(arr, 1));
+            String cvvDigits  = stripNonDigits(safe(arr, 2));
 
-            idNumberField.setText(limitDigits(id, 9));
             cardNumberField.setText(groupEvery4(limitDigits(cardDigits, 16)));
 
             if (!expDigits.isEmpty()) {
@@ -89,22 +82,8 @@ public class PaymentController {
                 expDateField.clear();
             }
 
-            cvvField.setText(limitDigits(cvvDigits, 4));
+            cvvField.setText(limitDigits(cvvDigits, 3));
         });
-    }
-
-    private void setupIdField() {
-        idNumberField.setTextFormatter(new TextFormatter<>(c -> {
-            String t = c.getControlNewText().replaceAll("\\D", "");
-            if (t.length() > 9) t = t.substring(0, 9);
-            if (t.equals(c.getControlNewText())) return c;
-            c.setRange(0, c.getControlText().length());
-            c.setText(t);
-            int caret = Math.min(t.length(), t.length());
-            c.setCaretPosition(caret);
-            c.setAnchor(caret);
-            return c;
-        }));
     }
 
     private void setupCardNumberField() {
@@ -115,10 +94,8 @@ public class PaymentController {
             String insertedRaw = change.getText();
 
             String insertedDigits = insertedRaw.replaceAll("\\D", "");
-
             int startDigit = countDigitsBefore(controlText, rangeStart);
             int endDigit   = countDigitsBefore(controlText, rangeEnd);
-
             String oldDigits = controlText.replaceAll("\\D", "");
 
             int newLenIfAll = oldDigits.length() - (endDigit - startDigit) + insertedDigits.length();
@@ -137,15 +114,12 @@ public class PaymentController {
 
             int caretDigitIndex = Math.min(startDigit + insertedDigits.length(), newDigits.length());
             int newCaret = posFromDigitIndex(caretDigitIndex);
-            if (caretDigitIndex == newDigits.length()) {
-                newCaret = formatted.length(); // allow caret after the last char
-            }
+            if (caretDigitIndex == newDigits.length()) newCaret = formatted.length();
             newCaret = clamp(newCaret, 0, formatted.length());
-
 
             change.setRange(0, controlText.length());
             change.setText(formatted);
-            change.setCaretPosition(newCaret);           // clamp avoids IndexOutOfBounds
+            change.setCaretPosition(newCaret);
             change.setAnchor(newCaret);
             return change;
         }));
@@ -181,14 +155,12 @@ public class PaymentController {
 
             int caretDigitIndex = Math.min(startDigit + digitsInsert.length(), newDigits.length());
             int newCaret = caretPosInMMYY(caretDigitIndex);
-            if (caretDigitIndex == newDigits.length()) {
-                newCaret = formatted.length(); // allow caret after the last char
-            }
+            if (caretDigitIndex == newDigits.length()) newCaret = formatted.length();
             newCaret = clamp(newCaret, 0, formatted.length());
 
             change.setRange(0, controlText.length());
             change.setText(formatted);
-            change.setCaretPosition(newCaret);           // clamp avoids IndexOutOfBounds
+            change.setCaretPosition(newCaret);
             change.setAnchor(newCaret);
             return change;
         }));
@@ -197,7 +169,7 @@ public class PaymentController {
     private void setupCVVField() {
         cvvField.setTextFormatter(new TextFormatter<>(c -> {
             String t = c.getControlNewText().replaceAll("\\D", "");
-            if (t.length() > 4) t = t.substring(0, 4);
+            if (t.length() > 3) t = t.substring(0, 3);
             if (t.equals(c.getControlNewText())) return c;
             c.setRange(0, c.getControlText().length());
             c.setText(t);
@@ -208,12 +180,47 @@ public class PaymentController {
         }));
     }
 
-    private boolean validateFields() {
-        if (!idNumberField.getText().matches("\\d{9}")) return false;
-        if (!cardNumberField.getText().replace(" ", "").matches("\\d{16}")) return false;
-        if (!expDateField.getText().matches("\\d{2}/\\d{2}")) return false;
-        if (!cvvField.getText().matches("\\d{3,4}")) return false;
+    private boolean validateAndAlert() {
+        String num = cardNumberField.getText().replaceAll("\\D", "");
+        if (!num.matches("\\d{16}")) {
+            showAlert("Card number must be exactly 16 digits.");
+            return false;
+        }
+
+        String cvv = cvvField.getText();
+        if (!cvv.matches("\\d{3}")) {
+            showAlert("Security code (CVV) must be exactly 3 digits.");
+            return false;
+        }
+
+        String exp = expDateField.getText();
+        if (!exp.matches("\\d{2}/\\d{2}")) {
+            showAlert("Expiration must be in MM/YY format.");
+            return false;
+        }
+        int mm = Integer.parseInt(exp.substring(0, 2));
+        int yy = Integer.parseInt(exp.substring(3, 5));
+        if (mm < 1 || mm > 12) {
+            showAlert("Expiration month must be between 01 and 12.");
+            return false;
+        }
+        YearMonth expiry = YearMonth.of(2000 + yy, mm);
+        YearMonth now = YearMonth.now();
+        if (expiry.isBefore(now)) {
+            showAlert("This card is expired.");
+            return false;
+        }
         return true;
+    }
+
+    private void showAlert(String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Invalid Payment Details");
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
     }
 
     private void closeWindow() {
@@ -224,17 +231,15 @@ public class PaymentController {
         stage.close();
     }
 
-    public String getIdNumber() { return idNumberField.getText(); }
     public String getCardNumber() { return cardNumberField.getText().replaceAll("\\D", ""); }
     public String getExpDate() { return expDateField.getText(); }
     public String getCVV() { return cvvField.getText(); }
 
-    // --- helpers ---
+    // helpers
     private static String safe(String[] arr, int i) { return (arr != null && i >= 0 && i < arr.length && arr[i] != null) ? arr[i] : ""; }
     private static String stripNonDigits(String s) { return s.replaceAll("\\D", ""); }
     private static String limitDigits(String s, int n) { return s.length() > n ? s.substring(0, n) : s; }
     private static int clamp(int v, int lo, int hi) { return Math.max(lo, Math.min(hi, v)); }
-
     private static int countDigitsBefore(String s, int pos) {
         int c = 0, lim = Math.min(pos, s.length());
         for (int i = 0; i < lim; i++) if (Character.isDigit(s.charAt(i))) c++;

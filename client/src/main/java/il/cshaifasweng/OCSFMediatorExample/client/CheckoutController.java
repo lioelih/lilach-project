@@ -1,15 +1,16 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import Events.*;
-import javafx.beans.binding.Bindings;
 import il.cshaifasweng.Msg;
-import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import il.cshaifasweng.OrderDTO;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
 import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
@@ -26,7 +27,9 @@ import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,16 +38,20 @@ import java.util.stream.IntStream;
 
 public class CheckoutController implements Initializable {
 
-    @FXML private TableView<Basket>          basketTable;
-    @FXML private TableColumn<Basket,String> nameCol;
-    @FXML private TableColumn<Basket,Integer> amtCol;
-    @FXML private TableColumn<Basket,Double> priceCol;
-    @FXML private Label  totalLabel;
-    @FXML private Label  totalAfterLabel;
-    @FXML private HBox   vipBox;
-    @FXML private Label  vipDiscountLabel;
+    @FXML private TableView<Basket> basketTable;
+    @FXML private TableColumn<Basket, Basket> imgCol;
+    @FXML private TableColumn<Basket, String> nameCol;
+    @FXML private TableColumn<Basket, Integer> amtCol;
+    @FXML private TableColumn<Basket, Double> priceCol;
+
+    @FXML private Label totalLabel;
+    @FXML private Label discountLabel;
+    @FXML private Label totalAfterLabel;
+
+    @FXML private HBox vipBox;
+    @FXML private Label vipDiscountLabel;
     @FXML private HBox deliveryBox;
-    @FXML private Label  deliveryFeeLabel;
+    @FXML private Label deliveryFeeLabel;
 
     @FXML private RadioButton savedCardRadio, addCardRadio;
     @FXML private Button addCardButton;
@@ -54,85 +61,97 @@ public class CheckoutController implements Initializable {
     @FXML private TextField cityField, streetField, houseField, zipField;
 
     @FXML private RadioButton asapRadio, scheduleRadio;
-    @FXML private DatePicker   deadlineDatePicker;
+    @FXML private DatePicker deadlineDatePicker;
     @FXML private ComboBox<Integer> deadlineHourCombo;
     @FXML private HBox scheduleBox;
 
     @FXML private TextField recipientNameField, recipientPhoneField;
 
     @FXML private CheckBox useCompensationBox;
-    @FXML private Label    compBalanceLabel;
+    @FXML private Label compBalanceLabel;
 
-    @FXML private Button     completeBtn;
-    @FXML private ImageView  logoImage;
+    @FXML private Button completeBtn;
+    @FXML private ImageView logoImage;
 
-    private final List<Basket>  items             = new ArrayList<>();
+    private final List<Basket> items = new ArrayList<>();
     private final BooleanProperty hasCardProperty = new SimpleBooleanProperty(false);
-    private final List<Branch>  branchList        = new ArrayList<>();
-    private boolean isVipUser    = false;
-    private double  totalBefore;      // set in initData
-    private double  saleDiscount;     // set in initData
-    private double  userCompBalance = 0.0;
+    private final List<Branch> branchList = new ArrayList<>();
+    private boolean isVipUser = false;
+    private double totalBefore;
+    private double saleDiscount;
+    private double userCompBalance = 0.0;
 
     public void initData(List<Basket> copy, double totalBefore, double discount) {
-        this.totalBefore  = totalBefore;
+        this.totalBefore = totalBefore;
         this.saleDiscount = discount;
-
         items.clear();
         items.addAll(copy);
         basketTable.getItems().setAll(items);
-
-        totalLabel.setText(String.format("Total Before Discount   ₪ %.2f", totalBefore));
-        totalAfterLabel.setText(String.format("Total After Discount    ₪ %.2f", totalBefore - saleDiscount));
-
+        totalLabel.setText(String.format("Total: ₪ %.2f", totalBefore));
+        discountLabel.setText(String.format("Discount: ₪ %.2f", saleDiscount));
+        totalAfterLabel.setText(String.format("Total After Discount: ₪ %.2f", totalBefore - saleDiscount));
         updateSummary();
-
     }
 
-    @Override public void initialize(URL location, ResourceBundle resources) {
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
+
+        imgCol.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue()));
+        imgCol.setCellFactory(col -> new TableCell<>() {
+            private final ImageView iv = new ImageView();
+            {
+                iv.setFitWidth(48);
+                iv.setFitHeight(48);
+                iv.setPreserveRatio(true);
+                iv.setSmooth(true);
+            }
+            @Override
+            protected void updateItem(Basket b, boolean empty) {
+                super.updateItem(b, empty);
+                if (empty || b == null) {
+                    setGraphic(null);
+                } else {
+                    iv.setImage(buildImage(b));
+                    setGraphic(iv);
+                }
+            }
+        });
 
         nameCol.setCellValueFactory(c -> {
             Basket b = c.getValue();
-            if (b.getCustomBouquet() != null) {
-                return new SimpleStringProperty(
-                        "Custom: " + b.getCustomBouquet().getName());
-            } else {
-                return new SimpleStringProperty(b.getProductName());
-            }
+            return (b.getCustomBouquet() != null)
+                    ? new SimpleStringProperty("Custom: " + b.getCustomBouquet().getName())
+                    : new SimpleStringProperty(b.getProductName());
         });
-        amtCol .setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(c.getValue().getAmount()).asObject());
+        amtCol.setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(c.getValue().getAmount()).asObject());
         priceCol.setCellValueFactory(c -> new javafx.beans.property.SimpleDoubleProperty(c.getValue().getPrice()).asObject());
 
-        // Payment toggles
         ToggleGroup payGrp = new ToggleGroup();
         savedCardRadio.setToggleGroup(payGrp);
-        addCardRadio  .setToggleGroup(payGrp);
+        addCardRadio.setToggleGroup(payGrp);
         addCardButton.disableProperty().bind(addCardRadio.selectedProperty().not());
         addCardButton.setOnAction(e -> openPaymentWindow());
 
-        // Fulfillment toggles
         ToggleGroup fulGrp = new ToggleGroup();
         pickupRadio.setToggleGroup(fulGrp);
         deliveryRadio.setToggleGroup(fulGrp);
-        pickupRadio.selectedProperty().addListener((o,oldV,newV) -> updateSummary());
-        deliveryRadio.selectedProperty().addListener((o,oldV,newV) -> updateSummary());
+        pickupRadio.selectedProperty().addListener((o, a, b) -> updateSummary());
+        deliveryRadio.selectedProperty().addListener((o, a, b) -> updateSummary());
 
-        // Branch vs. delivery address
         branchCombo.setCellFactory(cb -> new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
-                setText(empty || b==null ? "" : b.getName());
+                setText(empty || b == null ? "" : b.getName());
             }
         });
         branchCombo.setButtonCell(branchCombo.getCellFactory().call(null));
         branchCombo.disableProperty().bind(pickupRadio.selectedProperty().not());
-        cityField.disableProperty() .bind(deliveryRadio.selectedProperty().not());
+        cityField.disableProperty().bind(deliveryRadio.selectedProperty().not());
         streetField.disableProperty().bind(deliveryRadio.selectedProperty().not());
-        houseField.disableProperty() .bind(deliveryRadio.selectedProperty().not());
-        zipField.disableProperty()   .bind(deliveryRadio.selectedProperty().not());
+        houseField.disableProperty().bind(deliveryRadio.selectedProperty().not());
+        zipField.disableProperty().bind(deliveryRadio.selectedProperty().not());
 
-        // Scheduling
         ToggleGroup timeGrp = new ToggleGroup();
         asapRadio.setToggleGroup(timeGrp);
         scheduleRadio.setToggleGroup(timeGrp);
@@ -144,31 +163,27 @@ public class CheckoutController implements Initializable {
                 super.updateItem(date, empty);
                 if (empty || date.isBefore(today)) {
                     setDisable(true);
-                    setStyle("-fx-background-color: #EEEEEE;");
+                    setStyle("-fx-background-color:#EEEEEE;");
                 }
             }
         });
-        deadlineDatePicker.valueProperty().addListener((obs,oldD,newD) -> {
-            if (newD==null) return;
-            int minHour=8;
+        deadlineDatePicker.valueProperty().addListener((obs, oldD, newD) -> {
+            if (newD == null) return;
+            int minHour = 8;
             if (newD.equals(today)) {
                 LocalDateTime asap = LocalDateTime.now().plusHours(3);
-                int cutoff = asap.getHour() + (asap.getMinute()>0?1:0);
+                int cutoff = asap.getHour() + (asap.getMinute() > 0 ? 1 : 0);
                 minHour = Math.max(minHour, cutoff);
             }
-            var hours = IntStream.rangeClosed(minHour,20).boxed().toList();
+            var hours = IntStream.rangeClosed(minHour, 20).boxed().toList();
             deadlineHourCombo.getItems().setAll(hours);
-            if (!hours.contains(deadlineHourCombo.getValue()))
-                deadlineHourCombo.setValue(null);
+            if (!hours.contains(deadlineHourCombo.getValue())) deadlineHourCombo.setValue(null);
         });
         deadlineHourCombo.getItems().clear();
         deadlineDatePicker.setValue(today);
 
+        useCompensationBox.selectedProperty().addListener((o, a, b) -> updateSummary());
 
-        // Compensation checkbox
-        useCompensationBox.selectedProperty().addListener((o,oldV,newV) -> updateSummary());
-
-        // Bind "Complete" enablement
         BooleanBinding paymentOk = Bindings.or(
                 useCompensationBox.selectedProperty()
                         .and(Bindings.createBooleanBinding(
@@ -192,75 +207,46 @@ public class CheckoutController implements Initializable {
         BooleanBinding timeOk = asapRadio.selectedProperty()
                 .or(scheduleRadio.selectedProperty()
                         .and(deadlineDatePicker.valueProperty().isNotNull())
-                        .and(deadlineHourCombo.valueProperty().isNotNull())
-                );
+                        .and(deadlineHourCombo.valueProperty().isNotNull()));
 
-        completeBtn.disableProperty().bind(
-                paymentOk.not()
-                        .or(fulfilOk.not())
-                        .or(timeOk.not())
-        );
+        completeBtn.disableProperty().bind(paymentOk.not().or(fulfilOk.not()).or(timeOk.not()));
         completeBtn.setOnAction(e -> submitOrder());
 
-        // Load branches & user info
-        try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch(IOException ex){ex.printStackTrace();}
-        try { SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername)); } catch(IOException ex){ex.printStackTrace();}
-        try { SimpleClient.getClient().sendToServer(new Msg("HAS_CARD", SceneController.loggedUsername)); } catch(IOException ex){ex.printStackTrace();}
+        try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ex) { ex.printStackTrace(); }
+        try { SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername)); } catch (IOException ex) { ex.printStackTrace(); }
+        try { SimpleClient.getClient().sendToServer(new Msg("HAS_CARD", SceneController.loggedUsername)); } catch (IOException ex) { ex.printStackTrace(); }
 
-        if (!EventBus.getDefault().isRegistered(this))
-            EventBus.getDefault().register(this);
+        if (!EventBus.getDefault().isRegistered(this)) EventBus.getDefault().register(this);
     }
 
     private void submitOrder() {
-        try {
-            SimpleClient.getClient().sendToServer(new Msg("NEW_ORDER", buildDto()));
-        } catch(IOException e){e.printStackTrace();}
+        try { SimpleClient.getClient().sendToServer(new Msg("NEW_ORDER", buildDto())); }
+        catch (IOException e) { e.printStackTrace(); }
     }
 
     private OrderDTO buildDto() {
-        // incase we need to remember, i wrote here step by step instructions on building an orderDTO which is used later in tables and such
-        // 1) figure out fulfilment type & info
         String type = pickupRadio.isSelected() ? "PICKUP" : "DELIVERY";
         String info = type.equals("PICKUP")
                 ? String.valueOf(branchCombo.getValue().getBranchId())
-                : String.format("%s, %s %s (%s)",
-                cityField.getText(), streetField.getText(),
-                houseField.getText(), zipField.getText());
-
-        // 2) deadline logic
+                : String.format("%s, %s %s (%s)", cityField.getText(), streetField.getText(), houseField.getText(), zipField.getText());
         LocalDateTime deadline = asapRadio.isSelected()
                 ? LocalDateTime.now().plusHours(3)
                 : deadlineDatePicker.getValue().atTime(deadlineHourCombo.getValue(), 0);
+        String recipient = recipientNameField.getText().trim() + " (" + recipientPhoneField.getText().trim() + ")";
+        String greeting = null;
 
-        // 3) recipient
-        String recipient = recipientNameField.getText().trim()
-                + " (" + recipientPhoneField.getText().trim() + ")";
-
-        // 4) greeting (if you captured it earlier)
-        String greeting = null; // or null if none
-
-        // 5) compute finalTotal exactly as in updateSummary()
-        double afterSale   = totalBefore - saleDiscount;
-        double vipDisc     = isVipUser ? afterSale * 0.10 : 0.0;
+        double afterSale = totalBefore - saleDiscount;
+        double vipDisc = isVipUser ? afterSale * 0.10 : 0.0;
         double deliveryFee = deliveryRadio.isSelected() ? 10.0 : 0.0;
-        double finalTotal  = afterSale - vipDisc + deliveryFee;
+        double finalTotal = afterSale - vipDisc + deliveryFee;
 
-        // 6) decide how much store credit to use
-        boolean useComp  = useCompensationBox.isSelected();
-        double compToUse = useComp
-                ? Math.min(userCompBalance, finalTotal)
-                : 0.0;
+        boolean useComp = useCompensationBox.isSelected();
+        double compToUse = useComp ? Math.min(userCompBalance, finalTotal) : 0.0;
 
-        // 7) now call the 9‑arg constructor
         return new OrderDTO(
                 SceneController.loggedUsername,
                 items.stream().map(Basket::getId).toList(),
-                type, info,
-                deadline,
-                recipient,
-                greeting,
-                useComp,
-                compToUse
+                type, info, deadline, recipient, greeting, useComp, compToUse
         );
     }
 
@@ -271,9 +257,8 @@ public class CheckoutController implements Initializable {
             st.setScene(new Scene(loader.load()));
             st.setTitle("Add / Edit Card");
             st.showAndWait();
-            // refresh card status
             SimpleClient.getClient().sendToServer(new Msg("HAS_CARD", SceneController.loggedUsername));
-        } catch(Exception e){e.printStackTrace();}
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     @Subscribe
@@ -282,11 +267,11 @@ public class CheckoutController implements Initializable {
             switch (m.getAction()) {
                 case "BRANCHES_OK" -> {
                     branchList.clear();
-                    branchList.addAll((List<Branch>)m.getData());
+                    branchList.addAll((List<Branch>) m.getData());
                     branchCombo.getItems().setAll(branchList);
                 }
                 case "FETCH_USER" -> {
-                    User user = (User)m.getData();
+                    User user = (User) m.getData();
                     userCompBalance = user.getCompensationTab();
                     compBalanceLabel.setText(String.format("You have ₪%.2f store credit", userCompBalance));
                     recipientNameField.setText(user.getFullName());
@@ -295,33 +280,29 @@ public class CheckoutController implements Initializable {
                     updateSummary();
                 }
                 case "HAS_CARD" -> {
-                    boolean has = (Boolean)m.getData();
+                    boolean has = (Boolean) m.getData();
                     hasCardProperty.set(has);
                     savedCardRadio.setDisable(!has);
                     savedCardRadio.setText(has ? "Use saved card" : "No card on file");
                 }
                 case "ORDER_OK" -> {
-                    @SuppressWarnings("unchecked") Map<String,Object> res = (Map<String,Object>)m.getData();
-                    double finalTotal  = ((Number)res.get("totalPrice")).doubleValue();
-                    double vipDisc     = ((Number)res.get("vipDiscount")).doubleValue();
-                    double deliveryFee = ((Number)res.get("deliveryFee")).doubleValue();
-                    double usedComp    = ((Number)res.get("compensationUsed")).doubleValue();
-                    int createdId      = ((Number)res.get("orderId")).intValue();
+                    @SuppressWarnings("unchecked") Map<String, Object> res = (Map<String, Object>) m.getData();
+                    double finalTotal = ((Number) res.get("totalPrice")).doubleValue();
+                    double vipDisc = ((Number) res.get("vipDiscount")).doubleValue();
+                    double deliveryFee = ((Number) res.get("deliveryFee")).doubleValue();
+                    double usedComp = ((Number) res.get("compensationUsed")).doubleValue();
+                    int createdId = ((Number) res.get("orderId")).intValue();
 
-                    // 1) Confirmation
                     String msg = String.format(
                             "Order completed!\nYou paid ₪%.2f\n– VIP Discount: ₪%.2f\n+ Delivery Fee: ₪%.2f",
-                            finalTotal, vipDisc, deliveryFee
-                    );
-                    if (usedComp>0) msg += String.format("\n– Used Store Credit: ₪%.2f", usedComp);
+                            finalTotal, vipDisc, deliveryFee);
+                    if (usedComp > 0) msg += String.format("\n– Used Store Credit: ₪%.2f", usedComp);
                     new Alert(Alert.AlertType.INFORMATION, msg).showAndWait();
 
-                    // 2) Refresh & close
                     try { SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername)); }
-                    catch(IOException ex){ex.printStackTrace();}
+                    catch (IOException ex) { ex.printStackTrace(); }
                     closeWindow();
 
-                    // 3) Greeting popup
                     Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
                             "Add a greeting to your order?", ButtonType.YES, ButtonType.NO);
                     confirm.setHeaderText(null);
@@ -330,23 +311,20 @@ public class CheckoutController implements Initializable {
                             FXMLLoader f2 = new FXMLLoader(getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/greeting.fxml"));
                             Parent root = f2.load();
                             GreetingController gc = f2.getController();
-                            gc.init(null, "#FFFFFF", (text,hex) -> {
-                                Map<String,Object> payload = Map.of(
+                            gc.init(null, "#FFFFFF", (text, hex) -> {
+                                Map<String, Object> payload = Map.of(
                                         "orderId", createdId,
                                         "greeting", String.format("(%s)%s", hex, text)
                                 );
-                                try {
-                                    SimpleClient.getClient().sendToServer(new Msg("UPDATE_GREETING", payload));
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
+                                try { SimpleClient.getClient().sendToServer(new Msg("UPDATE_GREETING", payload)); }
+                                catch (IOException e) { throw new RuntimeException(e); }
                             });
                             Stage popup = new Stage();
                             popup.initModality(Modality.APPLICATION_MODAL);
                             popup.setTitle("Add Greeting");
                             popup.setScene(new Scene(root));
                             popup.showAndWait();
-                        } catch(IOException ex){ex.printStackTrace();}
+                        } catch (IOException ex) { ex.printStackTrace(); }
                     }
                 }
                 case "ORDER_FAIL" ->
@@ -356,27 +334,26 @@ public class CheckoutController implements Initializable {
     }
 
     private void updateSummary() {
-        double afterSale   = totalBefore - saleDiscount;
-        double vipDisc     = isVipUser ? afterSale*0.10 : 0.0;
+        double afterSale = totalBefore - saleDiscount;
+        double vipDisc = isVipUser ? afterSale * 0.10 : 0.0;
         double deliveryFee = deliveryRadio.isSelected() ? 10.0 : 0.0;
-        double finalTot    = afterSale - vipDisc;
-        double compUsed    = useCompensationBox.isSelected() ? Math.min(userCompBalance, finalTot) : 0.0;
-        double payNow      = finalTot - compUsed + deliveryFee;
+        double totalDisc = saleDiscount + vipDisc;
+        double finalTot = totalBefore - totalDisc;
+        double compUsed = useCompensationBox.isSelected() ? Math.min(userCompBalance, finalTot) : 0.0;
+        double payNow = finalTot - compUsed + deliveryFee;
 
-        // VIP
-        vipBox.setVisible(isVipUser);
-        vipBox.setManaged(isVipUser);
+        vipBox.setVisible(isVipUser);  vipBox.setManaged(isVipUser);
         vipDiscountLabel.setText(String.format("-₪%.2f", vipDisc));
 
-        // Delivery
-        deliveryBox.setVisible(deliveryRadio.isSelected());
-        deliveryBox.setManaged(deliveryRadio.isSelected());
+        boolean showDel = deliveryRadio.isSelected();
+        deliveryBox.setVisible(showDel); deliveryBox.setManaged(showDel);
         deliveryFeeLabel.setText(String.format("+₪%.2f", deliveryFee));
 
-        // Labels
-        totalLabel.setText(String.format("Total Before Discount   ₪ %.2f", totalBefore));
-        totalAfterLabel.setText(String.format("Total After Discount    ₪ %.2f", finalTot));
-        if (compUsed>0) {
+        totalLabel.setText(String.format("Total: ₪ %.2f", totalBefore));
+        discountLabel.setText(String.format("Discount: ₪ %.2f", totalDisc));
+        totalAfterLabel.setText(String.format("Total After Discount: ₪ %.2f", finalTot));
+
+        if (compUsed > 0) {
             compBalanceLabel.setText(String.format("Applied ₪%.2f of store credit", compUsed));
         } else {
             compBalanceLabel.setText(String.format("You have ₪%.2f store credit", userCompBalance));
@@ -386,15 +363,49 @@ public class CheckoutController implements Initializable {
     }
 
     private double computeFinalTotal() {
-        double afterSale   = totalBefore - saleDiscount;
-        double vipDisc     = isVipUser ? afterSale*0.10 : 0.0;
+        double afterSale = totalBefore - saleDiscount;
+        double vipDisc = isVipUser ? afterSale * 0.10 : 0.0;
         double deliveryFee = deliveryRadio.isSelected() ? 10.0 : 0.0;
         return afterSale - vipDisc + deliveryFee;
     }
 
+    // Image loader with graceful fallbacks
+    private Image buildImage(Basket b) {
+        try {
+            if (b.getCustomBouquet() != null) return loadRes("/image/custom.png");
+            Object raw = (b.getProduct() != null) ? b.getProduct().getImage() : null;
+            return loadFromProductField(raw, "/image/custom.png");
+        } catch (Exception ignored) {
+            return new Image(new ByteArrayInputStream(new byte[0]), 1, 1, true, true);
+        }
+    }
+
+    private Image loadFromProductField(Object raw, String fallbackRes) {
+        if (raw instanceof byte[] bytes && bytes.length > 0) return new Image(new ByteArrayInputStream(bytes));
+        String s = (raw instanceof String) ? ((String) raw).trim() : null;
+        if (s != null && !s.isEmpty()) {
+            if (s.startsWith("http://") || s.startsWith("https://")) return new Image(s, true);
+            if (s.startsWith("/")) {
+                InputStream is = getClass().getResourceAsStream(s);
+                if (is != null) return new Image(is);
+            }
+            for (String tryPath : new String[]{"/image/" + s, "/images/" + s, "/" + s}) {
+                InputStream is = getClass().getResourceAsStream(tryPath);
+                if (is != null) return new Image(is);
+            }
+        }
+        return loadRes(fallbackRes);
+    }
+
+    private Image loadRes(String path) {
+        InputStream is = getClass().getResourceAsStream(path);
+        if (is != null) return new Image(is);
+        return new Image(new ByteArrayInputStream(new byte[0]), 1, 1, true, true);
+    }
+
     private void closeWindow() {
         EventBus.getDefault().unregister(this);
-        ((Stage)basketTable.getScene().getWindow()).close();
+        ((Stage) basketTable.getScene().getWindow()).close();
     }
 
     @FXML private void goBack() { closeWindow(); }
