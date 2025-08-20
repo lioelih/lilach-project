@@ -172,9 +172,12 @@ public class BasketController {
     public void onUserFetched(Msg m) {
         if (!"FETCH_USER".equals(m.getAction())) return;
         User me = (User) m.getData();
-        isVip = me.isVIP();
-        boolean isPrivileged = isVip || SceneController.hasPermission(SceneController.Role.WORKER);
-        userBranchId = me.getBranch().getBranchId();
+
+        isVip         = me.isVIP();
+        boolean isPrivileged = isVip
+                || SceneController.hasPermission(User.Role.WORKER);
+        userBranchId  = me.getBranch().getBranchId();
+
         if (!isPrivileged) {
             try { SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", userBranchId)); } catch(IOException ex) { ex.printStackTrace(); }
         }

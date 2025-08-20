@@ -64,22 +64,21 @@ public class SimpleServer extends AbstractServer {
                     String password = credentials[1];
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        User user = session.createQuery("FROM User WHERE username = :u", User.class)
-                                .setParameter("u", username)
-                                .uniqueResult();
+                        Query<User> query = session.createQuery("FROM User WHERE username = :u AND password = :p", User.class);
+                        query.setParameter("u", username);
+                        query.setParameter("p", password);
+                        List<User> users = query.list();
 
-                        if (user == null || !password.equals(user.getPassword())) {
+                        if (users.isEmpty()) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
-                            return;
+                        } else {
+                            User user = users.get(0);
+                            if (!user.isActive()) {
+                                client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
+                            } else {
+                                client.sendToClient(new Msg("LOGIN_SUCCESS", user));
+                            }
                         }
-
-                        if (!user.isActive()) {
-                            client.sendToClient(new Msg("LOGIN_FAILED", "Your account is frozen. Please contact support."));
-                            return;
-                        }
-
-                        client.sendToClient(new Msg("LOGIN_SUCCESS",
-                                new String[]{ user.getUsername(), user.getRole().name() }));
                     }
                 }
 
@@ -1057,6 +1056,40 @@ public class SimpleServer extends AbstractServer {
                                 sale.setProductIds(
                                         saleSession.createNativeQuery(
                                                         "SELECT product_id FROM sale_products WHERE sale_id = :saleId",
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                                                         Integer.class
                                                 )
                                                 .setParameter("saleId", sale.getId())

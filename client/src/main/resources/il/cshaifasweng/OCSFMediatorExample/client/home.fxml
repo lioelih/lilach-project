@@ -31,6 +31,7 @@
                         <Pane prefHeight="100.0" prefWidth="0.0" HBox.hgrow="ALWAYS"/>
                         <Button fx:id="registerButton" styleClass="nav-button" text="Register"/>
                         <Button fx:id="loginButton" styleClass="nav-button" text="Login"/>
+                        <Label fx:id="welcomeLabel" styleClass="welcome-text" visible="false"/>
                         <Button fx:id="logoutButton" styleClass="nav-button" text="Logout" visible="false"/>
                     </children>
                 </HBox>
@@ -53,13 +54,12 @@
                     <Rectangle managed="false" mouseTransparent="true" width="Infinity" height="Infinity" styleClass="hero-overlay"/>
 
                     <!-- Hero text + optional CTAs (no handlers required) -->
-                    <VBox alignment="CENTER" spacing="12">
+                    <VBox alignment="CENTER" spacing="2">
                         <Label styleClass="hero-heading" text="Welcome to Lilach Store"/>
                         <Label styleClass="hero-subheading" text="All your needs for flowers"/>
-                        <Label fx:id="welcomeLabel" styleClass="welcome-text"/>
                         <HBox spacing="10" alignment="CENTER">
-                            <Button text="Explore Catalog" styleClass="cta-primary"/>
-                            <Button text="Become VIP" styleClass="cta-secondary"/>
+                            <Button fx:id="catalogButton2Button" text="Explore Catalog" styleClass="cta-primary"/>
+                            <Button fx:id="vip2Button" text="Become VIP" styleClass="cta-secondary"/>
                         </HBox>
                     </VBox>
                 </children>
