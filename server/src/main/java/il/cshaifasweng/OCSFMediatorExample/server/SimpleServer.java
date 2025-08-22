@@ -25,12 +25,15 @@ import il.cshaifasweng.OCSFMediatorExample.server.EmailService;
 import java.util.stream.Collectors;
 import java.util.List;
 import static java.util.stream.Collectors.toList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 
 public class SimpleServer extends AbstractServer {
     // central broadcast list and periodic scheduler
     private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
     private ScheduledExecutorService scheduler;
-
+    private final ConcurrentMap<String, ConnectionToClient> onlineUsers = new ConcurrentHashMap<>(); // For online users
     public SimpleServer(int port) {
         super(port);
         scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -71,16 +74,30 @@ public class SimpleServer extends AbstractServer {
 
                         if (users.isEmpty()) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
-                        } else {
-                            User user = users.get(0);
-                            if (!user.isActive()) {
-                                client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
-                            } else {
-                                client.sendToClient(new Msg("LOGIN_SUCCESS", user));
-                            }
+                            return;
                         }
+
+                        User user = users.get(0);
+                        if (!user.isActive()) {
+                            client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
+                            return;
+                        }
+
+                        if (onlineUsers.containsKey(username)) {
+                            client.sendToClient(new Msg("LOGIN_FAILED", "User is currently logged in"));
+                            return;
+                        }
+
+                        client.setInfo("username", username);
+                        onlineUsers.put(username, client);
+                        client.sendToClient(new Msg("LOGIN_SUCCESS", user));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        client.sendToClient(new Msg("LOGIN_FAILED", "Server error"));
                     }
                 }
+
+
 
 
                 // registration
@@ -151,13 +168,7 @@ public class SimpleServer extends AbstractServer {
                 // logout bookkeeping
                 case "LOGOUT" -> {
                     String username = (String) data;
-                    try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        session.beginTransaction();
-                        Query query = session.createQuery("UPDATE User SET loggedIn = false WHERE username = :u");
-                        query.setParameter("u", username);
-                        query.executeUpdate();
-                        session.getTransaction().commit();
-                    }
+                    onlineUsers.remove(username);
                 }
 
                 // user fetch with branch prefetch
@@ -1693,10 +1704,28 @@ public class SimpleServer extends AbstractServer {
 
     @Override
     protected void serverStopped() {
-        // ensure scheduled executor is stopped with the server
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdownNow();
         }
         System.out.println("Server stopped. Scheduler shut down.");
     }
+
+    @Override
+    protected void clientDisconnected(ConnectionToClient client) {
+        cleanupClient(client);
+    }
+
+    @Override
+    protected void clientException(ConnectionToClient client, Throwable exception) {
+        cleanupClient(client);
+    }
+
+    private void cleanupClient(ConnectionToClient client) {
+        Object u = client.getInfo("username");
+        if (u instanceof String username) {
+            onlineUsers.remove(username);
+            client.setInfo("username", null);
+        }
+    }
+
 }

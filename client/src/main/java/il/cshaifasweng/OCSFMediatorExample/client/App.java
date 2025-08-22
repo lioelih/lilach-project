@@ -47,23 +47,35 @@ public class App extends Application {
 
         stage.setOnCloseRequest(e -> {
             try {
-                if (SceneController.loggedUsername != null) {
-                    client.sendToServer(new Msg("LOGOUT", SceneController.loggedUsername));
-                } // must remember to logout once user finishes his session
+                String u = SceneController.loggedUsername;
+                if (u != null && !u.isBlank()) {
+                    SimpleClient.logoutAndClose(u);
+                    SceneController.loggedUsername = null;
+                }
                 client.sendToServer("remove client");
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
         });
+
+
     }
 
     @Override
     public void stop() throws Exception {
         EventBus.getDefault().unregister(this);
-        client.sendToServer("remove client"); // close / stop
-        client.closeConnection();
+        try {
+            String u = SceneController.loggedUsername;
+            if (u != null && !u.isBlank()) {
+                SimpleClient.logoutAndClose(u);
+                SceneController.loggedUsername = null;
+            }
+        } catch (Exception ignored) {}
+        try { client.sendToServer("remove client"); } catch (IOException ignored) {}
+        try { client.closeConnection(); } catch (IOException ignored) {}
         super.stop();
     }
+
 
     public static void main(String[] args) {
         launch();
@@ -85,33 +97,24 @@ public class App extends Application {
     public void onLoginResponse(LoginEvent event) {
         Msg msg = event.getMsg();
         Platform.runLater(() -> {
-            if ("LOGIN_SUCCESS".equals(msg.getAction())) { // if login is successful, we keep the important info such as role and name
-
-                User user = (User) msg.getData();
-                String username = user.getUsername();
-                User.Role roleName = user.getRole();
-                boolean isVip = user.isVIP();
-
-                // save into SceneController
-                SceneController.loggedUsername     = username;
-                SceneController.setCurrentUserRole(roleName);
-                SceneController.isVIP = isVip;
-
+            if ("LOGIN_SUCCESS".equals(msg.getAction())) {
+                User u = (User) msg.getData();
+                SceneController.loggedUsername = u.getUsername();
+                SceneController.setCurrentUserRole(u.getRole());
+                SceneController.isVIP = u.isVIP();
                 SceneController.switchScene("home");
-            } else { // otherwise we send out an error
-                String message = msg.getData().toString();
+            } else {
+                String message = String.valueOf(msg.getData());
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Login Error");
                 alert.setHeaderText(null);
-                alert.setContentText(
-                        message.equals("Account is inactive")
-                                ? "This account is inactive. Please contact support."
-                                : "Invalid credentials or user does not exist."
-                );
+                alert.setContentText(message);
                 alert.showAndWait();
             }
         });
     }
+
+
 
 
     @Subscribe
