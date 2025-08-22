@@ -68,27 +68,25 @@ public class SimpleServer extends AbstractServer {
                     String password = credentials[1];
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-                        Query<User> query = session.createQuery("FROM User WHERE username = :u AND password = :p", User.class);
-                        query.setParameter("u", username);
-                        query.setParameter("p", password);
-                        List<User> users = query.list();
+                        User user = session.createQuery(
+                                        "SELECT u FROM User u " +
+                                                "LEFT JOIN FETCH u.branch " +
+                                                "WHERE u.username = :u AND u.password = :p",
+                                        User.class)
+                                .setParameter("u", username)
+                                .setParameter("p", password)
+                                .uniqueResult();
 
-                        User user = users.get(0);
-                        if (users.isEmpty()) {
+                        if (user == null) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
-                            System.out.println("User is not found" + user.getUsername());
                             return;
                         }
-
                         if (!user.isActive()) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
-                            System.out.println("User is inative" + user.getUsername());
                             return;
                         }
-
                         if (onlineUsers.containsKey(username)) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "User is currently logged in"));
-                            System.out.println("User is already online" + user.getUsername());
                             return;
                         }
 
@@ -96,6 +94,7 @@ public class SimpleServer extends AbstractServer {
                         onlineUsers.put(username, client);
                         client.sendToClient(new Msg("LOGIN_SUCCESS", toLoginDTO(user)));
                         System.out.println("Sent to client:" + user.getUsername());
+
                     } catch (Exception e) {
                         e.printStackTrace();
                         client.sendToClient(new Msg("LOGIN_FAILED", "Server error"));

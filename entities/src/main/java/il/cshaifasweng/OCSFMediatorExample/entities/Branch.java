@@ -1,6 +1,7 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Proxy;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -11,6 +12,7 @@ import java.util.List;
  * Maps the `branches` table
  *   branch_id | name | manager_id
  */
+@Proxy(lazy = false)
 @Entity
 @Table(name = "branches")
 public class Branch implements Serializable {
@@ -34,7 +36,7 @@ public class Branch implements Serializable {
     /* ---------- bidirectional helper ↓ (optional) ---------- */
 
     @OneToMany(mappedBy = "branch", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Storage> stockLines = new ArrayList<>();
+    private transient List<Storage> stockLines = new ArrayList<>();
 
     /* ---------- ctors ---------- */
 
