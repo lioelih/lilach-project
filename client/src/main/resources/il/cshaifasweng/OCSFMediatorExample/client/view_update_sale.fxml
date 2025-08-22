@@ -1,65 +1,134 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.geometry.Pos?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane xmlns:fx="http://javafx.com/fxml"
+<ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.ViewUpdateSaleController"
-            prefWidth="800" prefHeight="600">
+            fitToWidth="true" fitToHeight="true"
+            style="-fx-background-color: linear-gradient(to bottom, #f7f9fb, #eef3f7);">
+    <content>
+        <VBox alignment="TOP_CENTER" spacing="24" prefWidth="900">
+            <padding>
+                <Insets top="24" right="24" bottom="24" left="24"/>
+            </padding>
 
-    <VBox spacing="15" alignment="CENTER"
-          AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0"
-          AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
-        <padding>
-            <Insets top="20" right="30" bottom="20" left="30"/>
-        </padding>
+            <!-- Card -->
+            <VBox spacing="20" maxWidth="900"
+                  style="-fx-background-color: white; -fx-background-radius: 14; -fx-padding: 24; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 18, 0, 0, 6);">
 
-        <Label text="View / Edit Sale" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <!-- Header -->
+                <Label text="View / Edit Sale"
+                       style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #0f172a;"/>
 
-        <HBox spacing="10" alignment="CENTER">
-            <Label text="Name:"/>
-            <Label fx:id="nameLabel"/>
-        </HBox>
+                <!-- Primary info grid -->
+                <GridPane hgap="24" vgap="14">
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="40"/>
+                        <ColumnConstraints percentWidth="60"/>
+                    </columnConstraints>
 
-        <HBox spacing="10" alignment="CENTER">
-            <Label text="Description:"/>
-            <Label fx:id="descriptionLabel"/>
-        </HBox>
+                    <!-- Left block: Name / Description -->
+                    <VBox GridPane.rowIndex="0" GridPane.columnIndex="0" spacing="10">
+                        <Label text="Name" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                        <Label fx:id="nameLabel"
+                               style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 10; -fx-background-color: #f8fafc; -fx-background-radius: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 10;"/>
 
-        <HBox spacing="10" alignment="CENTER">
-            <Label text="Type:"/>
-            <Label fx:id="typeLabel"/>
-        </HBox>
+                        <Label text="Description" style="-fx-font-size: 12px; -fx-text-fill: #64748b; -fx-padding: 6 0 0 0;"/>
+                        <Label fx:id="descriptionLabel"
+                               wrapText="true"
+                               style="-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #f8fafc; -fx-background-radius: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 10;"/>
+                    </VBox>
 
-        <HBox spacing="10" alignment="CENTER">
-            <Label text="Discount Value:"/>
-            <TextField fx:id="valueField" prefWidth="100"/>
-        </HBox>
+                    <!-- Right block: Type & Discount -->
+                    <VBox GridPane.rowIndex="0" GridPane.columnIndex="1" spacing="12">
+                        <Label text="Type" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                        <Label fx:id="typeLabel"
+                               style="-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #f8fafc; -fx-background-radius: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 10;"/>
 
-        <HBox spacing="10" alignment="CENTER">
-            <Label text="Buy Quantity:"/>
-            <TextField fx:id="buyQtyField" prefWidth="100"/>
-            <Label text="Get Quantity:"/>
-            <TextField fx:id="getQtyField" prefWidth="100"/>
-        </HBox>
+                        <Label text="Discount Value" style="-fx-font-size: 12px; -fx-text-fill: #64748b; -fx-padding: 6 0 0 0;"/>
+                        <TextField fx:id="valueField" promptText="e.g. 10 or 10%"
+                                   style="-fx-font-size: 14px; -fx-background-radius: 10; -fx-padding: 10;"/>
+                    </VBox>
+                </GridPane>
 
-        <HBox spacing="20" alignment="CENTER">
-            <Label text="Start Date:"/>
-            <DatePicker fx:id="startDatePicker"/>
-            <Label text="End Date:"/>
-            <DatePicker fx:id="endDatePicker"/>
-        </HBox>
+                <Separator/>
 
-        <VBox spacing="10" fx:id="productBox1" alignment="CENTER_LEFT"/>
-        <VBox spacing="10" fx:id="productBox2" alignment="CENTER_LEFT"/>
+                <!-- Quantities row -->
+                <GridPane hgap="16" vgap="12">
+                    <columnConstraints>
+                        <ColumnConstraints halignment="RIGHT" minWidth="140"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                        <ColumnConstraints halignment="RIGHT" minWidth="140"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
 
-        <HBox spacing="20" alignment="CENTER">
-            <Button fx:id="saveButton" text="Save Changes"/>
-            <Button fx:id="deleteButton" text="Delete Sale"/>
-            <Button fx:id="cancelButton" text="Cancel"/>
-        </HBox>
-    </VBox>
-</AnchorPane>
+                    <Label text="Buy Quantity:" GridPane.rowIndex="0" GridPane.columnIndex="0" style="-fx-text-fill: #334155;"/>
+                    <TextField fx:id="buyQtyField" prefWidth="120" GridPane.rowIndex="0" GridPane.columnIndex="1"
+                               style="-fx-background-radius: 8; -fx-padding: 8;"/>
+
+                    <Label text="Get Quantity:" GridPane.rowIndex="0" GridPane.columnIndex="2" style="-fx-text-fill: #334155;"/>
+                    <TextField fx:id="getQtyField" prefWidth="120" GridPane.rowIndex="0" GridPane.columnIndex="3"
+                               style="-fx-background-radius: 8; -fx-padding: 8;"/>
+                </GridPane>
+
+                <!-- Dates row -->
+                <GridPane hgap="16" vgap="12">
+                    <columnConstraints>
+                        <ColumnConstraints halignment="RIGHT" minWidth="140"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                        <ColumnConstraints halignment="RIGHT" minWidth="140"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+
+                    <Label text="Start Date:" GridPane.rowIndex="0" GridPane.columnIndex="0" style="-fx-text-fill: #334155;"/>
+                    <DatePicker fx:id="startDatePicker" GridPane.rowIndex="0" GridPane.columnIndex="1"
+                                style="-fx-background-radius: 8; -fx-padding: 6;"/>
+
+                    <Label text="End Date:" GridPane.rowIndex="0" GridPane.columnIndex="2" style="-fx-text-fill: #334155;"/>
+                    <DatePicker fx:id="endDatePicker" GridPane.rowIndex="0" GridPane.columnIndex="3"
+                                style="-fx-background-radius: 8; -fx-padding: 6;"/>
+                </GridPane>
+
+                <Separator/>
+
+                <!-- Products section -->
+                <VBox spacing="12">
+                    <Label text="Products in this Sale"
+                           style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                    <GridPane hgap="16" vgap="16">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="50"/>
+                            <ColumnConstraints percentWidth="50"/>
+                        </columnConstraints>
+
+                        <!-- Product 1 -->
+                        <VBox GridPane.rowIndex="0" GridPane.columnIndex="0" spacing="10"
+                              style="-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-padding: 12; -fx-border-color: #e5e7eb; -fx-border-radius: 12;">
+                            <VBox fx:id="productBox1" spacing="8" alignment="CENTER"/>
+                        </VBox>
+
+                        <!-- Product 2 -->
+                        <VBox GridPane.rowIndex="0" GridPane.columnIndex="1" spacing="10"
+                              style="-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-padding: 12; -fx-border-color: #e5e7eb; -fx-border-radius: 12;">
+                            <VBox fx:id="productBox2" spacing="8" alignment="CENTER"/>
+                        </VBox>
+                    </GridPane>
+                </VBox>
+
+                <Separator/>
+
+                <!-- Bottom Actions -->
+                <HBox alignment="CENTER_RIGHT" spacing="12">
+                    <Button fx:id="deleteButton" text="Delete Sale"
+                            style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-background-radius: 10; -fx-padding: 10 16;"/>
+                    <Button fx:id="saveButton" text="Save Changes"
+                            style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 10; -fx-padding: 10 16;"/>
+                    <Button fx:id="cancelButton" text="Cancel"
+                            style="-fx-background-color: #e5e7eb; -fx-text-fill: #111827; -fx-background-radius: 10; -fx-padding: 10 16;"/>
+                </HBox>
+            </VBox>
+        </VBox>
+    </content>
+</ScrollPane>

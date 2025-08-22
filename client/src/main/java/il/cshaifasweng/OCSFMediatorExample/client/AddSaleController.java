@@ -21,8 +21,6 @@ import java.util.List;
 
 public class AddSaleController {
 
-    @FXML private ImageView logoImage;
-    @FXML private VBox root;
     @FXML private TextField nameField;
     @FXML private TextField descriptionField;
     @FXML private ComboBox<String> discountTypeBox;
@@ -45,7 +43,6 @@ public class AddSaleController {
 
     @FXML
     public void initialize() {
-        logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
         discountTypeBox.setItems(FXCollections.observableArrayList(
                 "Percentage", "Fixed", "Bundle", "Buy_X_Get_Y"
         ));
