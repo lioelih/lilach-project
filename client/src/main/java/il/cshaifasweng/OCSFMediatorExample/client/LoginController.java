@@ -25,15 +25,20 @@ public class LoginController {
         submitButton.setOnAction(event -> {
             String username = usernameField.getText();
             String password = passwordField.getText();
-
             if (!isValidInput(username, password)) return;
 
             try {
+                if (!SimpleClient.ensureConnected()) {
+                    showAlert("Connection to server was lost. Please try again.");
+                    return;
+                }
                 SimpleClient.getClient().sendToServer(new Msg("LOGIN", new String[]{username, password}));
             } catch (IOException e) {
                 e.printStackTrace();
+                showAlert("Failed to send login. " + e.getMessage());
             }
         });
+
         Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
         logoImage.setImage(logo);
     }
