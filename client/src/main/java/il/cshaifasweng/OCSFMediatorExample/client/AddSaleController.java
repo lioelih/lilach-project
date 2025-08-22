@@ -27,6 +27,7 @@ public class AddSaleController {
     @FXML private DatePicker startDatePicker;
     @FXML private DatePicker endDatePicker;
     @FXML private VBox dynamicContainer;
+    @FXML private Button cancelButton;
     @FXML private Button addButton;
     @FXML private Label errorMsg;
 
@@ -63,6 +64,8 @@ public class AddSaleController {
                 setDisable(empty || date.isBefore(today));
             }
         });
+
+        cancelButton.setOnAction(e -> ((Stage) cancelButton.getScene().getWindow()).close());
 
         addButton.setOnAction(e -> {
             Sale newSale = buildSaleFromInputs();
