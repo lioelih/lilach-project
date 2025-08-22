@@ -7,6 +7,7 @@ import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.IOException;
+import java.io.ObjectStreamClass;
 import java.util.List;
 
 public class SimpleClient extends AbstractClient {
@@ -15,6 +16,10 @@ public class SimpleClient extends AbstractClient {
 
 	public SimpleClient(String host, int port) {
 		super(host, port);
+		System.out.println("User.class from:   " + User.class.getResource("User.class"));
+		System.out.println("User SUID:         " + ObjectStreamClass.lookup(User.class).getSerialVersionUID());
+		System.out.println("Branch.class from: " + Branch.class.getResource("Branch.class"));
+		System.out.println("Branch SUID:       " + ObjectStreamClass.lookup(Branch.class).getSerialVersionUID());
 	}
 
 	public static void setClient(SimpleClient c) {
@@ -28,9 +33,12 @@ public class SimpleClient extends AbstractClient {
 		}
 		else if (msg instanceof Msg massage) {
 			switch (massage.getAction()) {
-				case "SENT_CATALOG"      -> EventBus.getDefault()
+				case "SENT_CATALOG"      ->{
+					System.out.println("Meow");
+					EventBus.getDefault()
 						.post(new CatalogEvent("SENT_CATALOG",
 								(List<Product>) massage.getData()));
+				}
 				case "PRODUCT_UPDATED"   -> EventBus.getDefault()
 						.post(new CatalogEvent("PRODUCT_UPDATED",
 								(List<Product>) massage.getData()));
@@ -41,8 +49,10 @@ public class SimpleClient extends AbstractClient {
 						.post(new CatalogEvent("PRODUCT_DELETED",
 								(List<Product>) massage.getData()));
 
-				case "LOGIN_SUCCESS", "LOGIN_FAILED"   ->
+				case "LOGIN_SUCCESS", "LOGIN_FAILED"   ->{
+						System.out.println("Meow");
 						EventBus.getDefault().post(new LoginEvent(massage));
+				}
 				case "REGISTER_SUCCESS", "REGISTER_FAILED" ->
 						EventBus.getDefault().post(new RegisterEvent(massage));
 

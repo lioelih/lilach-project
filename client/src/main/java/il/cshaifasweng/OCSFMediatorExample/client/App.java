@@ -14,7 +14,8 @@ import javafx.scene.control.TextInputDialog;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
-
+import il.cshaifasweng.LoginUserDTO;
+import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -98,9 +99,10 @@ public class App extends Application {
         Msg msg = event.getMsg();
         Platform.runLater(() -> {
             if ("LOGIN_SUCCESS".equals(msg.getAction())) {
-                User u = (User) msg.getData();
+                LoginUserDTO u = (LoginUserDTO) msg.getData();
                 SceneController.loggedUsername = u.getUsername();
-                SceneController.setCurrentUserRole(u.getRole());
+
+                SceneController.setCurrentUserRole(User.Role.valueOf(u.getRole()));
                 SceneController.isVIP = u.isVIP();
                 SceneController.switchScene("home");
             } else {

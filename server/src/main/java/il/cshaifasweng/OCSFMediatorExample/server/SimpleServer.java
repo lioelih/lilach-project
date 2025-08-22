@@ -8,6 +8,7 @@ import il.cshaifasweng.OCSFMediatorExample.server.ocsf.SubscribedClient;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.hibernate.Transaction;
+import il.cshaifasweng.LoginUserDTO;
 
 import javax.mail.MessagingException;
 import java.io.IOException;
@@ -93,7 +94,7 @@ public class SimpleServer extends AbstractServer {
 
                         client.setInfo("username", username);
                         onlineUsers.put(username, client);
-                        client.sendToClient(new Msg("LOGIN_SUCCESS", user));
+                        client.sendToClient(new Msg("LOGIN_SUCCESS", toLoginDTO(user)));
                         System.out.println("Sent to client:" + user.getUsername());
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -1730,6 +1731,25 @@ public class SimpleServer extends AbstractServer {
             onlineUsers.remove(username);
             client.setInfo("username", null);
         }
+    }
+    private static LoginUserDTO toLoginDTO(User u) {
+        LoginUserDTO d = new LoginUserDTO();
+        d.setId(u.getId());
+        d.setUsername(u.getUsername());
+        d.setEmail(u.getEmail());
+        d.setFullName(u.getFullName());
+        d.setPhoneNumber(u.getPhoneNumber());
+        d.setRole(u.getRole().name());
+        d.setVIP(u.isVIP());
+        d.setActive(u.isActive());
+        d.setVipExpirationDate(u.getVipExpirationDate());
+        d.setVipCanceled(u.getVipCanceled());
+        d.setCompensationTab(u.getCompensationTab());
+        if (u.getBranch() != null) {
+            d.setBranchId(u.getBranch().getBranchId());
+            d.setBranchName(u.getBranch().getBranchName());
+        }
+        return d;
     }
 
 }
