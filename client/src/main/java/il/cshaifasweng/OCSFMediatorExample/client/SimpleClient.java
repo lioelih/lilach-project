@@ -93,4 +93,16 @@ public class SimpleClient extends AbstractClient {
 		}
 		return true;
 	}
+
+	public static void logoutAndClose(String username) {
+		if (client == null) return;
+		try {
+			if (!client.isConnected()) client.openConnection();
+			client.sendToServer(new Msg("LOGOUT", username));
+		} catch (IOException ignored) {
+		} finally {
+			try { client.closeConnection(); } catch (IOException ignored) {}
+		}
+	}
+
 }
