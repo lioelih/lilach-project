@@ -2,11 +2,13 @@ package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import jakarta.persistence.*;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 @Entity
 @Table(name = "custom_bouquet_item")
 public class CustomBouquetItem implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Id

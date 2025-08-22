@@ -2,6 +2,7 @@ package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import jakarta.persistence.*;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
@@ -12,6 +13,7 @@ import java.io.Serializable;
 @Table(name = "storage",
         uniqueConstraints = @UniqueConstraint(columnNames = {"product_id", "branch_id"}))
 public class Storage implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Id

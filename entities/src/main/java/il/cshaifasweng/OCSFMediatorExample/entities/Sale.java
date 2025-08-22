@@ -1,6 +1,8 @@
 package il.cshaifasweng.OCSFMediatorExample.entities;
 
 import jakarta.persistence.*;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -11,6 +13,8 @@ import java.util.Map;
 @Entity
 @Table(name = "sales")
 public class Sale implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     public enum DiscountType {
         PERCENTAGE, FIXED, BUNDLE, BUY_X_GET_Y

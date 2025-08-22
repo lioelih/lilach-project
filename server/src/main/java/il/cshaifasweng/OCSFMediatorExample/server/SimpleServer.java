@@ -72,25 +72,29 @@ public class SimpleServer extends AbstractServer {
                         query.setParameter("p", password);
                         List<User> users = query.list();
 
+                        User user = users.get(0);
                         if (users.isEmpty()) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
+                            System.out.println("User is not found" + user.getUsername());
                             return;
                         }
 
-                        User user = users.get(0);
                         if (!user.isActive()) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
+                            System.out.println("User is inative" + user.getUsername());
                             return;
                         }
 
                         if (onlineUsers.containsKey(username)) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "User is currently logged in"));
+                            System.out.println("User is already online" + user.getUsername());
                             return;
                         }
 
                         client.setInfo("username", username);
                         onlineUsers.put(username, client);
                         client.sendToClient(new Msg("LOGIN_SUCCESS", user));
+                        System.out.println("Sent to client:" + user.getUsername());
                     } catch (Exception e) {
                         e.printStackTrace();
                         client.sendToClient(new Msg("LOGIN_FAILED", "Server error"));
