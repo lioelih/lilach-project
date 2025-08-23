@@ -24,6 +24,7 @@ import java.util.Optional;
 
 public class ProductViewController {
 
+    @FXML public Button cancelButton;
     @FXML private TextField nameField, typeField, priceField, qtyField;
     @FXML private ImageView imageView;
     @FXML private Button updateButton, deleteButton, saveStockBtn;
@@ -50,6 +51,7 @@ public class ProductViewController {
         });
 
         saveStockBtn.setDisable(true);
+        cancelButton.setOnAction(e -> ((Stage) cancelButton.getScene().getWindow()).close());
         branchBox.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldV, newV) -> saveStockBtn.setDisable(newV == null));
     }

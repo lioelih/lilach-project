@@ -1,0 +1,165 @@
+/* ---------- Root & Layout ---------- */
+.edit-root {
+    -fx-background-color: linear-gradient(to bottom, #f7f9fb, #eef3f7);
+}
+
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 14;
+    -fx-padding: 24;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 18, 0, 0, 6);
+}
+
+/* Optional top bar styling (used on Add Sale page) */
+.topbar {
+    -fx-background-color: white;
+    -fx-padding: 16;
+}
+
+/* ---------- Typography ---------- */
+.header-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0f172a;
+}
+
+.muted-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #64748b;
+}
+
+.pill-label {
+    -fx-font-size: 14px;
+    -fx-padding: 10;
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 10;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 10;
+}
+
+.pill-label.bold {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* ---------- Inputs ---------- */
+.input-text {
+    -fx-font-size: 14px;
+    -fx-background-radius: 10;
+    -fx-padding: 10;
+}
+
+.input-qty {
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+}
+
+.input-date {
+    -fx-background-radius: 8;
+    -fx-padding: 6;
+}
+
+/* ---------- Product / parameter cards ---------- */
+.product-card, .section-card {
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 12;
+    -fx-padding: 12;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 12;
+}
+
+/* ---------- Buttons (IDs so we don’t affect other pages) ---------- */
+/* Shared hover pattern: default color + slightly darker on hover */
+
+/* Cancel (gray) */
+#cancelBtn {
+    -fx-background-color: #e5e7eb;
+    -fx-text-fill: #111827;
+    -fx-background-radius: 10;
+    -fx-padding: 10 16;
+}
+#cancelBtn:hover {
+    -fx-background-color: #d1d5db;
+}
+
+/* Delete (red) */
+#deleteBtn {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 10 16;
+}
+#deleteBtn:hover {
+    -fx-background-color: #dc2626;
+}
+
+/* Save (green) — used on View/Edit page */
+#saveBtn {
+    -fx-background-color: #16a34a;
+    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 10 16;
+}
+#saveBtn:hover {
+    -fx-background-color: #15803d;
+}
+
+/* Add (green) — used on Add Sale page */
+#addBtn {
+    -fx-background-color: #16a34a;
+    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 10 16;
+}
+#addBtn:hover {
+    -fx-background-color: #15803d;
+}
+
+/* Quality-of-life (verifies CSS is loaded) */
+.button {
+    -fx-cursor: hand;
+}
+/* already existing cancelBtn, deleteBtn, saveBtn, addBtn */
+
+/* Update (green) – for Product update */
+#updateBtn {
+    -fx-background-color: #16a34a;
+    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 10 16;
+}
+#updateBtn:hover {
+    -fx-background-color: #15803d;
+}
+
+/* Delete Product – reuse deleteBtn */
+#deleteBtn {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: white;
+    -fx-background-radius: 10;
+    -fx-padding: 10 16;
+}
+#deleteBtn:hover {
+    -fx-background-color: #dc2626;
+}
+
+/* Save stock (blue) */
+#saveStockBtn {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-padding: 8 14;
+}
+#saveStockBtn:hover {
+    -fx-background-color: #1d4ed8;
+}
+/* Drop zone for image (dashed border, light background) */
+.image-drop {
+    -fx-background-color: #f1f5f9;
+    -fx-background-radius: 10;
+    -fx-padding: 8;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 10;
+    -fx-border-width: 2;
+    -fx-border-style: dashed;
+}

@@ -9,7 +9,9 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.AddProductController"
             fitToWidth="true" fitToHeight="true"
-            style="-fx-background-color: linear-gradient(to bottom, #f7f9fb, #eef3f7);">
+            stylesheets="@editStyle.css"
+            styleClass="edit-root">
+
     <content>
         <VBox alignment="TOP_CENTER" spacing="24" prefWidth="1000" fillWidth="false">
             <padding>
@@ -17,9 +19,7 @@
             </padding>
 
             <!-- Card -->
-            <VBox spacing="20" maxWidth="900"
-                  style="-fx-background-color: white; -fx-background-radius: 14; -fx-padding: 24;
-                         -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 18, 0, 0, 6);">
+            <VBox spacing="20" maxWidth="900" styleClass="card">
 
                 <!-- Header: image + main fields -->
                 <GridPane hgap="24" vgap="14">
@@ -28,33 +28,25 @@
                         <ColumnConstraints percentWidth="55"/>
                     </columnConstraints>
 
-                    <!-- Image block (keeps your fx:id=imageDrop) -->
-                    <StackPane GridPane.rowIndex="0" GridPane.columnIndex="0"
-                               style="-fx-background-color:#f1f5f9; -fx-background-radius:10; -fx-padding:8;
-                  -fx-border-color:#e5e7eb; -fx-border-radius:10;
-                  -fx-border-width:2; -fx-border-style:dashed;">
+                    <!-- Image block -->
+                    <StackPane GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="image-drop">
                         <ImageView fx:id="imageDrop" fitWidth="380" fitHeight="260" preserveRatio="true"/>
                     </StackPane>
 
                     <!-- Fields -->
                     <VBox spacing="12" GridPane.rowIndex="0" GridPane.columnIndex="1">
                         <!-- Name -->
-                        <Label fx:id="nameLabel" text="Name"
-                               style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
-                        <TextField fx:id="nameField" promptText="Enter product name"
-                                   style="-fx-font-size: 16px; -fx-background-radius: 10; -fx-padding: 10;"/>
+                        <Label fx:id="nameLabel" text="Name" styleClass="muted-label"/>
+                        <TextField fx:id="nameField" promptText="Enter product name" styleClass="input-text"/>
 
                         <!-- Type -->
-                        <Label fx:id="typeLabel" text="Type"
-                               style="-fx-font-size: 12px; -fx-text-fill: #64748b; -fx-padding: 6 0 0 0;"/>
-                        <TextField fx:id="typeField" promptText="Enter type/category"
-                                   style="-fx-font-size: 14px; -fx-background-radius: 10; -fx-padding: 10;"/>
+                        <Label fx:id="typeLabel" text="Type" styleClass="muted-label"/>
+                        <TextField fx:id="typeField" promptText="Enter type/category" styleClass="input-text"/>
 
                         <!-- Price -->
-                        <Label text="Price"
-                               style="-fx-font-size: 12px; -fx-text-fill: #64748b; -fx-padding: 6 0 0 0;"/>
+                        <Label text="Price" styleClass="muted-label"/>
                         <TextField fx:id="priceField" promptText="₪0.00" prefWidth="160"
-                                   style="-fx-background-radius: 10; -fx-padding: 10; -fx-font-weight: bold;"/>
+                                   styleClass="input-text"/>
                     </VBox>
                 </GridPane>
 
@@ -62,11 +54,8 @@
 
                 <!-- Actions -->
                 <HBox alignment="CENTER_RIGHT" spacing="12">
-                    <Label fx:id="errorMsg" textFill="RED"
-                           style="-fx-font-size: 12px;" HBox.hgrow="ALWAYS"/>
-                    <Button fx:id="addButton" text="Add Item"
-                            style="-fx-background-color: #2563eb; -fx-text-fill: white;
-                                   -fx-background-radius: 10; -fx-padding: 10 16;"/>
+                    <Button fx:id="cancelButton" id="cancelBtn" text="Cancel"/>
+                    <Button fx:id="addButton"    id="addBtn"    text="Add Item"/>
                 </HBox>
             </VBox>
         </VBox>

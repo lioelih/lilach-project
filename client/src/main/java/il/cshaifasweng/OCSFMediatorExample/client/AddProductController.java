@@ -15,6 +15,7 @@ import javafx.stage.Stage;
 
 public class AddProductController {
 
+    @FXML public Button cancelButton;
     @FXML private TextField nameField;
     @FXML private TextField typeField;
     @FXML private TextField priceField;
@@ -53,6 +54,7 @@ public class AddProductController {
             event.consume();
         });
 
+        cancelButton.setOnAction(e -> ((Stage) cancelButton.getScene().getWindow()).close());
         addButton.setOnAction(event -> handleAddProduct());
     }
 

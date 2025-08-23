@@ -6,25 +6,23 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.AddSaleController"
-            prefWidth="1280.0" prefHeight="720.0">
+            prefWidth="1280.0" prefHeight="720.0"
+            stylesheets="@editStyle.css">
 
-    <!-- Simple Top Bar (white background, like View/Edit Sale) -->
+    <!-- Simple Top Bar (white background, same family as View/Edit) -->
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="20"
-              style="-fx-background-color: white; -fx-padding: 16;">
+        <HBox alignment="CENTER_LEFT" spacing="20" styleClass="topbar">
             <padding>
                 <Insets left="80" right="20"/>
             </padding>
-            <Label text="Add Sale"
-                   style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #0f172a;"/>
+            <Label text="Add Sale" styleClass="header-title"/>
             <Region HBox.hgrow="ALWAYS"/>
         </HBox>
     </top>
 
     <!-- Center: Scrollable gradient background with a single white 'card' -->
     <center>
-        <ScrollPane fitToWidth="true" fitToHeight="true"
-                    style="-fx-background-color: linear-gradient(to bottom, #f7f9fb, #eef3f7);">
+        <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="edit-root">
             <content>
                 <VBox alignment="TOP_CENTER" spacing="24" prefWidth="900">
                     <padding>
@@ -32,35 +30,30 @@
                     </padding>
 
                     <!-- Card -->
-                    <VBox spacing="18" maxWidth="900"
-                          style="-fx-background-color: white; -fx-background-radius: 14; -fx-padding: 24; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 18, 0, 0, 6);">
+                    <VBox spacing="18" maxWidth="900" styleClass="card">
 
                         <!-- Internal root container (preserve fx:id="root") -->
                         <VBox fx:id="root" alignment="TOP_CENTER" spacing="16">
 
                             <!-- Title inside card -->
-                            <Label text="Create a New Sale"
-                                   style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #0f172a;"/>
+                            <Label text="Create a New Sale" styleClass="header-title"/>
 
                             <!-- Name -->
                             <VBox spacing="6" maxWidth="640">
-                                <Label text="Name" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
-                                <TextField fx:id="nameField" promptText="Sale name"
-                                           style="-fx-background-radius: 10; -fx-padding: 10;"/>
+                                <Label text="Name" styleClass="muted-label"/>
+                                <TextField fx:id="nameField" promptText="Sale name" styleClass="input-text"/>
                             </VBox>
 
                             <!-- Description -->
                             <VBox spacing="6" maxWidth="640">
-                                <Label text="Description" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
-                                <TextField fx:id="descriptionField" promptText="Short description"
-                                           style="-fx-background-radius: 10; -fx-padding: 10;"/>
+                                <Label text="Description" styleClass="muted-label"/>
+                                <TextField fx:id="descriptionField" promptText="Short description" styleClass="input-text"/>
                             </VBox>
 
                             <!-- Type -->
                             <VBox spacing="6" maxWidth="640">
-                                <Label text="Discount Type" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
-                                <ComboBox fx:id="discountTypeBox" promptText="Select Discount Type" prefWidth="200.0"
-                                          style="-fx-background-radius: 10; -fx-padding: 8;"/>
+                                <Label text="Discount Type" styleClass="muted-label"/>
+                                <ComboBox fx:id="discountTypeBox" promptText="Select Discount Type" prefWidth="200.0" styleClass="input-text"/>
                             </VBox>
 
                             <!-- Dates -->
@@ -71,32 +64,27 @@
                                 </columnConstraints>
 
                                 <VBox spacing="6" GridPane.rowIndex="0" GridPane.columnIndex="0">
-                                    <Label text="Start Date" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
-                                    <DatePicker fx:id="startDatePicker"
-                                                style="-fx-background-radius: 10; -fx-padding: 6;"/>
+                                    <Label text="Start Date" styleClass="muted-label"/>
+                                    <DatePicker fx:id="startDatePicker" styleClass="input-date"/>
                                 </VBox>
 
                                 <VBox spacing="6" GridPane.rowIndex="0" GridPane.columnIndex="1">
-                                    <Label text="End Date" style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
-                                    <DatePicker fx:id="endDatePicker"
-                                                style="-fx-background-radius: 10; -fx-padding: 6;"/>
+                                    <Label text="End Date" styleClass="muted-label"/>
+                                    <DatePicker fx:id="endDatePicker" styleClass="input-date"/>
                                 </VBox>
                             </GridPane>
 
                             <!-- Dynamic section -->
-                            <VBox spacing="10" maxWidth="640"
-                                  style="-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-padding: 12; -fx-border-color: #e5e7eb; -fx-border-radius: 12;">
-                                <Label text="Sale Parameters"
-                                       style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                            <VBox spacing="10" maxWidth="640" styleClass="section-card">
+                                <Label text="Sale Parameters" styleClass="muted-label"/>
                                 <VBox fx:id="dynamicContainer" spacing="10" alignment="TOP_CENTER"/>
                             </VBox>
 
                             <!-- Actions -->
                             <HBox spacing="12" alignment="CENTER_RIGHT" maxWidth="640">
-                                <Button fx:id="cancelButton" text="Cancel"
-                                        style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-background-radius: 10; -fx-padding: 10 16;"/>
-                                <Button fx:id="addButton" text="Add Sale"
-                                        style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 10; -fx-padding: 10 16;"/>
+                                <!-- Keep fx:id for controller; add CSS ids for styling -->
+                                <Button fx:id="cancelButton" id="cancelBtn" text="Cancel"/>
+                                <Button fx:id="addButton"    id="addBtn"    text="Add Sale"/>
                             </HBox>
 
                         </VBox>
