@@ -131,18 +131,14 @@ public class VIPController  {
     @Subscribe
     public void onUserUpdated(Msg msg) {
         if (!"USER_UPDATED".equals(msg.getAction())) return;
-        User updated = (User) msg.getData();
-        if (updated == null) return;
-        if (!Objects.equals(updated.getUsername(), SceneController.loggedUsername)) return;
-
-        this.user = updated;
-        Platform.runLater(() -> {
-            boolean isVipAndActive = user.isVIP() && !user.getVipCanceled();
-            subscribeButton.setDisable(isVipAndActive);
-            cancelVipButton.setVisible(isVipAndActive);
-            cancelVipButton.setManaged(isVipAndActive);
-        });
+        if (SceneController.loggedUsername == null) return;
+        try {
+            SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
 
     @Subscribe
     public void onAccountFrozen(Msg msg) {

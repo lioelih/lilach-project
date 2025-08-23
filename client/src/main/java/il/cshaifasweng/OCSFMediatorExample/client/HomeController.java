@@ -16,7 +16,12 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import javafx.application.Platform;
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -37,6 +42,8 @@ public class HomeController {
     @FXML private ImageView storeImage;
     @FXML
     public void initialize() {
+        try { EventBus.getDefault().unregister(this); } catch (Exception ignored) {}
+        EventBus.getDefault().register(this);
         boolean loggedIn  = SceneController.loggedUsername != null;
         boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
 
@@ -96,5 +103,46 @@ public class HomeController {
         storeImage.setImage(new javafx.scene.image.Image(
                 getClass().getResourceAsStream("/image/rose.png"),
                 1100, 500, /*preserveRatio=*/false, /*smooth=*/true));
+    }
+
+    @Subscribe
+    public void onMsg(Msg msg) {
+        switch (msg.getAction()) {
+            case "LOCAL_ROLE_VIP_CHANGED":
+            case "USER_UPDATED":
+            case "VIP_ACTIVATED":
+            case "VIP_CANCELLED":
+                Platform.runLater(this::refreshUIFromSession);
+                break;
+            case "ACCOUNT_FROZEN":
+                Platform.runLater(() ->
+                        SceneController.forceLogoutWithAlert((String) msg.getData())
+                );
+                break;
+        }
+    }
+
+    private void refreshUIFromSession() {
+        boolean loggedIn  = SceneController.loggedUsername != null;
+        boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
+
+        loginButton.setVisible(!loggedIn);   loginButton.setManaged(!loggedIn);
+        registerButton.setVisible(!loggedIn);registerButton.setManaged(!loggedIn);
+
+        logoutButton.setVisible(loggedIn);   logoutButton.setManaged(loggedIn);
+        ordersButton.setVisible(loggedIn);   ordersButton.setManaged(loggedIn);
+
+        usersButton.setVisible(canWorker);   usersButton.setManaged(canWorker);
+
+        boolean showVipCta = !SceneController.isVIP;
+        vip2Button.setVisible(showVipCta);   vip2Button.setManaged(showVipCta);
+
+        if (loggedIn) {
+            welcomeLabel.setText("Welcome, " + SceneController.loggedUsername);
+            welcomeLabel.setVisible(true);
+        } else {
+            welcomeLabel.setText("");
+            welcomeLabel.setVisible(false);
+        }
     }
 }
