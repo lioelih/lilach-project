@@ -1,12 +1,15 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
 import il.cshaifasweng.OCSFMediatorExample.entities.User;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 import javafx.geometry.Rectangle2D;
 import javafx.stage.Screen;
+import javafx.stage.Window;
 import java.io.IOException;
 
 public class SceneController {
@@ -16,26 +19,48 @@ public class SceneController {
 
     private static User.Role currentUserRole;
 
-    /** Call once on successful login to remember the user’s permission level. */
     public static void setCurrentUserRole(User.Role role) {
         currentUserRole = role;
     }
 
-    /** Returns the currently logged‑in user’s role (may be null if not logged in). */
     public static User.Role getCurrentUserRole() {
         return currentUserRole;
     }
 
-    /**
-     * Convenience to see if the current user is at least at the given role.
-     * e.g. hasPermission(Role.WORKER) is true for WORKER, MANAGER or ADMIN.
-     */
     public static boolean hasPermission(User.Role required) {
         if (currentUserRole == null) return false;
         return currentUserRole.ordinal() >= required.ordinal();
     }
+
     public static void setMainStage(Stage stage) {
         mainStage = stage;
+    }
+
+    public static void clearPermissions() {
+        currentUserRole = null;
+        isVIP = false;
+    }
+
+    public static void forceLogoutWithAlert(String text) {
+        Platform.runLater(() -> {
+            try {
+                Alert a = new Alert(Alert.AlertType.ERROR);
+                a.setTitle("Account Frozen");
+                a.setHeaderText(null);
+                a.setContentText((text != null && !text.isBlank())
+                        ? text
+                        : "Your account has been frozen. Contact support for more information.");
+                a.showAndWait();
+            } catch (Exception ignored) {}
+
+            loggedUsername = null;
+            clearPermissions();
+
+            for (Window w : Window.getWindows()) {
+                if (w instanceof Stage s && s.isShowing()) s.close();
+            }
+            switchScene("home");
+        });
     }
 
     public static void switchScene(String fxmlName) {
@@ -43,7 +68,6 @@ public class SceneController {
             FXMLLoader loader = new FXMLLoader(SceneController.class.getResource(fxmlName + ".fxml"));
             Parent root = loader.load();
 
-            // Get usable screen bounds (excludes task-bar)
             Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
 
             Scene scene = new Scene(root, visualBounds.getWidth(), visualBounds.getHeight());
@@ -58,5 +82,4 @@ public class SceneController {
             e.printStackTrace();
         }
     }
-
 }

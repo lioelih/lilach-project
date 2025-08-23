@@ -52,7 +52,8 @@
                             <GridPane hgap="14" vgap="12">
                                 <columnConstraints>
                                     <ColumnConstraints percentWidth="18"/>
-                                    <ColumnConstraints percentWidth="82"/>
+                                    <ColumnConstraints percentWidth="52"/>
+                                    <ColumnConstraints percentWidth="30"/>
                                 </columnConstraints>
 
                                 <Label text="Name:" GridPane.rowIndex="0" GridPane.columnIndex="0" style="-fx-text-fill:#334155;"/>
@@ -64,9 +65,10 @@
                                 <ComboBox fx:id="styleBox" GridPane.rowIndex="1" GridPane.columnIndex="1"
                                           style="-fx-background-radius:10; -fx-padding:8;"/>
 
-                                <Label text="Pot:" GridPane.rowIndex="2" GridPane.columnIndex="0" style="-fx-text-fill:#334155;"/>
-                                <ComboBox fx:id="potBox" GridPane.rowIndex="2" GridPane.columnIndex="1"
-                                          style="-fx-background-radius:10; -fx-padding:8;"/>
+                                <ImageView fx:id="stylePreview"
+                                           GridPane.rowIndex="1" GridPane.columnIndex="2"
+                                           fitWidth="120" fitHeight="120" preserveRatio="true"
+                                           style="-fx-background-color:white; -fx-border-color:#d1d5db; -fx-border-radius:10; -fx-background-radius:10;"/>
                             </GridPane>
 
                             <HBox spacing="8" alignment="CENTER_RIGHT">
@@ -82,14 +84,20 @@
                       style="-fx-background-color:white; -fx-background-radius:14; -fx-padding:18;
                              -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 18, 0, 0, 6);">
                     <Label text="Select Flowers" style="-fx-font-size:14px; -fx-text-fill:#334155; -fx-font-weight:bold;"/>
-                    <Label text="Toggle a flower and choose quantity"
-                           style="-fx-text-fill:#64748b;"/>
-                    <ScrollPane fitToWidth="true" prefHeight="260" style="-fx-background:transparent; -fx-background-color:transparent;">
-                        <content>
-                            <FlowPane fx:id="flowerPane"
-                                      hgap="16" vgap="16" alignment="TOP_CENTER" prefWrapLength="920"/>
-                        </content>
-                    </ScrollPane>
+                    <Label text="Toggle a flower and choose quantity" style="-fx-text-fill:#64748b;"/>
+                    <FlowPane fx:id="flowerPane"
+                              hgap="16" vgap="16"
+                              alignment="TOP_CENTER"
+                              prefWrapLength="920"/>
+
+                    <Separator/>
+
+                    <Label text="Select Vase/Pot (optional)" style="-fx-font-size:14px; -fx-text-fill:#334155; -fx-font-weight:bold;"/>
+                    <Label text="Choose exactly one or leave empty" style="-fx-text-fill:#64748b;"/>
+                    <FlowPane fx:id="potPane"
+                              hgap="16" vgap="8"
+                              alignment="CENTER"
+                              prefWrapLength="920"/>
 
                     <HBox alignment="CENTER_RIGHT" spacing="12">
                         <Label fx:id="totalPriceLabel" text="Total Price: ₪0.00"

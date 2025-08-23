@@ -249,10 +249,14 @@ public class SimpleServer extends AbstractServer {
                             user.setActive(true);
                             session.merge(user);
                             session.getTransaction().commit();
+
                             client.sendToClient(new Msg("VIP_ACTIVATED", null));
+                            sendToAllClients(new Msg("USER_UPDATED", user));
+                            sendToUser(username, new Msg("USER_UPDATED", user));
                         }
                     }
                 }
+
 
                 case "CANCEL_VIP" -> {
                     String username = (String) data;
@@ -264,10 +268,14 @@ public class SimpleServer extends AbstractServer {
                             user.setVipCanceled(true);
                             session.merge(user);
                             session.getTransaction().commit();
+
                             client.sendToClient(new Msg("VIP_CANCELLED", null));
+                            sendToAllClients(new Msg("USER_UPDATED", user));
+                            sendToUser(username, new Msg("USER_UPDATED", user));
                         }
                     }
                 }
+
 
                 // catalog crud
                 case "GET_CATALOG" -> {
@@ -1181,32 +1189,47 @@ public class SimpleServer extends AbstractServer {
 
                 // account state changes
                 case "FREEZE_USER" -> {
-                    int userId = (int) data;
+                    int targetId = (int) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         session.beginTransaction();
-                        User user = session.get(User.class, userId);
+                        User user = session.get(User.class, targetId);
                         if (user != null) {
                             user.setActive(false);
                             session.merge(user);
                         }
                         session.getTransaction().commit();
-                        client.sendToClient(new Msg("USER_FREEZE_OK", userId));
+
+                        client.sendToClient(new Msg("USER_FREEZE_OK", targetId));
+                        if (user != null) {
+                            sendToAllClients(new Msg("USER_UPDATED", user));
+                            sendToUser(user.getUsername(),
+                                    new Msg("ACCOUNT_FROZEN", "Your account has been frozen. Contact support for more information."));
+                            ConnectionToClient c = onlineUsers.remove(user.getUsername());
+                            if (c != null) try { c.close(); } catch (IOException ignored) {}
+                        }
                     }
                 }
 
+
                 case "UNFREEZE_USER" -> {
-                    int userId = (int) data;
+                    int targetId = (int) data;
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         session.beginTransaction();
-                        User user = session.get(User.class, userId);
+                        User user = session.get(User.class, targetId);
                         if (user != null) {
                             user.setActive(true);
                             session.merge(user);
                         }
                         session.getTransaction().commit();
-                        client.sendToClient(new Msg("USER_UNFREEZE_OK", userId));
+
+                        client.sendToClient(new Msg("USER_UNFREEZE_OK", targetId));
+                        if (user != null) {
+                            sendToAllClients(new Msg("USER_UPDATED", user));
+                            sendToUser(user.getUsername(), new Msg("USER_UPDATED", user));
+                        }
                     }
                 }
+
 
                 // change role
                 case "CHANGE_ROLE" -> {
@@ -1222,9 +1245,15 @@ public class SimpleServer extends AbstractServer {
                             session.merge(user);
                         }
                         session.getTransaction().commit();
+
                         client.sendToClient(new Msg("CHANGE_ROLE_OK", userId));
+                        if (user != null) {
+                            sendToAllClients(new Msg("USER_UPDATED", user));
+                            sendToUser(user.getUsername(), new Msg("USER_UPDATED", user));
+                        }
                     }
                 }
+
 
                 // update user (validates conflicts, updates branch/role/etc.)
                 case "UPDATE_USER" -> {
@@ -1247,6 +1276,8 @@ public class SimpleServer extends AbstractServer {
                             return;
                         }
 
+                        String oldUsername = user.getUsername();
+
                         List<User> conflicts = session.createQuery(
                                         "FROM User WHERE (username = :username OR email = :email) AND id != :id",
                                         User.class)
@@ -1264,37 +1295,51 @@ public class SimpleServer extends AbstractServer {
                         user.setEmail(newEmail);
                         user.setPhoneNumber(newPhone);
                         user.setRole(User.Role.valueOf(newRole));
-                        user.setActive(newActive);
-                        if (newVip != null) {
-                            user.setVIP(newVip);
-                        }
-                        if (newPassword != null && !newPassword.isBlank()) {
-                            user.setPassword(newPassword);
-                        }
+                        if (newActive != null) user.setActive(newActive);
+                        if (newVip != null)    user.setVIP(newVip);
+                        if (newPassword != null && !newPassword.isBlank()) user.setPassword(newPassword);
                         if (newBranchName != null && !newBranchName.isBlank()) {
                             Branch branch = session.createQuery(
                                             "FROM Branch WHERE branch_name = :name", Branch.class)
                                     .setParameter("name", newBranchName)
                                     .uniqueResult();
-                            if (branch != null) {
-                                user.setBranch(branch);
-                            } else {
+                            if (branch == null) {
                                 client.sendToClient(new Msg("UPDATE_USER_FAILED", "Branch not found"));
                                 session.getTransaction().rollback();
                                 return;
                             }
+                            user.setBranch(branch);
                         }
 
                         session.merge(user);
                         session.getTransaction().commit();
 
                         client.sendToClient(new Msg("UPDATE_USER_OK", null));
+
+                        // move connection key if username changed
+                        if (!oldUsername.equals(newUsername)) {
+                            ConnectionToClient c = onlineUsers.remove(oldUsername);
+                            if (c != null) {
+                                c.setInfo("username", newUsername);
+                                onlineUsers.put(newUsername, c);
+                            }
+                        }
+
                         sendToAllClients(new Msg("USER_UPDATED", user));
+                        sendToUser(newUsername, new Msg("USER_UPDATED", user));
+
+                        if (newActive != null && !newActive) {
+                            sendToUser(newUsername,
+                                    new Msg("ACCOUNT_FROZEN", "Your account has been frozen. Contact support for more information."));
+                            ConnectionToClient c = onlineUsers.remove(newUsername);
+                            if (c != null) try { c.close(); } catch (IOException ignored) {}
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                         client.sendToClient(new Msg("UPDATE_USER_FAILED", "Error updating user"));
                     }
                 }
+
 
                 // greeting text update on order
                 case "UPDATE_GREETING" -> {
@@ -1750,6 +1795,12 @@ public class SimpleServer extends AbstractServer {
             d.setBranchName(u.getBranch().getBranchName());
         }
         return d;
+    }
+    private void sendToUser(String username, Msg message) {
+        ConnectionToClient c = onlineUsers.get(username);
+        if (c != null) {
+            try { c.sendToClient(message); } catch (IOException ignored) {}
+        }
     }
 
 }
