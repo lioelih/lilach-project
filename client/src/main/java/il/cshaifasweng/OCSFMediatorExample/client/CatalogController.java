@@ -197,13 +197,23 @@ public class CatalogController {
                 products = new ArrayList<>(fullCatalog);
                 displayProducts(products);
             }
+
         });
     }
 
     @Subscribe
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
-        if ("SALE_ADDED".equals(event.getUseCase())) displayProducts(fullCatalog);
+        Platform.runLater(() -> {
+            maybeDisplayProducts(fullCatalog);
+        });
+    }
+
+    //helper func to help avoid sales and catalog event collisions
+    private void maybeDisplayProducts(List<Product> productList) {
+        if (sales != null && !productList.isEmpty()) {
+            displayProducts(productList);
+        }
     }
 
     @Subscribe
