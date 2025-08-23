@@ -62,8 +62,40 @@ public class SimpleClient extends AbstractClient {
 					 "HAS_CARD", "ORDER_OK", "ORDER_FAIL", "BRANCHES_OK",
 					 "STOCK_OK", "ADD_STOCK_OK", "STOCK_SINGLE_OK", "FETCH_ORDERS_OK", "FETCH_ORDER_PRODUCTS_OK",
 					 "MARK_ORDER_RECEIVED_OK", "FETCH_ALL_USERS_OK", "FREEZE_USER_OK", "UNFREEZE_USER_OK",
-					 "CHANGE_ROLE_OK", "UPDATE_USER_OK", "USER_UPDATED" /*this exists for broadcasting*/, "UPDATE_USER_FAILED", "CANCEL_OK", "CREATE_CUSTOM_BOUQUET_OK","UPDATE_CUSTOM_BOUQUET_OK", "LIST_CUSTOM_BOUQUETS_OK"->   // ← new line
+					 "CHANGE_ROLE_OK","USER_UNFREEZE_OK","USER_FREEZE_OK", "UPDATE_USER_OK" /*this exists for broadcasting*/,"USER_CREATED", "UPDATE_USER_FAILED", "CANCEL_OK", "CREATE_CUSTOM_BOUQUET_OK","UPDATE_CUSTOM_BOUQUET_OK", "LIST_CUSTOM_BOUQUETS_OK"->   // ← new line
 						EventBus.getDefault().post(massage);
+				case "ACCOUNT_FROZEN" -> {
+					EventBus.getDefault().post(massage);
+					javafx.application.Platform.runLater(() ->
+							SceneController.forceLogoutWithAlert((String) massage.getData())
+					);
+				}
+				// ADD this case:
+				case "USER_UPDATED" -> {
+					// 1) Keep broadcasting for screens like Users table
+					EventBus.getDefault().post(massage);
+
+					// 2) If it's the logged-in user, update session + notify controllers
+					try {
+						@SuppressWarnings("unchecked")
+						java.util.Map<String, Object> row = (java.util.Map<String, Object>) massage.getData();
+						String username = (String) row.get("username");
+						if (SceneController.loggedUsername != null && SceneController.loggedUsername.equals(username)) {
+							String roleStr = (String) row.get("role");
+							boolean newVip = Boolean.TRUE.equals(row.get("isVIP"));
+
+							il.cshaifasweng.OCSFMediatorExample.entities.User.Role newRole =
+									il.cshaifasweng.OCSFMediatorExample.entities.User.Role.valueOf(roleStr);
+
+							// Update client-side session cache
+							SceneController.setCurrentUserRole(newRole);
+							SceneController.isVIP = newVip;
+
+							// Fire a LOCAL event (purely client-side) so current tab can refresh in place
+							EventBus.getDefault().post(new Msg("LOCAL_ROLE_VIP_CHANGED", null));
+						}
+					} catch (ClassCastException ignored) { /* if server payload changes shape someday */ }
+				}
 
 				case "SENT_SALES" ->
 						EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));

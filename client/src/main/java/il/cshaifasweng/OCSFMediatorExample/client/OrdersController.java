@@ -33,6 +33,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import javafx.beans.property.SimpleStringProperty;
+import org.greenrobot.eventbus.ThreadMode;
+
 public class OrdersController {
 
 
@@ -53,6 +55,16 @@ public class OrdersController {
     @FXML private TableColumn<OrderDisplayDTO, String> colGreeting;
     @FXML private TableColumn<OrderDisplayDTO, Void> colProducts;
     @FXML private TableColumn<OrderDisplayDTO, Void> colActions;
+    private String currentScope = "MINE";
+
+    private static boolean isManagerOrAdmin() {
+        return SceneController.hasPermission(User.Role.MANAGER)
+                || SceneController.hasPermission(User.Role.ADMIN);
+    }
+
+    private static String effectiveAllScope() {
+        return isManagerOrAdmin() ? "ALL" : "ALL_USERS";
+    }
 
     @FXML
     public void initialize() {
@@ -69,13 +81,20 @@ public class OrdersController {
             SceneController.switchScene("home");
         });
 
-        rbMine.setOnAction(e -> requestOrders("MINE"));
-        rbAllOrders.setOnAction(e -> requestOrders("ALL"));
+        rbMine.setOnAction(e -> {
+            currentScope = "MINE";
+            requestOrders(currentScope);
+        });
+        rbAllOrders.setOnAction(e -> {
+            currentScope = effectiveAllScope();
+            requestOrders(currentScope);
+        });
         boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
         rbAllOrders.setVisible(canWorker);
         rbAllOrders.setManaged(canWorker);
 
-        requestOrders("MINE");
+        currentScope = "MINE";
+        requestOrders(currentScope);
     }
 
     private void setupColumns() {
@@ -352,6 +371,27 @@ public class OrdersController {
         root.setPadding(new Insets(10));
         popup.setScene(new Scene(root, 450, 550));
         popup.showAndWait();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onLocalRoleVipChanged(Msg msg) {
+        if (!"LOCAL_ROLE_VIP_CHANGED".equals(msg.getAction())) return;
+
+        boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
+
+        rbAllOrders.setVisible(canWorker);
+        rbAllOrders.setManaged(canWorker);
+        rbAllOrders.setText(isManagerOrAdmin() ? "All Orders" : "Branch Orders");
+
+        if (!canWorker && rbAllOrders.isSelected()) {
+            rbMine.setSelected(true);
+            currentScope = "MINE";
+        } else {
+            currentScope = rbAllOrders.isSelected() ? effectiveAllScope() : "MINE";
+        }
+
+        requestOrders(currentScope);
+        ordersTable.refresh();
     }
 
 }

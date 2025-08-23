@@ -157,6 +157,18 @@ public class SimpleServer extends AbstractServer {
                             session.persist(u);
                             session.getTransaction().commit();
                             client.sendToClient(new Msg("REGISTER_SUCCESS", null));
+                            Map<String, Object> row = new HashMap<>();
+                            row.put("id", u.getId());
+                            row.put("username", u.getUsername());
+                            row.put("email", u.getEmail());
+                            row.put("phone", u.getPhoneNumber());
+                            row.put("role", u.getRole().toString());
+                            row.put("active", u.isActive());
+                            row.put("totalSpent", 0.0);
+                            row.put("branchName", selectedBranch.getBranchName());
+                            row.put("password", u.getPassword());
+                            row.put("isVIP", u.isVIP());
+                            sendToAllClients(new Msg("USER_CREATED", row));
                         } catch (Exception ex) {
                             session.getTransaction().rollback();
                             ex.printStackTrace();
@@ -250,8 +262,9 @@ public class SimpleServer extends AbstractServer {
                             session.getTransaction().commit();
 
                             client.sendToClient(new Msg("VIP_ACTIVATED", null));
-                            sendToAllClients(new Msg("USER_UPDATED", user));
-                            sendToUser(username, new Msg("USER_UPDATED", user));
+                            Map<String, Object> row = userRow(user);
+                            sendToAllClients(new Msg("USER_UPDATED", row));
+                            sendToUser(username, new Msg("USER_UPDATED", row));
                         }
                         else break;
                     }
@@ -271,8 +284,9 @@ public class SimpleServer extends AbstractServer {
                             session.getTransaction().commit();
 
                             client.sendToClient(new Msg("VIP_CANCELLED", null));
-                            sendToAllClients(new Msg("USER_UPDATED", user));
-                            sendToUser(username, new Msg("USER_UPDATED", user));
+                            Map<String, Object> row = userRow(user);
+                            sendToAllClients(new Msg("USER_UPDATED", row));
+                            sendToUser(username, new Msg("USER_UPDATED", row));
                         }
                         else break;
                     }
@@ -1170,7 +1184,8 @@ public class SimpleServer extends AbstractServer {
 
                         client.sendToClient(new Msg("USER_FREEZE_OK", targetId));
                         if (user != null) {
-                            sendToAllClients(new Msg("USER_UPDATED", user));
+                            Map<String, Object> row = userRow(user);
+                            sendToAllClients(new Msg("USER_UPDATED", row));
                             sendToUser(user.getUsername(),
                                     new Msg("ACCOUNT_FROZEN", "Your account has been frozen. Contact support for more information."));
                             ConnectionToClient c = onlineUsers.remove(user.getUsername());
@@ -1193,8 +1208,9 @@ public class SimpleServer extends AbstractServer {
 
                         client.sendToClient(new Msg("USER_UNFREEZE_OK", targetId));
                         if (user != null) {
-                            sendToAllClients(new Msg("USER_UPDATED", user));
-                            sendToUser(user.getUsername(), new Msg("USER_UPDATED", user));
+                            Map<String, Object> row = userRow(user);
+                            sendToAllClients(new Msg("USER_UPDATED", row));
+                            sendToUser(user.getUsername(), new Msg("USER_UPDATED", row));
                         }
                     }
                 }
@@ -1217,8 +1233,9 @@ public class SimpleServer extends AbstractServer {
 
                         client.sendToClient(new Msg("CHANGE_ROLE_OK", userId));
                         if (user != null) {
-                            sendToAllClients(new Msg("USER_UPDATED", user));
-                            sendToUser(user.getUsername(), new Msg("USER_UPDATED", user));
+                            Map<String, Object> row = userRow(user);
+                            sendToAllClients(new Msg("USER_UPDATED", row));
+                            sendToUser(user.getUsername(), new Msg("USER_UPDATED", row));
                         }
                     }
                 }
@@ -1294,8 +1311,9 @@ public class SimpleServer extends AbstractServer {
                             }
                         }
 
-                        sendToAllClients(new Msg("USER_UPDATED", user));
-                        sendToUser(newUsername, new Msg("USER_UPDATED", user));
+                        Map<String, Object> row = userRow(user);
+                        sendToAllClients(new Msg("USER_UPDATED", row));
+                        sendToUser(newUsername, new Msg("USER_UPDATED", row));
 
                         if (newActive != null && !newActive) {
                             sendToUser(newUsername,
@@ -1842,5 +1860,26 @@ public class SimpleServer extends AbstractServer {
             try { c.sendToClient(message); } catch (IOException ignored) {}
         }
     }
+
+    private Map<String, Object> userRow(User user) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("id",        user.getId());
+        row.put("username",  user.getUsername());
+        row.put("email",     user.getEmail());
+        row.put("phone",     user.getPhoneNumber());
+        row.put("role",      user.getRole().toString());
+        row.put("active",    user.isActive());
+        row.put("isVIP",     user.isVIP());
+        row.put("password",  user.getPassword());
+
+        String branchName = null;
+        try {
+            Branch b = user.getBranch();                 // safe while session is still open
+            branchName = (b != null) ? b.getBranchName() : null;
+        } catch (Exception ignored) {}
+        row.put("branchName", branchName);
+        return row;
+    }
+
 
 }

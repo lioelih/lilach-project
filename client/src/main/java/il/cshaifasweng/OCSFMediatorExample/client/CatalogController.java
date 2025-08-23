@@ -25,6 +25,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -402,17 +403,39 @@ public class CatalogController {
     }
 
     @Subscribe
-    public void onUserUpdated(Msg m) {
-        if (!"USER_UPDATED".equals(m.getAction())) return;
-        User updated = (User) m.getData();
-        if (updated.getUsername().equals(SceneController.loggedUsername)) {
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", updated.getUsername()));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+    public void onUserUpdated(Msg msg) {
+        if (!"USER_UPDATED".equals(msg.getAction())) return;
+        if (SceneController.loggedUsername == null) return;
+        try {
+            SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onLocalRoleVipChanged(Msg msg) {
+        if (!"LOCAL_ROLE_VIP_CHANGED".equals(msg.getAction())) return;
+
+        boolean wasVip = isVip;
+        boolean wasWorkerPlus = SceneController.hasPermission(User.Role.WORKER);
+        isVip = SceneController.isVIP;
+        boolean nowWorkerPlus = SceneController.hasPermission(User.Role.WORKER);
+
+        boolean canWorker = nowWorkerPlus;
+        addProductButton.setVisible(canWorker);
+        addProductButton.setManaged(canWorker);
+        viewSalesButton.setVisible(canWorker);
+        viewSalesButton.setManaged(canWorker);
+
+        if (wasVip != isVip || wasWorkerPlus != nowWorkerPlus) {
+            try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ignore) {}
+        }
+
+        apply();
+        try { SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername)); } catch (IOException ignore) {}
+    }
+
+
 
     @FXML private void filterButtonFire() { filterButton.fire(); }
 

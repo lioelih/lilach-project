@@ -19,6 +19,8 @@ import javafx.scene.image.ImageView;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import javafx.collections.ListChangeListener;
+import org.greenrobot.eventbus.ThreadMode;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +64,7 @@ public class UsersController {
                         SceneController.hasPermission(User.Role.ADMIN);
         EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
+        try { SimpleClient.getClient().sendToServer("add client"); } catch (IOException ignored) {}
 
 
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -199,6 +202,7 @@ public class UsersController {
         usersTable.setEditable(true);
 
         goHomeButton.setOnAction(e -> {
+            try { SimpleClient.getClient().sendToServer("remove client"); } catch (IOException ignored) {}
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
         });
@@ -264,23 +268,62 @@ public class UsersController {
                         ));
                     }
                 }
+                case "USER_CREATED" -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) msg.getData();
+                    int id = (int) map.get("id");
+
+                    boolean exists = usersList.stream().anyMatch(u -> u.getId() == id);
+                    if (!exists) {
+                        usersList.add(new UserDisplayDTO(
+                                id,
+                                (String) map.get("username"),
+                                (String) map.get("email"),
+                                (String) map.get("phone"),
+                                (String) map.get("role"),
+                                (boolean) map.get("active"),
+                                ((Number) map.getOrDefault("totalSpent", 0.0)).doubleValue(),
+                                (String) map.get("branchName"),
+                                (String) map.get("password"),
+                                (boolean) map.get("isVIP")
+                        ));
+                    }
+                }
+                case "USER_FREEZE_OK" -> {
+                    int id = (int) msg.getData();
+                    usersList.stream()
+                            .filter(u -> u.getId() == id)
+                            .findFirst()
+                            .ifPresent(u -> { u.setActive(false); usersTable.refresh(); });
+                }
+                case "USER_UNFREEZE_OK" -> {
+                    int id = (int) msg.getData();
+                    usersList.stream()
+                            .filter(u -> u.getId() == id)
+                            .findFirst()
+                            .ifPresent(u -> { u.setActive(true); usersTable.refresh(); });
+                }
+
+
                 case "UPDATE_USER_OK" -> {
                     System.out.println("[Client] User update successful");
                 }
                 case "USER_UPDATED" -> {
-                    User u = (User) msg.getData();
-                    // update row if present
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) msg.getData();
+                    int id = (int) map.get("id");
+
                     usersList.stream()
-                            .filter(r -> r.getId() == u.getId())
+                            .filter(r -> r.getId() == id)
                             .findFirst()
                             .ifPresent(r -> {
-                                r.setUsername(u.getUsername());
-                                r.setEmail(u.getEmail());
-                                r.setPhone(u.getPhoneNumber());
-                                r.setRole(u.getRole().name());
-                                r.setBranchName(u.getBranch() != null ? u.getBranch().getBranchName() : r.getBranchName());
-                                r.setActive(u.isActive());
-                                r.setVip(u.isVIP());
+                                r.setUsername((String) map.get("username"));
+                                r.setEmail((String) map.get("email"));
+                                r.setPhone((String) map.get("phone"));
+                                r.setRole((String) map.get("role"));
+                                r.setBranchName((String) map.get("branchName"));
+                                r.setActive((boolean) map.get("active"));
+                                r.setVip((boolean) map.get("isVIP"));
                                 usersTable.refresh();
                             });
                 }
@@ -299,4 +342,23 @@ public class UsersController {
             }
         });
     }
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onLocalRoleVipChanged(Msg msg) {
+        if (!"LOCAL_ROLE_VIP_CHANGED".equals(msg.getAction())) return;
+
+        boolean canView =
+                SceneController.hasPermission(User.Role.WORKER) ||
+                        SceneController.hasPermission(User.Role.MANAGER) ||
+                        SceneController.hasPermission(User.Role.ADMIN);
+
+        if (!canView) {
+            try { SimpleClient.getClient().sendToServer("remove client"); } catch (IOException ignored) {}
+            EventBus.getDefault().unregister(this);
+            SceneController.switchScene("home");
+            return;
+        }
+
+        usersTable.refresh();
+    }
+
 }
