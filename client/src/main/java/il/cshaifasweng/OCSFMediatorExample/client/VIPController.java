@@ -17,6 +17,7 @@ import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class VIPController  {
 
@@ -127,5 +128,29 @@ public class VIPController  {
             e.printStackTrace();
         }
     }
+    @Subscribe
+    public void onUserUpdated(Msg msg) {
+        if (!"USER_UPDATED".equals(msg.getAction())) return;
+        User updated = (User) msg.getData();
+        if (updated == null) return;
+        if (!Objects.equals(updated.getUsername(), SceneController.loggedUsername)) return;
+
+        this.user = updated;
+        Platform.runLater(() -> {
+            boolean isVipAndActive = user.isVIP() && !user.getVipCanceled();
+            subscribeButton.setDisable(isVipAndActive);
+            cancelVipButton.setVisible(isVipAndActive);
+            cancelVipButton.setManaged(isVipAndActive);
+        });
+    }
+
+    @Subscribe
+    public void onAccountFrozen(Msg msg) {
+        if (!"ACCOUNT_FROZEN".equals(msg.getAction())) return;
+        Platform.runLater(() -> SceneController.forceLogoutWithAlert(
+                (String) msg.getData()
+        ));
+    }
+
 
 }

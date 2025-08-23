@@ -28,9 +28,8 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CatalogController {
 
@@ -51,20 +50,21 @@ public class CatalogController {
     @FXML private ComboBox<Branch> branchFilter;
     @FXML private Button addCustomBtn;
 
-    private List<Product> products;
+    private List<Product> products = new ArrayList<>();
     private List<Sale> sales;
     private List<Product> fullCatalog = new ArrayList<>();
 
     private boolean isVip;
     private Branch userBranch;
     private boolean actionsDisabled = false;
-    private List<Integer> pendingAllowedIds;
+
+    private Integer lastStockBranchId = null;
+    private List<Integer> lastAllowedIds = null;
+    private boolean applyWaitingForStock = false;
 
     @FXML
     public void initialize() {
-        try {
-            EventBus.getDefault().unregister(this);
-        } catch (Exception ignored) {}
+        try { EventBus.getDefault().unregister(this); } catch (Exception ignored) {}
         EventBus.getDefault().register(this);
 
         try {
@@ -123,6 +123,7 @@ public class CatalogController {
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("view_sales");
         });
+
         refreshButton.setOnAction(e -> initialize());
 
         basketIcon.setOnAction(e -> {
@@ -140,10 +141,8 @@ public class CatalogController {
             }
         });
 
-        Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
-        logoImage.setImage(logo);
-        Image img = new Image(getClass().getResourceAsStream("/image/basket_icon.png"));
-        ImageView iv = new ImageView(img);
+        logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
+        ImageView iv = new ImageView(new Image(getClass().getResourceAsStream("/image/basket_icon.png")));
         iv.setFitWidth(24);
         iv.setPreserveRatio(true);
         basketIcon.setGraphic(iv);
@@ -154,7 +153,6 @@ public class CatalogController {
                 setText(empty || b == null ? "" : b.getName());
             }
         });
-
         branchFilter.setCellFactory(lv -> new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
@@ -162,39 +160,14 @@ public class CatalogController {
             }
         });
 
-        branchFilter.setOnAction(e -> {
-            Branch sel = branchFilter.getValue();
-            if (sel == null) return;
+        // prevent auto-apply from FXML bindings; only the button applies
+        branchFilter.setOnAction(e -> {});
+        typeBox.setOnAction(e -> {});
+        stringSearchField.setOnAction(e -> {});
+        minPrice.setOnAction(e -> {});
+        maxPrice.setOnAction(e -> {});
 
-            boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
-
-            if (sel.getBranchId() == 0) {           // "All Products"
-                products = new ArrayList<>(fullCatalog);
-                actionsDisabled = !privileged;      // disable actions only for non-VIP
-                applyLocalFilters();                // local filters on full catalog
-            } else {
-                actionsDisabled = false;            // on a specific branch, actions allowed
-                try {
-                    SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", sel.getBranchId()));
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        });
-
-        filterButton.setOnAction(e -> {
-            Branch sel = branchFilter.getValue();
-            if (sel == null || sel.getBranchId() == 0) {
-                products = new ArrayList<>(fullCatalog);
-                applyLocalFilters();
-                return;
-            }
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", sel.getBranchId()));
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        });
+        filterButton.setOnAction(e -> apply());
 
         boolean canWorker = SceneController.hasPermission(User.Role.WORKER);
         addProductButton.setVisible(canWorker);
@@ -205,21 +178,26 @@ public class CatalogController {
 
     @Subscribe
     public void onCatalogReceived(CatalogEvent event) {
-        products = event.getProducts();
-        fullCatalog = new ArrayList<>(products);
-
-        boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
-        if (!privileged && pendingAllowedIds != null) {
-            products = fullCatalog.stream()
-                    .filter(p -> pendingAllowedIds.contains(p.getId()))
-                    .toList();
-            pendingAllowedIds = null;
-        }
+        fullCatalog = new ArrayList<>(event.getProducts());
 
         Platform.runLater(() -> {
-            updateFilterBox();
-            maybeDisplayProducts(fullCatalog);
-            clearFilters();
+            if (applyWaitingForStock) return;
+
+            Branch sel = branchFilter.getValue();
+
+            if (sel != null && sel.getBranchId() != 0
+                    && lastAllowedIds != null
+                    && Objects.equals(lastStockBranchId, sel.getBranchId())) {
+                List<Product> base = fullCatalog.stream()
+                        .filter(p -> lastAllowedIds.contains(p.getId()))
+                        .toList();
+                doLocal(base);
+            } else {
+                refreshTypeChoices();
+                products = new ArrayList<>(fullCatalog);
+                displayProducts(products);
+            }
+
         });
     }
 
@@ -270,31 +248,23 @@ public class CatalogController {
             if (privileged) {
                 promoLabel.setVisible(false);
                 branchFilter.setDisable(false);
-                try {
-                    SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
-                } catch (IOException ignore) {}
+                try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ignore) {}
                 displayProducts(fullCatalog);
             } else {
                 promoLabel.setVisible(true);
 
-                // Build a tiny list: [All Products, user's branch]
                 Branch all = new Branch();
                 all.setBranchId(0);
                 all.setName("All Products");
 
-                branchFilter.setDisable(false);                 // allow choosing between the two
+                branchFilter.setDisable(false);
                 branchFilter.getItems().setAll(all, userBranch);
                 branchFilter.getSelectionModel().select(userBranch);
-
-                actionsDisabled = false;                        // user’s own branch -> actions enabled
-                try {
-                    SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", userBranch.getBranchId()));
-                } catch (IOException ignore) {}
+                actionsDisabled = false;
+                apply();
             }
 
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
-            } catch (IOException ignore) {}
+            try { SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername)); } catch (IOException ignore) {}
         });
     }
 
@@ -303,13 +273,12 @@ public class CatalogController {
         if (!"BRANCHES_OK".equals(m.getAction())) return;
         List<Branch> fromServer = (List<Branch>) m.getData();
 
-        List<Branch> safe = new ArrayList<>();
-        for (Branch b : fromServer) {
+        List<Branch> safe = fromServer.stream().map(b -> {
             Branch copy = new Branch();
             copy.setBranchId(b.getBranchId());
             copy.setName(b.getBranchName());
-            safe.add(copy);
-        }
+            return copy;
+        }).collect(Collectors.toCollection(ArrayList::new));
 
         Branch all = new Branch();
         all.setBranchId(0);
@@ -330,31 +299,157 @@ public class CatalogController {
         if (!"STOCK_OK".equals(m.getAction())) return;
 
         List<StockLineDTO> rows = (List<StockLineDTO>) m.getData();
-        List<Integer> allowedIds = rows.stream().map(StockLineDTO::product_id).distinct().toList();
+        lastAllowedIds = rows.stream().map(StockLineDTO::product_id).distinct().toList();
 
-        if (fullCatalog == null || fullCatalog.isEmpty()) {
-            pendingAllowedIds = allowedIds;
+        Branch sel = branchFilter.getValue();
+        lastStockBranchId = (sel != null) ? sel.getBranchId() : null;
+
+        if (applyWaitingForStock) {
+            applyWaitingForStock = false;
+            Platform.runLater(this::apply);
+        }
+    }
+
+    private void apply() {
+        Branch sel = branchFilter.getValue();
+        boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
+
+        if (sel == null || sel.getBranchId() == 0) {
+            actionsDisabled = !privileged;
+            doLocal(new ArrayList<>(fullCatalog));
             return;
         }
 
-        products = fullCatalog.stream()
-                .filter(p -> allowedIds.contains(p.getId()))
-                .toList();
+        actionsDisabled = false;
 
-        Platform.runLater(() -> {
-            updateFilterBox();
-            applyLocalFilters();
-        });
+        if (Objects.equals(lastStockBranchId, sel.getBranchId()) && lastAllowedIds != null) {
+            List<Product> base = fullCatalog.stream()
+                    .filter(p -> lastAllowedIds.contains(p.getId()))
+                    .toList();
+            doLocal(base);
+        } else {
+            applyWaitingForStock = true;
+            try {
+                SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", sel.getBranchId()));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
 
+    private void doLocal(List<Product> base) {
+        refreshTypeChoices();
+
+        List<Product> out = new ArrayList<>(base);
+        String selectedType = typeBox.getValue();
+
+        if (selectedType != null && !"All Types".equals(selectedType))
+            out.removeIf(p -> !p.getType().equals(selectedType));
+        if (!minPrice.getText().isBlank())
+            out.removeIf(p -> p.getPrice() < Double.parseDouble(minPrice.getText()));
+        if (!maxPrice.getText().isBlank())
+            out.removeIf(p -> p.getPrice() > Double.parseDouble(maxPrice.getText()));
+        if (!stringSearchField.getText().isBlank())
+            out.removeIf(p -> !p.getName().toLowerCase().contains(stringSearchField.getText().toLowerCase()));
+
+        products = out;
+        displayProducts(out);
+    }
+
+    private void refreshTypeChoices() {
+        String prevType = typeBox.getValue();
+
+        Set<String> types = fullCatalog.stream()
+                .map(Product::getType)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
+
+        java.util.List<String> items = new java.util.ArrayList<>();
+        items.add("All Types");
+        items.addAll(types);
+
+        typeBox.getItems().setAll(items);
+
+        if (prevType != null && items.contains(prevType)) {
+            typeBox.setValue(prevType);
+        } else if (typeBox.getValue() == null || !items.contains(typeBox.getValue())) {
+            typeBox.setValue("All Types");
+        }
+    }
+
+
+    private void openProductPage(Product product) {
+        if (!canOpenProductDetails()) {
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Restricted");
+            a.setHeaderText(null);
+            a.setContentText("Only workers and managers can view product details.");
+            a.showAndWait();
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("product_view.fxml"));
+            Scene scene = new Scene(loader.load());
+            ProductViewController controller = loader.getController();
+            controller.setProduct(product);
+            Stage stage = new Stage();
+            stage.setTitle("Product Details");
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Subscribe
+    public void onUserUpdated(Msg m) {
+        if (!"USER_UPDATED".equals(m.getAction())) return;
+        User updated = (User) m.getData();
+        if (updated.getUsername().equals(SceneController.loggedUsername)) {
+            try {
+                SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", updated.getUsername()));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @FXML private void filterButtonFire() { filterButton.fire(); }
+
+    private static boolean canOpenProductDetails() {
+        return SceneController.hasPermission(User.Role.WORKER)
+                || SceneController.hasPermission(User.Role.MANAGER)
+                || SceneController.hasPermission(User.Role.ADMIN);
+    }
+
+    @FXML
+    private void onClose() {
+        EventBus.getDefault().unregister(this);
     }
 
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
+
+        if (productList == null || productList.isEmpty()) {
+            Label empty = new Label("No items have been found.");
+            empty.setStyle("-fx-font-size: 16; -fx-text-fill: #6b7280;");
+            empty.setWrapText(true);
+            empty.setAlignment(Pos.CENTER);
+
+            // simple centered-ish placeholder inside the grid
+            StackPane wrap = new StackPane(empty);
+            wrap.setPrefSize(600, 300); // gives it some presence in the grid
+            StackPane.setAlignment(empty, Pos.CENTER);
+
+            productGrid.getChildren().add(wrap);
+            return;
+        }
+
         for (Product product : productList) {
             VBox card = new VBox(8);
             card.setStyle("-fx-border-color: lightgray; -fx-border-radius: 10; -fx-padding: 12; -fx-background-color: white;");
             card.setPrefWidth(225);
-            card.setPrefHeight(320); // was 275
+            card.setPrefHeight(320);
             card.setAlignment(Pos.CENTER);
 
             StackPane imageStack = new StackPane();
@@ -367,9 +462,7 @@ public class CatalogController {
             if (product.getImage() != null && product.getImage().length > 0) {
                 try {
                     imageView.setImage(new Image(new ByteArrayInputStream(product.getImage())));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                } catch (Exception ignored) {}
             }
             imageStack.getChildren().add(imageView);
 
@@ -397,8 +490,7 @@ public class CatalogController {
                     Text discountedPrice = new Text(String.format("₪%.2f", finalPrice));
                     discountedPrice.setFill(Color.web("#2E8B57"));
                     discountedPrice.setStyle("-fx-font-size: 12;");
-                    priceFlow.getChildren().clear();
-                    priceFlow.getChildren().addAll(originalPrice, discountedPrice);
+                    priceFlow.getChildren().setAll(originalPrice, discountedPrice);
                 }
             }
 
@@ -451,9 +543,7 @@ public class CatalogController {
                                         try {
                                             Msg msg2 = new Msg("ADD_TO_BASKET", new Object[]{SceneController.loggedUsername, bundledProduct});
                                             SimpleClient.getClient().sendToServer(msg2);
-                                        } catch (IOException ex) {
-                                            ex.printStackTrace();
-                                        }
+                                        } catch (IOException ignored) {}
                                     }
                                 });
                             }
@@ -476,9 +566,7 @@ public class CatalogController {
                                         try {
                                             Msg msg2 = new Msg("ADD_TO_BASKET_X_AMOUNT", new Object[]{SceneController.loggedUsername, product, sale.getBuyQuantity() + sale.getGetQuantity() - 1});
                                             SimpleClient.getClient().sendToServer(msg2);
-                                        } catch (IOException ex) {
-                                            ex.printStackTrace();
-                                        }
+                                        } catch (IOException ignored) {}
                                     }
                                 });
                             }
@@ -486,6 +574,7 @@ public class CatalogController {
                     }
                 }
             });
+
             boolean canDetails = canOpenProductDetails();
             if (!canDetails) {
                 viewButton.setVisible(false);
@@ -494,88 +583,9 @@ public class CatalogController {
                 viewButton.setDisable(actionsDisabled);
             }
             addToBasketButton.setDisable(actionsDisabled);
+
             card.getChildren().addAll(imageStack, nameLabel, typeLabel, priceFlow, viewButton, addToBasketButton);
             productGrid.getChildren().add(card);
         }
-    }
-
-    private void updateFilterBox() {
-        if (!typeBox.getItems().contains("All Types")) {
-            typeBox.getItems().add("All Types");
-        }
-        typeBox.setValue("All Types");
-        for (Product product : products) {
-            if (!typeBox.getItems().contains(product.getType())) {
-                typeBox.getItems().add(product.getType());
-            }
-        }
-    }
-
-    private void clearFilters() {
-        minPrice.setText("");
-        maxPrice.setText("");
-        stringSearchField.setText("");
-    }
-
-    private void applyLocalFilters() {
-        List<Product> base = new ArrayList<>(products);
-        if (!"All Types".equals(typeBox.getValue()))
-            base.removeIf(p -> !p.getType().equals(typeBox.getValue()));
-        if (!minPrice.getText().isBlank())
-            base.removeIf(p -> p.getPrice() < Double.parseDouble(minPrice.getText()));
-        if (!maxPrice.getText().isBlank())
-            base.removeIf(p -> p.getPrice() > Double.parseDouble(maxPrice.getText()));
-        if (!stringSearchField.getText().isBlank())
-            base.removeIf(p -> !p.getName().toLowerCase().contains(stringSearchField.getText().toLowerCase()));
-        displayProducts(base);
-    }
-
-    private void openProductPage(Product product) {
-        if (!canOpenProductDetails()) {
-            Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setTitle("Restricted");
-            a.setHeaderText(null);
-            a.setContentText("Only workers and managers can view product details.");
-            a.showAndWait();
-            return;
-        }
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("product_view.fxml"));
-            Scene scene = new Scene(loader.load());
-            ProductViewController controller = loader.getController();
-            controller.setProduct(product);
-            Stage stage = new Stage();
-            stage.setTitle("Product Details");
-            stage.setScene(scene);
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Subscribe
-    public void onUserUpdated(Msg m) {
-        if (!"USER_UPDATED".equals(m.getAction())) return;
-        User updated = (User) m.getData();
-        if (updated.getUsername().equals(SceneController.loggedUsername)) {
-            try {
-                SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", updated.getUsername()));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    @FXML private void filterButtonFire() {
-        filterButton.fire();
-    }
-    private static boolean canOpenProductDetails() {
-        return SceneController.hasPermission(User.Role.WORKER)
-                || SceneController.hasPermission(User.Role.MANAGER)
-                || SceneController.hasPermission(User.Role.ADMIN);
-    }
-    @FXML
-    private void onClose() {
-        EventBus.getDefault().unregister(this);
     }
 }

@@ -160,7 +160,6 @@ public class UsersController {
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
 
-                // 1) hide completely if no row or current user not ADMIN
                 boolean isAdmin = SceneController.hasPermission(User.Role.ADMIN);
                 if (empty || !isAdmin) {
                     setGraphic(null);
@@ -169,23 +168,18 @@ public class UsersController {
                 }
                 setManaged(true);
 
-                // 2) otherwise bind text & action
-                UserDisplayDTO user = getTableView().getItems().get(getIndex());
-                toggleButton.setText(user.isActive() ? "Freeze" : "Unfreeze");
+                UserDisplayDTO row = getTableView().getItems().get(getIndex());
+                toggleButton.setText(row.isActive() ? "Freeze" : "Unfreeze");
                 toggleButton.setOnAction(e -> {
-                    String action = user.isActive() ? "FREEZE_USER" : "UNFREEZE_USER";
-                    try {
-                        SimpleClient.getClient().sendToServer(new Msg(action, user.getId()));
-                    } catch (IOException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                    user.setActive(!user.isActive());
-                    toggleButton.setText(user.isActive() ? "Freeze" : "Unfreeze");
+                    String action = row.isActive() ? "FREEZE_USER" : "UNFREEZE_USER";
+                    try { SimpleClient.getClient().sendToServer(new Msg(action, row.getId())); }
+                    catch (IOException ex) { throw new RuntimeException(ex); }
                 });
 
                 setGraphic(toggleButton);
             }
         });
+
         usersTable.setEditable(canEdit);
         colUsername.setEditable(canEdit);
         colPassword.setEditable(canEdit);
@@ -272,6 +266,27 @@ public class UsersController {
                 }
                 case "UPDATE_USER_OK" -> {
                     System.out.println("[Client] User update successful");
+                }
+                case "USER_UPDATED" -> {
+                    User u = (User) msg.getData();
+                    // update row if present
+                    usersList.stream()
+                            .filter(r -> r.getId() == u.getId())
+                            .findFirst()
+                            .ifPresent(r -> {
+                                r.setUsername(u.getUsername());
+                                r.setEmail(u.getEmail());
+                                r.setPhone(u.getPhoneNumber());
+                                r.setRole(u.getRole().name());
+                                r.setBranchName(u.getBranch() != null ? u.getBranch().getBranchName() : r.getBranchName());
+                                r.setActive(u.isActive());
+                                r.setVip(u.isVIP());
+                                usersTable.refresh();
+                            });
+                }
+                case "ACCOUNT_FROZEN" -> {
+                    // if this client gets frozen while viewing Users
+                    SceneController.forceLogoutWithAlert((String) msg.getData());
                 }
                 case "UPDATE_USER_FAILED" -> {
                     String error = (String) msg.getData();
