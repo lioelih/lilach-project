@@ -117,6 +117,32 @@ public class ViewUpdateSaleController {
                 try {
                     double discount = Double.parseDouble(valueField.getText().replace("%", "").trim());
                     currentSale.setDiscountValue(discount);
+                    //check if value type is valid
+                    switch (currentSale.getDiscountType()) {
+                        case FIXED -> {
+                            int productId = currentSale.getProductIds().get(0);
+                            Product product = allProducts.stream()
+                                    .filter(p -> p.getId() == productId)
+                                    .findFirst()
+                                    .orElse(null);
+
+                            if (product != null && discount > product.getPrice()) {
+                                showAlert("Invalid Discount",
+                                        "Fixed discount (" + discount + ") cannot be more than the product price (" + product.getPrice() + ").");
+                                return; // stop saving
+                            }
+                            if(discount <= 0) {
+                                showAlert("Invalid Discount", "Fixed discount can't be less than 0.");
+                                return;
+                            }
+                        }
+                        case PERCENTAGE -> {
+                            if (discount < 0 || discount > 100) {
+                                showAlert("Invalid Discount", "Percentage discount must be between 0 and 100.");
+                                return; // stop saving
+                            }
+                        }
+                    }
                 } catch (NumberFormatException ex) {
                     showAlert("Invalid Discount", "Discount must be a valid number.");
                     return;
