@@ -29,7 +29,6 @@ public class AddSaleController {
     @FXML private VBox dynamicContainer;
     @FXML private Button cancelButton;
     @FXML private Button addButton;
-    @FXML private Label errorMsg;
 
     private List<Product> products;
     private List<Sale> sales;
@@ -50,7 +49,7 @@ public class AddSaleController {
 
         discountTypeBox.setOnAction(e -> handleDiscountTypeChange());
 
-        // Date validation
+        // Date validation: disable past dates
         LocalDate today = LocalDate.now();
         startDatePicker.setDayCellFactory(picker -> new DateCell() {
             public void updateItem(LocalDate date, boolean empty) {
@@ -69,21 +68,20 @@ public class AddSaleController {
 
         addButton.setOnAction(e -> {
             Sale newSale = buildSaleFromInputs();
-            if(newSale != null) errorMsg.setText("");
-            if(saleAlreadyExists(newSale)) errorMsg.setText("There already exists a sale with overlapping dates");
-            else {
-                System.out.println(newSale);
-                errorMsg.setText("");
-                try {
-                    Msg massage = new Msg("ADD_SALE", newSale);
-                    SimpleClient.getClient().sendToServer(massage);
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sale Added!");
-                    alert.showAndWait();
-                    Stage stage = (Stage) addButton.getScene().getWindow();
-                    stage.close();
-                } catch (IOException err) {
-                    showAlert(err.getMessage());
-                }
+            if (newSale == null) return; // build shows alerts
+
+            if (saleAlreadyExists(newSale)) {
+                showAlert(Alert.AlertType.WARNING, "Overlap", "There already exists a sale with overlapping dates for the same products and type.");
+                return;
+            }
+
+            try {
+                Msg message = new Msg("ADD_SALE", newSale);
+                SimpleClient.getClient().sendToServer(message);
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Sale added!");
+                ((Stage) addButton.getScene().getWindow()).close();
+            } catch (IOException err) {
+                showAlert(Alert.AlertType.ERROR, "Network Error", err.getMessage());
             }
         });
     }
@@ -237,39 +235,18 @@ public class AddSaleController {
     }
 
     private Sale buildSaleFromInputs() {
-        if(!validInput()) return null;
-        String name = nameField.getText();
-        String description = descriptionField.getText();
+        if (!validInput()) return null;
+
+        String name = nameField.getText().trim();
+        String description = descriptionField.getText().trim();
         String discountTypeStr = discountTypeBox.getValue().toUpperCase();
         Sale.DiscountType discountType = Sale.DiscountType.valueOf(discountTypeStr);
 
-        Double discountValue = null;
-        if (discountType != Sale.DiscountType.BUY_X_GET_Y) {
-            try {
-                String rawValue = valueField.getText().replace("%", "").trim();
-                discountValue = Double.parseDouble(rawValue);
-            } catch (NumberFormatException e) {
-                errorMsg.setText("Enter numbers only");
-                return  null;
-            }
-        }
-
+        // Dates
         LocalDateTime startDate = startDatePicker.getValue().atStartOfDay();
         LocalDateTime endDate = endDatePicker.getValue().atTime(23, 59, 59);
 
-
-        Integer buyQty = null;
-        Integer getQty = null;
-        if (discountType == Sale.DiscountType.BUY_X_GET_Y) {
-            try {
-                buyQty = Integer.parseInt(buyXField.getText());
-                getQty = Integer.parseInt(getYField.getText());
-            } catch (NumberFormatException e) {
-                errorMsg.setText("Please enter BUY X and BUY Y values");
-                return null;
-            }
-        }
-
+        // Products
         List<Integer> productIds = new ArrayList<>();
         if (productSelector1 != null && productSelector1.getValue() != null) {
             productIds.add(productSelector1.getValue().getId());
@@ -278,6 +255,71 @@ public class AddSaleController {
             productIds.add(productSelector2.getValue().getId());
         }
 
+        // Parse numeric inputs
+        Double discountValue = null;
+        Integer buyQty = null;
+        Integer getQty = null;
+
+        if (discountType == Sale.DiscountType.BUY_X_GET_Y) {
+            try {
+                buyQty = Integer.parseInt(buyXField.getText().trim());
+                getQty = Integer.parseInt(getYField.getText().trim());
+                if (buyQty <= 0 || getQty <= 0) {
+                    showAlert(Alert.AlertType.WARNING, "Invalid Quantities", "Buy X and Get Y must be positive integers.");
+                    return null;
+                }
+            } catch (NumberFormatException e) {
+                showAlert(Alert.AlertType.WARNING, "Invalid Quantities", "Please enter valid integers for Buy X and Get Y.");
+                return null;
+            }
+        } else {
+            try {
+                String rawValue = valueField.getText().replace("%", "").trim();
+                discountValue = Double.parseDouble(rawValue);
+            } catch (NumberFormatException e) {
+                showAlert(Alert.AlertType.WARNING, "Invalid Discount", "Please enter a valid number for the discount value.");
+                return null;
+            }
+        }
+
+        // Type-specific validation (the two checks you asked to add)
+        switch (discountType) {
+            case FIXED -> {
+                if (productIds.isEmpty()) {
+                    showAlert(Alert.AlertType.WARNING, "Missing Product", "Please select a product for a fixed discount.");
+                    return null;
+                }
+                int productId = productIds.get(0);
+                Product product = products.stream()
+                        .filter(p -> p.getId() == productId)
+                        .findFirst()
+                        .orElse(null);
+                if (product == null) {
+                    showAlert(Alert.AlertType.ERROR, "Product Error", "Selected product was not found.");
+                    return null;
+                }
+                if (discountValue == null || discountValue <= 0) {
+                    showAlert(Alert.AlertType.WARNING, "Invalid Discount", "Fixed discount must be greater than 0.");
+                    return null;
+                }
+                if (discountValue > product.getPrice()) {
+                    showAlert(Alert.AlertType.WARNING, "Invalid Discount",
+                            "Fixed discount (" + discountValue + ") cannot be more than the product price (" + product.getPrice() + ").");
+                    return null;
+                }
+            }
+            case PERCENTAGE -> {
+                if (discountValue == null || discountValue < 0 || discountValue > 100) {
+                    showAlert(Alert.AlertType.WARNING, "Invalid Discount", "Percentage discount must be between 0 and 100.");
+                    return null;
+                }
+            }
+            case BUNDLE, BUY_X_GET_Y -> {
+                // No extra monetary checks here unless you want bundle cap checks, etc.
+            }
+        }
+
+        // Build sale
         Sale sale = new Sale();
         sale.setName(name);
         sale.setDescription(description);
@@ -293,46 +335,63 @@ public class AddSaleController {
     }
 
     public boolean validInput() {
-        if(nameField.getText().isEmpty()) {
-            errorMsg.setText("Please enter a name");
+        if (nameField.getText().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Missing Name", "Please enter a name.");
             return false;
         }
-        if(descriptionField.getText().isEmpty()) {
-            errorMsg.setText("Please enter a description");
+        if (descriptionField.getText().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Missing Description", "Please enter a description.");
             return false;
         }
-        if(discountTypeBox.getValue() == null) {
-            errorMsg.setText("Please choose a discount type");
+        if (discountTypeBox.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Missing Discount Type", "Please choose a discount type.");
             return false;
         }
-        if(startDatePicker.getValue() == null) {
-            errorMsg.setText("Please choose a start date");
+        if (startDatePicker.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Missing Start Date", "Please choose a start date.");
             return false;
         }
-        if(endDatePicker.getValue() == null) {
-            errorMsg.setText("Please choose an end date");
+        if (endDatePicker.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Missing End Date", "Please choose an end date.");
             return false;
         }
-        if(startDatePicker.getValue().atStartOfDay().isAfter(endDatePicker.getValue().atTime(23, 59, 59))) {
-            errorMsg.setText("Start date should be before End date");
+        if (startDatePicker.getValue().atStartOfDay()
+                .isAfter(endDatePicker.getValue().atTime(23, 59, 59))) {
+            showAlert(Alert.AlertType.WARNING, "Invalid Dates", "Start date should be before end date.");
             return false;
         }
+
+        // Product selection rules
         List<Integer> productIds = new ArrayList<>();
         if (productSelector1 != null && productSelector1.getValue() != null)
             productIds.add(productSelector1.getValue().getId());
         if (productSelector2 != null && productSelector2.getValue() != null)
             productIds.add(productSelector2.getValue().getId());
-        if(Sale.DiscountType.valueOf(discountTypeBox.getValue().toUpperCase()) != Sale.DiscountType.BUNDLE
-                && productIds.isEmpty()) {
-            errorMsg.setText("Please select a product");
+
+        Sale.DiscountType selectedType = Sale.DiscountType.valueOf(discountTypeBox.getValue().toUpperCase());
+
+        if (selectedType != Sale.DiscountType.BUNDLE && productIds.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Missing Product", "Please select a product.");
             return false;
         }
-        if(Sale.DiscountType.valueOf(discountTypeBox.getValue().toUpperCase()) == Sale.DiscountType.BUNDLE
-                && productIds.size() != 2) {
-            errorMsg.setText("Please select a TWO product");
+        if (selectedType == Sale.DiscountType.BUNDLE && productIds.size() != 2) {
+            showAlert(Alert.AlertType.WARNING, "Bundle Requires Two Products", "Please select two products for a bundle discount.");
             return false;
         }
-        return  true;
+
+        // For percentage/fixed/bundle types, make sure valueField exists (UI state)
+        if (selectedType != Sale.DiscountType.BUY_X_GET_Y && (valueField == null || valueField.getText().trim().isEmpty())) {
+            showAlert(Alert.AlertType.WARNING, "Missing Discount Value", "Please enter a discount value.");
+            return false;
+        }
+
+        // For buy_x_get_y, make sure fields exist
+        if (selectedType == Sale.DiscountType.BUY_X_GET_Y && (buyXField == null || getYField == null)) {
+            showAlert(Alert.AlertType.WARNING, "Missing Quantities", "Please enter Buy X and Get Y.");
+            return false;
+        }
+
+        return true;
     }
 
     public boolean saleAlreadyExists(Sale newSale) {
@@ -348,21 +407,17 @@ public class AddSaleController {
             // Compare product IDs: exact match (same elements, order doesn't matter)
             List<Integer> newProducts = new ArrayList<>(newSale.getProductIds());
             List<Integer> existingProducts = new ArrayList<>(existing.getProductIds());
-
             newProducts.sort(Integer::compareTo);
             existingProducts.sort(Integer::compareTo);
-
             boolean sameProducts = newProducts.equals(existingProducts);
             if (!sameProducts) continue;
 
             // Check for date overlap
             boolean datesOverlap = existing.isActiveBetween(newSale.getStartDate(), newSale.getEndDate());
-
             if (datesOverlap) {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -374,11 +429,11 @@ public class AddSaleController {
         this.sales = sales;
     }
 
-    private void showAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Input Error");
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
         alert.setHeaderText(null);
-        alert.setContentText(message);
+        alert.setContentText(content);
         alert.showAndWait();
     }
 }
