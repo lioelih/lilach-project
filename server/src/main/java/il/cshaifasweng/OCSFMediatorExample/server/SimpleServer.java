@@ -250,7 +250,9 @@ public class SimpleServer extends AbstractServer {
                             session.getTransaction().commit();
                             client.sendToClient(new Msg("VIP_ACTIVATED", null));
                         }
+                        else break;
                     }
+                    sendUsersToAllClients();;
                 }
 
                 case "CANCEL_VIP" -> {
@@ -265,7 +267,9 @@ public class SimpleServer extends AbstractServer {
                             session.getTransaction().commit();
                             client.sendToClient(new Msg("VIP_CANCELLED", null));
                         }
+                        else break;
                     }
+                    sendUsersToAllClients();
                 }
 
                 // catalog crud
@@ -1071,40 +1075,6 @@ public class SimpleServer extends AbstractServer {
                                 sale.setProductIds(
                                         saleSession.createNativeQuery(
                                                         "SELECT product_id FROM sale_products WHERE sale_id = :saleId",
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                                                         Integer.class
                                                 )
                                                 .setParameter("saleId", sale.getId())
@@ -1643,6 +1613,77 @@ public class SimpleServer extends AbstractServer {
             return session.createQuery("FROM Product", Product.class).list();
         }
     }
+
+    private void sendUsersToAllClients()
+    {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            List<User> users = session.createQuery("FROM User", User.class).list();
+            List<Map<String, Object>> results = new ArrayList<>();
+
+            for (User user : users) {
+                Double total = session.createQuery(
+                                "SELECT SUM(o.totalPrice) FROM Order o WHERE o.user.id = :uid", Double.class)
+                        .setParameter("uid", user.getId())
+                        .uniqueResultOptional()
+                        .orElse(0.0);
+
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", user.getId());
+                map.put("username", user.getUsername());
+                map.put("email", user.getEmail());
+                map.put("phone", user.getPhoneNumber());
+                map.put("role", user.getRole().toString());
+                map.put("active", user.isActive());
+                map.put("totalSpent", total);
+                map.put("branchName", user.getBranch().getBranchName());
+                map.put("password", user.getPassword());
+                map.put("isVIP", user.isVIP());
+                results.add(map);
+            }
+
+            sendToAllClients(new Msg("FETCH_ALL_USERS_OK", results));
+        }
+    }
+
+    private void sendOrdersToAllClients() {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            // 1. Query all orders, newest first
+            List<Order> orders = session.createQuery(
+                    "FROM Order o ORDER BY o.id DESC", Order.class
+            ).list();
+
+            // 2. Convert to DTOs
+            List<OrderDisplayDTO> displayList = new ArrayList<>();
+            for (Order o : orders) {
+                String fulfilment;
+                if (o.getDelivery() != null && !o.getDelivery().isBlank()) {
+                    fulfilment = "Delivery to: " + o.getDelivery();
+                } else if (o.getBranch() != null) {
+                    fulfilment = "Pickup from: " + o.getBranch().getName();
+                } else {
+                    fulfilment = "Unknown";
+                }
+
+                displayList.add(new OrderDisplayDTO(
+                        o.getOrderId(),
+                        o.getUser().getUsername(),
+                        fulfilment,
+                        o.getTotalPrice(),
+                        o.getDeadline(),
+                        o.getRecipient(),
+                        o.getGreeting(),
+                        o.getStatus(),
+                        o.getCompensationUsed()
+                ));
+            }
+
+            sendToAllClients(new Msg("FETCH_ALL_ORDERS", displayList));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            sendToAllClients(new Msg("FETCH_ORDER_PRODUCTS_FAIL", List.of())); // return empty list on error
+        }
+    }
+
 
     private  List<Sale> fetchSales() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
