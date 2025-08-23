@@ -218,7 +218,7 @@ public class CatalogController {
 
         Platform.runLater(() -> {
             updateFilterBox();
-            displayProducts(products);
+            maybeDisplayProducts(fullCatalog);
             clearFilters();
         });
     }
@@ -226,7 +226,16 @@ public class CatalogController {
     @Subscribe
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
-        if ("SALE_ADDED".equals(event.getUseCase())) displayProducts(fullCatalog);
+        Platform.runLater(() -> {
+            maybeDisplayProducts(fullCatalog);
+        });
+    }
+
+    //helper func to help avoid sales and catalog event collisions
+    private void maybeDisplayProducts(List<Product> productList) {
+        if (sales != null && !productList.isEmpty()) {
+            displayProducts(productList);
+        }
     }
 
     @Subscribe
