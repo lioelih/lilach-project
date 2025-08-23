@@ -5,7 +5,10 @@ import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
 import org.greenrobot.eventbus.EventBus;
-
+import java.util.concurrent.atomic.AtomicBoolean;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import java.io.IOException;
 import java.io.ObjectStreamClass;
 import java.util.List;
@@ -29,87 +32,87 @@ public class SimpleClient extends AbstractClient {
 	@Override
 	protected void handleMessageFromServer(Object msg) {
 		if (msg instanceof Warning warning) {
-			EventBus.getDefault().post(new WarningEvent(warning));
+			postFx(new WarningEvent(warning));
+			return;
 		}
-		else if (msg instanceof Msg massage) {
-			switch (massage.getAction()) {
-				case "SENT_CATALOG"      ->{
-					System.out.println("Meow");
-					EventBus.getDefault()
-						.post(new CatalogEvent("SENT_CATALOG",
-								(List<Product>) massage.getData()));
-				}
-				case "PRODUCT_UPDATED"   -> EventBus.getDefault()
-						.post(new CatalogEvent("PRODUCT_UPDATED",
-								(List<Product>) massage.getData()));
-				case "PRODUCT_ADDED"     -> EventBus.getDefault()
-						.post(new CatalogEvent("PRODUCT_ADDED",
-								(List<Product>) massage.getData()));
-				case "PRODUCT_DELETED"   -> EventBus.getDefault()
-						.post(new CatalogEvent("PRODUCT_DELETED",
-								(List<Product>) massage.getData()));
 
-				case "LOGIN_SUCCESS", "LOGIN_FAILED"   ->{
-						System.out.println("Meow");
-						EventBus.getDefault().post(new LoginEvent(massage));
-				}
-				case "REGISTER_SUCCESS", "REGISTER_FAILED" ->
-						EventBus.getDefault().post(new RegisterEvent(massage));
+		if (!(msg instanceof Msg massage)) return;
 
-				case "FETCH_USER", "PAYMENT_PREFILL",
-					 "PAYMENT_INFO", "VIP_ACTIVATED", "VIP_CANCELLED",
-					 "BASKET_FETCHED", "BASKET_UPDATED",
-					 "HAS_CARD", "ORDER_OK", "ORDER_FAIL", "BRANCHES_OK",
-					 "STOCK_OK", "ADD_STOCK_OK", "STOCK_SINGLE_OK", "FETCH_ORDERS_OK", "FETCH_ORDER_PRODUCTS_OK",
-					 "MARK_ORDER_RECEIVED_OK", "FETCH_ALL_USERS_OK", "FREEZE_USER_OK", "UNFREEZE_USER_OK",
-					 "CHANGE_ROLE_OK","USER_UNFREEZE_OK","USER_FREEZE_OK", "UPDATE_USER_OK" /*this exists for broadcasting*/,"USER_CREATED", "UPDATE_USER_FAILED", "CANCEL_OK", "CREATE_CUSTOM_BOUQUET_OK","UPDATE_CUSTOM_BOUQUET_OK", "LIST_CUSTOM_BOUQUETS_OK"->   // ← new line
-						EventBus.getDefault().post(massage);
-				case "ACCOUNT_FROZEN" -> {
-					EventBus.getDefault().post(massage);
-					javafx.application.Platform.runLater(() ->
-							SceneController.forceLogoutWithAlert((String) massage.getData())
-					);
-				}
-				// ADD this case:
-				case "USER_UPDATED" -> {
-					// 1) Keep broadcasting for screens like Users table
-					EventBus.getDefault().post(massage);
-
-					// 2) If it's the logged-in user, update session + notify controllers
-					try {
-						@SuppressWarnings("unchecked")
-						java.util.Map<String, Object> row = (java.util.Map<String, Object>) massage.getData();
-						String username = (String) row.get("username");
-						if (SceneController.loggedUsername != null && SceneController.loggedUsername.equals(username)) {
-							String roleStr = (String) row.get("role");
-							boolean newVip = Boolean.TRUE.equals(row.get("isVIP"));
-
-							il.cshaifasweng.OCSFMediatorExample.entities.User.Role newRole =
-									il.cshaifasweng.OCSFMediatorExample.entities.User.Role.valueOf(roleStr);
-
-							// Update client-side session cache
-							SceneController.setCurrentUserRole(newRole);
-							SceneController.isVIP = newVip;
-
-							// Fire a LOCAL event (purely client-side) so current tab can refresh in place
-							EventBus.getDefault().post(new Msg("LOCAL_ROLE_VIP_CHANGED", null));
-						}
-					} catch (ClassCastException ignored) { /* if server payload changes shape someday */ }
-				}
-
-				case "SENT_SALES" ->
-						EventBus.getDefault().post(new SalesEvent("SENT_SALES", (List<Sale>) massage.getData()));
-				case "SALE_ADDED" ->
-						EventBus.getDefault().post(new SalesEvent("SALE_ADDED", (List<Sale>) massage.getData()));
-				case "SALE_UPDATED" ->
-						EventBus.getDefault().post(new SalesEvent("SALE_UPDATED", (List<Sale>) massage.getData()));
-				case  "SALE_DELETED" ->
-						EventBus.getDefault().post(new SalesEvent("SALE_DELETED", (List<Sale>) massage.getData()));
-				default ->
-						System.out.println("Unhandled message: " + massage.getAction());
+		switch (massage.getAction()) {
+			case "SENT_CATALOG" -> {
+				System.out.println("Meow");
+				postFx(new CatalogEvent("SENT_CATALOG", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Product>) massage.getData()));
+			}
+			case "PRODUCT_UPDATED" -> {
+				postFx(new CatalogEvent("PRODUCT_UPDATED", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Product>) massage.getData()));
+			}
+			case "PRODUCT_ADDED" -> {
+				postFx(new CatalogEvent("PRODUCT_ADDED", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Product>) massage.getData()));
+			}
+			case "PRODUCT_DELETED" -> {
+				postFx(new CatalogEvent("PRODUCT_DELETED", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Product>) massage.getData()));
 			}
 
+			case "LOGIN_SUCCESS", "LOGIN_FAILED" -> {
+				System.out.println("Meow");
+				postFx(new LoginEvent(massage));
+			}
+			case "REGISTER_SUCCESS", "REGISTER_FAILED" -> postFx(new RegisterEvent(massage));
+
+			case "FETCH_USER", "PAYMENT_PREFILL",
+				 "PAYMENT_INFO", "VIP_ACTIVATED", "VIP_CANCELLED",
+				 "BASKET_FETCHED", "BASKET_UPDATED",
+				 "HAS_CARD", "ORDER_OK", "ORDER_FAIL", "BRANCHES_OK",
+				 "STOCK_OK", "ADD_STOCK_OK", "STOCK_SINGLE_OK", "FETCH_ORDERS_OK", "FETCH_ORDER_PRODUCTS_OK",
+				 "MARK_ORDER_RECEIVED_OK", "FETCH_ALL_USERS_OK", "FREEZE_USER_OK", "UNFREEZE_USER_OK",
+				 "CHANGE_ROLE_OK","USER_UNFREEZE_OK","USER_FREEZE_OK", "UPDATE_USER_OK","USER_CREATED",
+				 "UPDATE_USER_FAILED", "CANCEL_OK", "CREATE_CUSTOM_BOUQUET_OK","UPDATE_CUSTOM_BOUQUET_OK",
+				 "LIST_CUSTOM_BOUQUETS_OK" -> {
+				postFx(massage);
+			}
+
+			case "ACCOUNT_FROZEN" -> {
+				postFx(massage);
+				javafx.application.Platform.runLater(() ->
+						SceneController.forceLogoutWithAlert((String) massage.getData())
+				);
+			}
+
+			case "USER_UPDATED" -> {
+				// still broadcast
+				postFx(massage);
+
+				try {
+					@SuppressWarnings("unchecked")
+					java.util.Map<String, Object> row = (java.util.Map<String, Object>) massage.getData();
+					String username = (String) row.get("username");
+					if (SceneController.loggedUsername != null && SceneController.loggedUsername.equals(username)) {
+						String roleStr = (String) row.get("role");
+						boolean newVip = java.lang.Boolean.TRUE.equals(row.get("isVIP"));
+						il.cshaifasweng.OCSFMediatorExample.entities.User.Role newRole =
+								il.cshaifasweng.OCSFMediatorExample.entities.User.Role.valueOf(roleStr);
+
+						SceneController.setCurrentUserRole(newRole);
+						SceneController.isVIP = newVip;
+
+						// LOCAL event — also via FX thread
+						postFx(new Msg("LOCAL_ROLE_VIP_CHANGED", null));
+					}
+				} catch (ClassCastException ignored) { }
+			}
+
+			case "SENT_SALES"     -> postFx(new Events.SalesEvent("SENT_SALES", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Sale>) massage.getData()));
+			case "SALE_ADDED"     -> postFx(new Events.SalesEvent("SALE_ADDED", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Sale>) massage.getData()));
+			case "SALE_UPDATED"   -> postFx(new Events.SalesEvent("SALE_UPDATED", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Sale>) massage.getData()));
+			case "SALE_DELETED"   -> postFx(new Events.SalesEvent("SALE_DELETED", (java.util.List<il.cshaifasweng.OCSFMediatorExample.entities.Sale>) massage.getData()));
+
+			default -> System.out.println("Unhandled message: " + massage.getAction());
 		}
+	}
+
+
+	private void postFx(Object event) {
+		javafx.application.Platform.runLater(() -> org.greenrobot.eventbus.EventBus.getDefault().post(event));
 	}
 
 	public static SimpleClient getClient() {

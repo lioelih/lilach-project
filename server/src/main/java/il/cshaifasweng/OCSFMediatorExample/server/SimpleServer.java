@@ -32,7 +32,8 @@ import java.util.concurrent.ConcurrentMap;
 
 public class SimpleServer extends AbstractServer {
     // central broadcast list and periodic scheduler
-    private static final ArrayList<SubscribedClient> SubscribersList = new ArrayList<>();
+    private static final java.util.List<SubscribedClient> SubscribersList =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     private ScheduledExecutorService scheduler;
     private final ConcurrentMap<String, ConnectionToClient> onlineUsers = new ConcurrentHashMap<>(); // For online users
     public SimpleServer(int port) {
@@ -69,29 +70,33 @@ public class SimpleServer extends AbstractServer {
 
                     try (Session session = HibernateUtil.getSessionFactory().openSession()) {
                         User user = session.createQuery(
-                                        "SELECT u FROM User u " +
-                                                "LEFT JOIN FETCH u.branch " +
-                                                "WHERE u.username = :u AND u.password = :p",
+                                        "SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE u.username = :u",
                                         User.class)
                                 .setParameter("u", username)
-                                .setParameter("p", password)
                                 .uniqueResult();
 
-                        if (user == null) {
+
+                        if (user == null
+                                || !user.getUsername().equals(username)      // case-sensitive username
+                                || !user.getPassword().equals(password)) {    // case-sensitive password
                             client.sendToClient(new Msg("LOGIN_FAILED", "Invalid credentials"));
                             return;
                         }
+
                         if (!user.isActive()) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "Account is inactive"));
                             return;
                         }
-                        if (onlineUsers.containsKey(username)) {
+
+
+                        String key = user.getUsername();
+                        if (onlineUsers.containsKey(key)) {
                             client.sendToClient(new Msg("LOGIN_FAILED", "User is currently logged in"));
                             return;
                         }
 
-                        client.setInfo("username", username);
-                        onlineUsers.put(username, client);
+                        client.setInfo("username", key);
+                        onlineUsers.put(key, client);
                         client.sendToClient(new Msg("LOGIN_SUCCESS", toLoginDTO(user)));
                         System.out.println("Sent to client:" + user.getUsername());
 
@@ -100,6 +105,7 @@ public class SimpleServer extends AbstractServer {
                         client.sendToClient(new Msg("LOGIN_FAILED", "Server error"));
                     }
                 }
+
 
 
 
@@ -296,19 +302,21 @@ public class SimpleServer extends AbstractServer {
 
                 // catalog crud
                 case "GET_CATALOG" -> {
-                    List<Product> catalog = fetchCatalog();
-                    client.sendToClient(new Msg("SENT_CATALOG", catalog));
+                    client.sendToClient(new Msg("PRODUCT_ADDED", fetchCatalog()));
+                    client.sendToClient(new Msg("SENT_CATALOG", fetchCatalog()));
                 }
 
                 case "ADD_PRODUCT" -> {
                     Product product = (Product) data;
                     saveNewProduct(product);
+                    client.sendToClient(new Msg("PRODUCT_ADDED", fetchCatalog()));
                     sendToAllClients(new Msg("PRODUCT_ADDED", fetchCatalog()));
                 }
 
                 case "UPDATE_PRODUCT" -> {
                     Product product = (Product) data;
                     updateFullProduct(product);
+                    client.sendToClient(new Msg("PRODUCT_ADDED", fetchCatalog()));
                     sendToAllClients(new Msg("PRODUCT_UPDATED", fetchCatalog()));
                 }
 
@@ -1819,13 +1827,20 @@ public class SimpleServer extends AbstractServer {
     }
 
     @Override
+    protected void clientConnected(ConnectionToClient client) {
+        SubscribersList.add(new SubscribedClient(client));
+    }
+
+    @Override
     protected void clientDisconnected(ConnectionToClient client) {
         cleanupClient(client);
+        SubscribersList.removeIf(sc -> sc.getClient().equals(client));
     }
 
     @Override
     protected void clientException(ConnectionToClient client, Throwable exception) {
         cleanupClient(client);
+        SubscribersList.removeIf(sc -> sc.getClient().equals(client));
     }
 
     private void cleanupClient(ConnectionToClient client) {
