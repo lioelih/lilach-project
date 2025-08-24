@@ -67,7 +67,7 @@ public class CatalogController {
     public void initialize() {
         try { EventBus.getDefault().unregister(this); } catch (Exception ignored) {}
         EventBus.getDefault().register(this);
-
+        boolean loggedIn = SceneController.loggedUsername != null;
         try {
             SimpleClient.ensureConnected();
             SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
@@ -175,6 +175,12 @@ public class CatalogController {
         addProductButton.setManaged(canWorker);
         viewSalesButton.setVisible(canWorker);
         viewSalesButton.setManaged(canWorker);
+        basketIcon.setVisible(loggedIn);
+        basketIcon.setManaged(loggedIn);
+        basketCountLabel.setVisible(loggedIn);
+        basketCountLabel.setManaged(loggedIn);
+        addCustomBtn.setVisible(loggedIn);
+        addCustomBtn.setManaged(loggedIn);
     }
 
     @Subscribe
@@ -430,9 +436,20 @@ public class CatalogController {
         if (wasVip != isVip || wasWorkerPlus != nowWorkerPlus) {
             try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ignore) {}
         }
+        boolean loggedIn = SceneController.loggedUsername != null;
+        basketIcon.setVisible(loggedIn);
+        basketIcon.setManaged(loggedIn);
+        basketCountLabel.setVisible(loggedIn);
+        basketCountLabel.setManaged(loggedIn);
+        addCustomBtn.setVisible(loggedIn);
+        addCustomBtn.setManaged(loggedIn);
+        addCustomBtn.setVisible(loggedIn);
+        addCustomBtn.setManaged(loggedIn);
 
         apply();
-        try { SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername)); } catch (IOException ignore) {}
+        if (loggedIn) {
+            try { SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername)); } catch (IOException ignore) {}
+        }
     }
 
 
@@ -452,7 +469,7 @@ public class CatalogController {
 
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
-
+        boolean loggedIn = SceneController.loggedUsername != null;
         if (productList == null || productList.isEmpty()) {
             Label empty = new Label("No items have been found.");
             empty.setStyle("-fx-font-size: 16; -fx-text-fill: #6b7280;");
@@ -597,7 +614,14 @@ public class CatalogController {
                     }
                 }
             });
-
+            if (!loggedIn) {
+                // Guests: button is not visible at all
+                addToBasketButton.setVisible(false);
+                addToBasketButton.setManaged(false);
+            } else {
+                // Logged-in: keep your existing enable/disable behavior
+                addToBasketButton.setDisable(actionsDisabled);
+            }
             boolean canDetails = canOpenProductDetails();
             if (!canDetails) {
                 viewButton.setVisible(false);

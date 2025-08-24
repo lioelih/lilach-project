@@ -4,17 +4,12 @@ import Events.*;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
-import org.greenrobot.eventbus.EventBus;
-import java.util.concurrent.atomic.AtomicBoolean;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import java.io.IOException;
 import java.io.ObjectStreamClass;
-import java.util.List;
+
 
 public class SimpleClient extends AbstractClient {
-
+	private static final java.util.concurrent.atomic.AtomicBoolean FREEZE_HANDLED = new java.util.concurrent.atomic.AtomicBoolean(false);
 	private static SimpleClient client = null;
 
 	public SimpleClient(String host, int port) {
@@ -54,9 +49,12 @@ public class SimpleClient extends AbstractClient {
 			}
 
 			case "LOGIN_SUCCESS", "LOGIN_FAILED" -> {
-				System.out.println("Meow");
+				if ("LOGIN_SUCCESS".equals(massage.getAction())) {
+					FREEZE_HANDLED.set(false);
+				}
 				postFx(new LoginEvent(massage));
 			}
+
 			case "REGISTER_SUCCESS", "REGISTER_FAILED" -> postFx(new RegisterEvent(massage));
 
 			case "FETCH_USER", "PAYMENT_PREFILL",
@@ -67,15 +65,18 @@ public class SimpleClient extends AbstractClient {
 				 "MARK_ORDER_RECEIVED_OK", "FETCH_ALL_USERS_OK", "FREEZE_USER_OK", "UNFREEZE_USER_OK",
 				 "CHANGE_ROLE_OK","USER_UNFREEZE_OK","USER_FREEZE_OK", "UPDATE_USER_OK","USER_CREATED",
 				 "UPDATE_USER_FAILED", "CANCEL_OK", "CREATE_CUSTOM_BOUQUET_OK","UPDATE_CUSTOM_BOUQUET_OK",
-				 "LIST_CUSTOM_BOUQUETS_OK" -> {
+				 "LIST_CUSTOM_BOUQUETS_OK","ORDERS_DIRTY" -> {
 				postFx(massage);
 			}
 
+
 			case "ACCOUNT_FROZEN" -> {
-				postFx(massage);
-				javafx.application.Platform.runLater(() ->
-						SceneController.forceLogoutWithAlert((String) massage.getData())
-				);
+
+				if (FREEZE_HANDLED.compareAndSet(false, true)) {
+					javafx.application.Platform.runLater(() ->
+							SceneController.forceLogoutWithAlert((String) massage.getData())
+					);
+				}
 			}
 
 			case "USER_UPDATED" -> {
