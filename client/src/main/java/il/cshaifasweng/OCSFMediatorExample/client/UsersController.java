@@ -26,6 +26,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/*
+ * userscontroller
+ * - shows a table of users with inline editing
+ * - enforces view/edit permissions based on current role
+ * - pushes edits to server on commit (username, password, email, phone, role, branch, vip)
+ * - supports freezing/unfreezing by admins
+ * - keeps branch choices dynamic and filters by search text
+ * - listens for server events to keep ui in sync
+ */
 public class UsersController {
 
     @FXML private TableView<UserDisplayDTO> usersTable;
@@ -40,17 +49,15 @@ public class UsersController {
     @FXML private TableColumn<UserDisplayDTO, Boolean> colIsVIP;
     @FXML private TableColumn<UserDisplayDTO, Void> colActions;
     @FXML private TextField searchField;
-
     @FXML private Button goHomeButton;
     @FXML private ImageView logoImage;
 
     private final ObservableList<UserDisplayDTO> usersList = FXCollections.observableArrayList();
-
-    // Dynamic branch names list - initially empty
-    private final ObservableList<String> branchNames = FXCollections.observableArrayList();
+    private final ObservableList<String> branchNames = FXCollections.observableArrayList(); // dynamic branch list
 
     @FXML
     public void initialize() throws IOException {
+        // gate access to workers/managers/admins
         boolean canView =
                 SceneController.hasPermission(User.Role.WORKER) ||
                         SceneController.hasPermission(User.Role.MANAGER) ||
@@ -59,16 +66,19 @@ public class UsersController {
             SceneController.switchScene("home");
             return;
         }
+
         final boolean canEdit =
                 SceneController.hasPermission(User.Role.MANAGER) ||
                         SceneController.hasPermission(User.Role.ADMIN);
+
         EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
         try { SimpleClient.getClient().sendToServer("add client"); } catch (IOException ignored) {}
 
-
+        // id (read-only)
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
 
+        // username (inline edit)
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colUsername.setCellFactory(TextFieldTableCell.forTableColumn());
         colUsername.setOnEditCommit(event -> {
@@ -78,6 +88,7 @@ public class UsersController {
             sendUpdateUser(user);
         });
 
+        // password (inline edit)
         colPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
         colPassword.setCellFactory(TextFieldTableCell.forTableColumn());
         colPassword.setOnEditCommit(event -> {
@@ -87,8 +98,7 @@ public class UsersController {
             sendUpdateUser(user);
         });
 
-
-
+        // email (inline edit)
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
         colEmail.setCellFactory(TextFieldTableCell.forTableColumn());
         colEmail.setOnEditCommit(event -> {
@@ -98,6 +108,7 @@ public class UsersController {
             sendUpdateUser(user);
         });
 
+        // phone (inline edit)
         colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
         colPhone.setCellFactory(TextFieldTableCell.forTableColumn());
         colPhone.setOnEditCommit(event -> {
@@ -107,6 +118,7 @@ public class UsersController {
             sendUpdateUser(user);
         });
 
+        // role (inline edit via combo)
         colRole.setCellValueFactory(new PropertyValueFactory<>("role"));
         if (canEdit) {
             colRole.setCellFactory(ComboBoxTableCell.forTableColumn("USER", "WORKER", "MANAGER", "ADMIN"));
@@ -118,6 +130,7 @@ public class UsersController {
             sendUpdateUser(user);
         });
 
+        // branch (inline edit via dynamic combo)
         colBranch.setCellValueFactory(new PropertyValueFactory<>("branchName"));
         if (canEdit) {
             colBranch.setCellFactory(ComboBoxTableCell.forTableColumn(branchNames));
@@ -129,16 +142,17 @@ public class UsersController {
             sendUpdateUser(user);
         });
 
+        // vip (checkbox cell; push on change)
         colIsVIP.setCellValueFactory(cellData -> cellData.getValue().vipProperty());
         colIsVIP.setCellFactory(CheckBoxTableCell.forTableColumn(colIsVIP));
         colIsVIP.setEditable(true);
-        // I added the listener here because when checking the isVIP status, it wouldn't register unless a different attribute was changed, so this makes sure its constantly being monitored for a change
+
+        // ensure vip changes are observed and sent immediately
         usersList.addListener((ListChangeListener<UserDisplayDTO>) change -> {
             while (change.next()) {
                 if (change.wasAdded()) {
                     for (UserDisplayDTO addedUser : change.getAddedSubList()) {
                         addedUser.vipProperty().addListener((obs, oldVal, newVal) -> {
-
                             addedUser.setVip(newVal);
                             sendUpdateUser(addedUser);
                         });
@@ -153,16 +167,15 @@ public class UsersController {
             });
         }
 
-
+        // totals (read-only)
         colTotalSpent.setCellValueFactory(new PropertyValueFactory<>("totalSpent"));
 
+        // actions (freeze/unfreeze for admins)
         colActions.setCellFactory(tc -> new TableCell<>() {
             private final Button toggleButton = new Button();
-
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-
                 boolean isAdmin = SceneController.hasPermission(User.Role.ADMIN);
                 if (empty || !isAdmin) {
                     setGraphic(null);
@@ -170,7 +183,6 @@ public class UsersController {
                     return;
                 }
                 setManaged(true);
-
                 UserDisplayDTO row = getTableView().getItems().get(getIndex());
                 toggleButton.setText(row.isActive() ? "Freeze" : "Unfreeze");
                 toggleButton.setOnAction(e -> {
@@ -178,11 +190,11 @@ public class UsersController {
                     try { SimpleClient.getClient().sendToServer(new Msg(action, row.getId())); }
                     catch (IOException ex) { throw new RuntimeException(ex); }
                 });
-
                 setGraphic(toggleButton);
             }
         });
 
+        // table editability by role
         usersTable.setEditable(canEdit);
         colUsername.setEditable(canEdit);
         colPassword.setEditable(canEdit);
@@ -192,31 +204,32 @@ public class UsersController {
         colBranch.setEditable(canEdit);
         colIsVIP.setEditable(canEdit);
 
+        // live search by username
         FilteredList<UserDisplayDTO> filteredUsers = new FilteredList<>(usersList, p -> true);
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             String lower = newVal.toLowerCase();
             filteredUsers.setPredicate(user -> user.getUsername().toLowerCase().contains(lower));
         });
-
         usersTable.setItems(filteredUsers);
         usersTable.setEditable(true);
 
+        // nav: go home
         goHomeButton.setOnAction(e -> {
             try { SimpleClient.getClient().sendToServer("remove client"); } catch (IOException ignored) {}
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
         });
 
+        // branding
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
 
-        // Request branches list from server
+        // request initial data
         System.out.println("[Client] Requesting branch list from server...");
         SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
-
-        // Request users list from server
         SimpleClient.getClient().sendToServer(new Msg("FETCH_ALL_USERS", null));
     }
 
+    // push an update for a single user to the server
     private void sendUpdateUser(UserDisplayDTO user) {
         try {
             SimpleClient.getClient().sendToServer(new Msg("UPDATE_USER", Map.of(
@@ -235,22 +248,21 @@ public class UsersController {
         }
     }
 
+    // handle server events that affect the users view
     @Subscribe
     public void onMsgReceived(Msg msg) {
         Platform.runLater(() -> {
             switch (msg.getAction()) {
                 case "BRANCHES_OK" -> {
-                    // Receive branch list, extract names, update ComboBox list
+                    // refresh branch list choices
                     List<Branch> branches = (List<Branch>) msg.getData();
                     branchNames.clear();
-                    branchNames.addAll(branches.stream()
-                            .map(Branch::getBranchName)
-                            .collect(Collectors.toList()));
+                    branchNames.addAll(branches.stream().map(Branch::getBranchName).collect(Collectors.toList()));
                     System.out.println("[Client] Received branches from server: " + branchNames);
-                    // Refresh branch column so UI updates with new combo box items
                     usersTable.refresh();
                 }
                 case "FETCH_ALL_USERS_OK" -> {
+                    // hydrate table from server payload
                     List<Map<String, Object>> raw = (List<Map<String, Object>>) msg.getData();
                     usersList.clear();
                     for (Map<String, Object> map : raw) {
@@ -269,10 +281,10 @@ public class UsersController {
                     }
                 }
                 case "USER_CREATED" -> {
+                    // append new user if not present
                     @SuppressWarnings("unchecked")
                     Map<String, Object> map = (Map<String, Object>) msg.getData();
                     int id = (int) map.get("id");
-
                     boolean exists = usersList.stream().anyMatch(u -> u.getId() == id);
                     if (!exists) {
                         usersList.add(new UserDisplayDTO(
@@ -290,48 +302,42 @@ public class UsersController {
                     }
                 }
                 case "USER_FREEZE_OK" -> {
+                    // reflect freeze in table
                     int id = (int) msg.getData();
-                    usersList.stream()
-                            .filter(u -> u.getId() == id)
-                            .findFirst()
+                    usersList.stream().filter(u -> u.getId() == id).findFirst()
                             .ifPresent(u -> { u.setActive(false); usersTable.refresh(); });
                 }
                 case "USER_UNFREEZE_OK" -> {
+                    // reflect unfreeze in table
                     int id = (int) msg.getData();
-                    usersList.stream()
-                            .filter(u -> u.getId() == id)
-                            .findFirst()
+                    usersList.stream().filter(u -> u.getId() == id).findFirst()
                             .ifPresent(u -> { u.setActive(true); usersTable.refresh(); });
                 }
-
-
                 case "UPDATE_USER_OK" -> {
                     System.out.println("[Client] User update successful");
                 }
                 case "USER_UPDATED" -> {
+                    // merge remote user changes into the table
                     @SuppressWarnings("unchecked")
                     Map<String, Object> map = (Map<String, Object>) msg.getData();
                     int id = (int) map.get("id");
-
-                    usersList.stream()
-                            .filter(r -> r.getId() == id)
-                            .findFirst()
-                            .ifPresent(r -> {
-                                r.setUsername((String) map.get("username"));
-                                r.setEmail((String) map.get("email"));
-                                r.setPhone((String) map.get("phone"));
-                                r.setRole((String) map.get("role"));
-                                r.setBranchName((String) map.get("branchName"));
-                                r.setActive((boolean) map.get("active"));
-                                r.setVip((boolean) map.get("isVIP"));
-                                usersTable.refresh();
-                            });
+                    usersList.stream().filter(r -> r.getId() == id).findFirst().ifPresent(r -> {
+                        r.setUsername((String) map.get("username"));
+                        r.setEmail((String) map.get("email"));
+                        r.setPhone((String) map.get("phone"));
+                        r.setRole((String) map.get("role"));
+                        r.setBranchName((String) map.get("branchName"));
+                        r.setActive((boolean) map.get("active"));
+                        r.setVip((boolean) map.get("isVIP"));
+                        usersTable.refresh();
+                    });
                 }
                 case "ACCOUNT_FROZEN" -> {
-                    // if this client gets frozen while viewing Users
+                    // if current client is frozen while in this screen
                     SceneController.forceLogoutWithAlert((String) msg.getData());
                 }
                 case "UPDATE_USER_FAILED" -> {
+                    // show error from server
                     String error = (String) msg.getData();
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Update Failed");
@@ -342,23 +348,21 @@ public class UsersController {
             }
         });
     }
+
+    // react to local role/vip changes (e.g., permissions downgraded)
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onLocalRoleVipChanged(Msg msg) {
         if (!"LOCAL_ROLE_VIP_CHANGED".equals(msg.getAction())) return;
-
         boolean canView =
                 SceneController.hasPermission(User.Role.WORKER) ||
                         SceneController.hasPermission(User.Role.MANAGER) ||
                         SceneController.hasPermission(User.Role.ADMIN);
-
         if (!canView) {
             try { SimpleClient.getClient().sendToServer("remove client"); } catch (IOException ignored) {}
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
             return;
         }
-
         usersTable.refresh();
     }
-
 }

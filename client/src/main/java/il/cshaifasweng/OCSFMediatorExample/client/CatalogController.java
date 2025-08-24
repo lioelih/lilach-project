@@ -32,6 +32,13 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/*
+ * catalog controller:
+ * - loads catalog, sales, branches, and basket count
+ * - filters and displays products with sale badges and prices
+ * - hides basket/custom actions for guests, and admin actions for non-workers
+ * - reacts to realtime updates via eventbus
+ */
 public class CatalogController {
 
     @FXML private Label promoLabel;
@@ -67,6 +74,7 @@ public class CatalogController {
     public void initialize() {
         try { EventBus.getDefault().unregister(this); } catch (Exception ignored) {}
         EventBus.getDefault().register(this);
+
         boolean loggedIn = SceneController.loggedUsername != null;
         try {
             SimpleClient.ensureConnected();
@@ -154,7 +162,6 @@ public class CatalogController {
         iv.setPreserveRatio(true);
         basketIcon.setGraphic(iv);
 
-
         branchFilter.setButtonCell(new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
@@ -168,7 +175,7 @@ public class CatalogController {
             }
         });
 
-        // prevent auto-apply from FXML bindings; only the button applies
+        // prevent auto-apply from fxml bindings; only the button applies
         branchFilter.setOnAction(e -> {});
         typeBox.setOnAction(e -> {});
         stringSearchField.setOnAction(e -> {});
@@ -193,12 +200,10 @@ public class CatalogController {
     @Subscribe
     public void onCatalogReceived(CatalogEvent event) {
         fullCatalog = new ArrayList<>(event.getProducts());
-
         Platform.runLater(() -> {
             if (applyWaitingForStock) return;
 
             Branch sel = branchFilter.getValue();
-
             if (sel != null && sel.getBranchId() != 0
                     && lastAllowedIds != null
                     && Objects.equals(lastStockBranchId, sel.getBranchId())) {
@@ -211,7 +216,6 @@ public class CatalogController {
                 products = new ArrayList<>(fullCatalog);
                 displayProducts(products);
             }
-
         });
     }
 
@@ -221,7 +225,7 @@ public class CatalogController {
         Platform.runLater(() -> maybeDisplayProducts(fullCatalog));
     }
 
-    //helper func to help avoid sales and catalog event collisions
+    // helps avoid sales/catalog event collisions
     private void maybeDisplayProducts(List<Product> productList) {
         if (sales != null && !productList.isEmpty()) {
             displayProducts(productList);
@@ -322,6 +326,7 @@ public class CatalogController {
         }
     }
 
+    // applies filters and fetches stock if needed
     private void apply() {
         Branch sel = branchFilter.getValue();
         boolean privileged = isVip || SceneController.hasPermission(User.Role.WORKER);
@@ -349,6 +354,7 @@ public class CatalogController {
         }
     }
 
+    // runs local client-side filtering and updates the grid
     private void doLocal(List<Product> base) {
         refreshTypeChoices();
 
@@ -368,6 +374,7 @@ public class CatalogController {
         displayProducts(out);
     }
 
+    // refreshes type choices based on the full catalog
     private void refreshTypeChoices() {
         String prevType = typeBox.getValue();
 
@@ -389,7 +396,7 @@ public class CatalogController {
         }
     }
 
-
+    // opens a read-only product view for privileged users
     private void openProductPage(Product product) {
         if (!canOpenProductDetails()) {
             Alert a = new Alert(Alert.AlertType.INFORMATION);
@@ -423,6 +430,7 @@ public class CatalogController {
             showAlert(e.getMessage());
         }
     }
+
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onLocalRoleVipChanged(Msg msg) {
         if (!"LOCAL_ROLE_VIP_CHANGED".equals(msg.getAction())) return;
@@ -440,6 +448,7 @@ public class CatalogController {
         if (wasVip != isVip || wasWorkerPlus != nowWorkerPlus) {
             try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ignore) {}
         }
+
         boolean loggedIn = SceneController.loggedUsername != null;
         basketIcon.setVisible(loggedIn);
         basketIcon.setManaged(loggedIn);
@@ -456,8 +465,6 @@ public class CatalogController {
         }
     }
 
-
-
     @FXML private void filterButtonFire() { filterButton.fire(); }
 
     private static boolean canOpenProductDetails() {
@@ -466,18 +473,20 @@ public class CatalogController {
                 || SceneController.hasPermission(User.Role.ADMIN);
     }
 
+    // renders product cards and wires up actions, honoring visibility rules
     private void displayProducts(List<Product> productList) {
         productGrid.getChildren().clear();
         boolean loggedIn = SceneController.loggedUsername != null;
+
         if (productList == null || productList.isEmpty()) {
             Label empty = new Label("No items have been found.");
             empty.setStyle("-fx-font-size: 16; -fx-text-fill: #6b7280;");
             empty.setWrapText(true);
             empty.setAlignment(Pos.CENTER);
 
-            // simple centered-ish placeholder inside the grid
+            // simple centered placeholder inside the grid
             StackPane wrap = new StackPane(empty);
-            wrap.setPrefSize(600, 300); // gives it some presence in the grid
+            wrap.setPrefSize(600, 300);
             StackPane.setAlignment(empty, Pos.CENTER);
 
             productGrid.getChildren().add(wrap);
@@ -617,14 +626,16 @@ public class CatalogController {
                     }
                 }
             });
+
             if (!loggedIn) {
-                // Guests: button is not visible at all
+                // guests: hide the add-to-basket action entirely
                 addToBasketButton.setVisible(false);
                 addToBasketButton.setManaged(false);
             } else {
-                // Logged-in: keep your existing enable/disable behavior
+                // logged-in users honor the actionsDisabled toggle
                 addToBasketButton.setDisable(actionsDisabled);
             }
+
             boolean canDetails = canOpenProductDetails();
             if (!canDetails) {
                 viewButton.setVisible(false);
@@ -632,6 +643,7 @@ public class CatalogController {
             } else {
                 viewButton.setDisable(actionsDisabled);
             }
+
             addToBasketButton.setDisable(actionsDisabled);
 
             card.getChildren().addAll(imageStack, nameLabel, typeLabel, priceFlow, viewButton, addToBasketButton);
@@ -639,6 +651,7 @@ public class CatalogController {
         }
     }
 
+    // small warning helper
     private void showAlert(String txt) {
         Alert alert = new Alert(Alert.AlertType.WARNING, txt, ButtonType.OK);
         alert.setHeaderText(null);

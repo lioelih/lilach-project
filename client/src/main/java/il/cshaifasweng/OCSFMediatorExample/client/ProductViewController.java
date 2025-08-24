@@ -22,6 +22,13 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 
+/*
+ * product view controller
+ * - shows/edit product fields and image
+ * - supports drag-and-drop image replacement
+ * - lets workers update/delete the product
+ * - loads branches and adjusts stock per branch
+ */
 public class ProductViewController {
 
     @FXML public Button cancelButton;
@@ -33,18 +40,19 @@ public class ProductViewController {
     private Product product;
     private File droppedImageFile;
 
-    @FXML private void initialize() {
+    @FXML
+    private void initialize() {
         EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
 
         branchBox.setButtonCell(new ListCell<>() {
-            @Override protected void updateItem(Branch b, boolean empty){
+            @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
                 setText(empty || b == null ? "" : b.getName());
             }
         });
         branchBox.setCellFactory(lv -> new ListCell<>() {
-            @Override protected void updateItem(Branch b, boolean empty){
+            @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
                 setText(empty || b == null ? "" : b.getName());
             }
@@ -72,8 +80,7 @@ public class ProductViewController {
                 imageView.setFitWidth(300);
                 imageView.setFitHeight(200);
                 imageView.setPreserveRatio(true);
-            }
-            else {
+            } else {
                 imageView.setImage(image);
                 imageView.setFitWidth(300);
                 imageView.setFitHeight(200);
@@ -87,7 +94,7 @@ public class ProductViewController {
             imageView.setPreserveRatio(true);
         }
 
-        // Drag and drop image logic
+        // drag-and-drop png/jpg image onto the preview
         imageView.setOnDragOver(event -> {
             if (event.getGestureSource() != imageView && event.getDragboard().hasFiles()) {
                 event.acceptTransferModes(TransferMode.COPY);
@@ -108,33 +115,34 @@ public class ProductViewController {
             event.consume();
         });
 
-        // Ask server for branches
+        // ask server for branches
         try {
             SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null));
         } catch (IOException ex) { ex.printStackTrace(); }
 
+        // when a branch is chosen, fetch current stock for this product in that branch
         branchBox.valueProperty().addListener((obs, oldB, newB) -> {
             if (newB == null) return;
             try {
                 SimpleClient.getClient().sendToServer(
-                        new Msg("FETCH_STOCK_SINGLE", new Object[]{ product.getId(), newB.getBranchId() }));
+                        new Msg("FETCH_STOCK_SINGLE", new Object[]{ product.getId(), newB.getBranchId() })
+                );
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
         });
 
+        // save stock amount to selected branch
         saveStockBtn.setOnAction(ev -> {
             Branch br = branchBox.getValue();
             if (br == null) {
                 showAlert("Choose a branch first.");
                 return;
             }
-
             if (qtyField.getText().isBlank()) {
                 showAlert("Enter a quantity.");
                 return;
             }
-
             int qty;
             try {
                 qty = Integer.parseInt(qtyField.getText().trim());
@@ -142,14 +150,12 @@ public class ProductViewController {
                 showAlert("Quantity must be a whole number.");
                 return;
             }
-
             if (qty < 0) {
                 showAlert("Quantity can’t be negative.");
                 return;
             }
 
             int[] payload = { product.getId(), br.getBranchId(), qty };
-
             try {
                 SimpleClient.getClient().sendToServer(new Msg("ADD_STOCK", payload));
                 saveStockBtn.setDisable(true);
@@ -159,7 +165,7 @@ public class ProductViewController {
             }
         });
 
-        // Restore update button functionality
+        // update product fields (name/type/price/image)
         updateButton.setOnAction(e -> {
             try {
                 String newName = nameField.getText().trim();
@@ -181,10 +187,11 @@ public class ProductViewController {
 
                 byte[] newImage;
                 try {
-                    if (droppedImageFile == null)
+                    if (droppedImageFile == null) {
                         newImage = product.getImage();
-                    else
+                    } else {
                         newImage = Files.readAllBytes(droppedImageFile.toPath());
+                    }
                 } catch (IOException err) {
                     showAlert("Failed to read image file.");
                     return;
@@ -199,7 +206,7 @@ public class ProductViewController {
             }
         });
 
-        // Restore delete button functionality
+        // delete product (with confirmation)
         deleteButton.setOnAction(e -> {
             try {
                 Alert alert = new Alert(AlertType.CONFIRMATION);
@@ -245,9 +252,9 @@ public class ProductViewController {
         Platform.runLater(() -> qtyField.setText(String.valueOf(qty)));
     }
 
-    @FXML private void onClose() {
+    @FXML
+    private void onClose() {
         EventBus.getDefault().unregister(this);
-        // then close the Stage, e.g.
         ((Stage) nameField.getScene().getWindow()).close();
     }
 

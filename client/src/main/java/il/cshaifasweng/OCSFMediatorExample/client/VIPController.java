@@ -19,6 +19,14 @@ import org.greenrobot.eventbus.Subscribe;
 import java.io.IOException;
 import java.util.Objects;
 
+/*
+ * vipcontroller
+ * - loads logo and registers to eventbus
+ * - wires navigation and vip subscribe/cancel actions
+ * - fetches current user to set vip ui state
+ * - opens payment window; on success requests vip activation
+ * - reacts to vip activated/cancelled and account frozen events
+ */
 public class VIPController  {
 
     @FXML private Button subscribeButton;
@@ -31,27 +39,35 @@ public class VIPController  {
     public void initialize() {
         Image logo = new Image(getClass().getResourceAsStream("/image/logo.png"));
         logoImage.setImage(logo);
+
         if (!EventBus.getDefault().isRegistered(this)) {
             EventBus.getDefault().register(this);
         }
 
+        // back to home
         backButton.setOnAction(e -> {
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
-            });
+        });
+
+        // start vip flow via payment window
         subscribeButton.setOnAction(e -> openPaymentWindow());
 
+        // guests cannot subscribe/cancel
         if (SceneController.loggedUsername == null) {
             subscribeButton.setDisable(true);
             cancelVipButton.setDisable(true);
             return;
         }
 
+        // fetch user to initialize vip ui states
         try {
             SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername));
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // cancel current vip (deactivates after current period)
         cancelVipButton.setOnAction(e -> {
             try {
                 SimpleClient.getClient().sendToServer(new Msg("CANCEL_VIP", SceneController.loggedUsername));
@@ -61,6 +77,7 @@ public class VIPController  {
         });
     }
 
+    // apply vip state when user data arrives
     @Subscribe
     public void handleUserFetched(Msg msg) {
         if (!"FETCH_USER".equals(msg.getAction())) return;
@@ -75,6 +92,7 @@ public class VIPController  {
         });
     }
 
+    // show success and return to home when vip is activated
     @Subscribe
     public void handleVipActivated(Msg msg) {
         if (!"VIP_ACTIVATED".equals(msg.getAction())) return;
@@ -90,6 +108,7 @@ public class VIPController  {
         });
     }
 
+    // inform user when vip cancellation is processed
     @Subscribe
     public void handleVipCancelled(Msg msg) {
         if (!"VIP_CANCELLED".equals(msg.getAction())) return;
@@ -104,6 +123,7 @@ public class VIPController  {
         });
     }
 
+    // opens modal payment dialog; on success requests vip activation
     private void openPaymentWindow() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/il/cshaifasweng/OCSFMediatorExample/client/Payment.fxml"));
@@ -128,6 +148,8 @@ public class VIPController  {
             e.printStackTrace();
         }
     }
+
+    // keep vip page in sync if user record changes elsewhere
     @Subscribe
     public void onUserUpdated(Msg msg) {
         if (!"USER_UPDATED".equals(msg.getAction())) return;
@@ -139,14 +161,10 @@ public class VIPController  {
         }
     }
 
-
+    // force logout everywhere if account becomes frozen
     @Subscribe
     public void onAccountFrozen(Msg msg) {
         if (!"ACCOUNT_FROZEN".equals(msg.getAction())) return;
-        Platform.runLater(() -> SceneController.forceLogoutWithAlert(
-                (String) msg.getData()
-        ));
+        Platform.runLater(() -> SceneController.forceLogoutWithAlert((String) msg.getData()));
     }
-
-
 }

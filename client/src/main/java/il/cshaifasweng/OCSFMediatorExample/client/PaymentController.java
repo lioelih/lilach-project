@@ -11,11 +11,17 @@ import org.greenrobot.eventbus.Subscribe;
 import java.io.IOException;
 import java.time.YearMonth;
 
+/*
+ * payment controller
+ * - formats and validates card number, expiration, and cvv
+ * - pre-fills fields from the server when available
+ * - posts updated card details back to the server
+ */
 public class PaymentController {
 
-    @FXML private TextField cardNumberField;   // 16 digits, grouped 4
-    @FXML private TextField expDateField;      // MM/YY
-    @FXML private TextField cvvField;          // 3 digits
+    @FXML private TextField cardNumberField; // 16 digits, grouped in 4s
+    @FXML private TextField expDateField;    // mm/yy
+    @FXML private TextField cvvField;        // 3 digits
     @FXML private Button confirmButton;
     @FXML private Button cancelButton;
 

@@ -24,15 +24,21 @@ import ui.ToggleFlower;
 import java.io.IOException;
 import java.util.*;
 
+/*
+ * custom bouquet controller:
+ * - lets a logged-in user build or load a custom bouquet using flowers and a pot
+ * - keeps a live total with sales/discounts applied
+ * - allows saving the design and adding it to the basket
+ */
 public class CustomBouquetController {
 
+    // ui references
     @FXML private ImageView logoImage;
     @FXML private Button backButton;
     @FXML private Button addToBasketButton;
     @FXML private ComboBox<String> existingCombo;
     @FXML private VBox newPane;
     @FXML private Label limitLabel;
-
     @FXML private ComboBox<String> styleBox;
     @FXML private FlowPane flowerPane;
     @FXML private FlowPane potPane;
@@ -41,21 +47,23 @@ public class CustomBouquetController {
     @FXML private Label totalPriceLabel;
     @FXML private ImageView stylePreview;
 
-    private final Map<Integer,Integer> selections = new LinkedHashMap<>();
+    // state tracking
+    private final Map<Integer, Integer> selections = new LinkedHashMap<>();
     private final Map<ToggleFlower, Label> flowerPriceLabels = new HashMap<>();
     private final Map<Integer, ToggleFlower> flowerIndex = new HashMap<>();
     private final Map<Integer, VBox> flowerCells = new HashMap<>();
-
     private final Map<ToggleFlower, Label> potPriceLabels = new HashMap<>();
     private final Map<Integer, ToggleFlower> potIndex = new HashMap<>();
     private final Map<Integer, VBox> potCells = new HashMap<>();
     private Integer selectedPotId = null;
 
+    // data sources
     private List<CustomBouquetDTO> myBouquets = List.of();
     private List<Product> catalogProducts = List.of();
     private List<Sale> sales = List.of();
     private Integer currentCustomId;
 
+    // init ui, subscribe to events, and request data
     @FXML
     public void initialize() {
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
@@ -74,7 +82,7 @@ public class CustomBouquetController {
         existingCombo.setOnAction(this::onExistingSelected);
 
         styleBox.getItems().setAll("Bridal", "Tidy", "Clustered");
-        styleBox.valueProperty().addListener((o,ov,nv) -> {
+        styleBox.valueProperty().addListener((o, ov, nv) -> {
             updateSaveEnabled();
             updateStylePreview(nv);
         });
@@ -98,7 +106,9 @@ public class CustomBouquetController {
         addToBasketButton.setDisable(true);
     }
 
-    @Subscribe @SuppressWarnings("unchecked")
+    // receive list of user's saved custom bouquets
+    @Subscribe
+    @SuppressWarnings("unchecked")
     public void onCustomList(Msg m) {
         if (!"LIST_CUSTOM_BOUQUETS_OK".equals(m.getAction())) return;
         myBouquets = (List<CustomBouquetDTO>) m.getData();
@@ -109,6 +119,7 @@ public class CustomBouquetController {
         });
     }
 
+    // receive catalog and keep flower/pot grids in sync
     @Subscribe
     public void onCatalog(CatalogEvent event) {
         List<Product> incoming = event.getProducts();
@@ -187,6 +198,7 @@ public class CustomBouquetController {
         });
     }
 
+    // receive sales updates and refresh price hints/totals
     @Subscribe
     public void onSales(SalesEvent e) {
         if (!"SENT_SALES".equals(e.getUseCase())
@@ -202,6 +214,7 @@ public class CustomBouquetController {
         });
     }
 
+    // handle switching between creating new and loading an existing design
     private void onExistingSelected(ActionEvent evt) {
         int idx = existingCombo.getSelectionModel().getSelectedIndex();
         boolean isNew = idx <= 0;
@@ -273,11 +286,13 @@ public class CustomBouquetController {
         }
     }
 
+    // enable save only when style chosen and at least one flower selected
     private void updateSaveEnabled() {
         boolean can = styleBox.getValue() != null && !selections.isEmpty();
         saveButton.setDisable(!can);
     }
 
+    // enforce the global limit of 50 flowers across all selections
     private void updateQuantityLimits() {
         int used = selections.values().stream().mapToInt(i -> i).sum();
         int rem = Math.max(0, 50 - used);
@@ -301,9 +316,10 @@ public class CustomBouquetController {
                 .forEach(tf -> tf.getToggle().setDisable(soldOut));
     }
 
+    // recompute the total price with current selections and sales
     private void updatePrice() {
         double sum = 0.0;
-        for (Map.Entry<Integer,Integer> e : selections.entrySet()) {
+        for (Map.Entry<Integer, Integer> e : selections.entrySet()) {
             ToggleFlower tf = flowerIndex.get(e.getKey());
             if (tf == null) continue;
             Product prod = tf.getProduct();
@@ -320,6 +336,7 @@ public class CustomBouquetController {
         totalPriceLabel.setText(String.format("Total Price: ₪%.2f", sum));
     }
 
+    // add or refresh a flower cell while preserving selection
     private void upsertFlower(Product p) {
         if (p == null || p.getType() == null || !"flower".equalsIgnoreCase(p.getType())) return;
         int id = p.getId();
@@ -374,6 +391,7 @@ public class CustomBouquetController {
         }
     }
 
+    // add or refresh a pot/vase cell while ensuring single selection
     private void upsertPot(Product p) {
         if (p == null || p.getType() == null) return;
         String t = p.getType().toLowerCase();
@@ -404,7 +422,6 @@ public class CustomBouquetController {
                 updatePrice();
             });
 
-
             VBox cell = new VBox(4, tf, priceHint);
             cell.setAlignment(Pos.CENTER);
             potIndex.put(id, tf);
@@ -424,6 +441,7 @@ public class CustomBouquetController {
         }
     }
 
+    // update per-item flower price hint with discount and quantity
     private void updateFlowerItemPrice(ToggleFlower tf) {
         if (tf == null) return;
         Label l = flowerPriceLabels.get(tf);
@@ -442,6 +460,7 @@ public class CustomBouquetController {
         l.setManaged(true);
     }
 
+    // update per-item pot/vase price hint with discount
     private void updatePotItemPrice(ToggleFlower tf) {
         if (tf == null) return;
         Label l = potPriceLabels.get(tf);
@@ -453,6 +472,7 @@ public class CustomBouquetController {
         l.setManaged(true);
     }
 
+    // refresh all item price hints (flowers and pots)
     private void updateAllFlowerPrices() {
         for (Map.Entry<Integer, ToggleFlower> e : flowerIndex.entrySet()) updateFlowerItemPrice(e.getValue());
     }
@@ -461,7 +481,9 @@ public class CustomBouquetController {
         for (Map.Entry<Integer, ToggleFlower> e : potIndex.entrySet()) updatePotItemPrice(e.getValue());
     }
 
-    @FXML private void onSave(ActionEvent evt) {
+    // build dto and save/update on server; offer to add to basket
+    @FXML
+    private void onSave(ActionEvent evt) {
         String name = nameField.getText().trim();
         String style = styleBox.getValue();
         String potName = null;
@@ -471,7 +493,7 @@ public class CustomBouquetController {
         }
 
         double price = 0.0;
-        for (Map.Entry<Integer,Integer> e : selections.entrySet()) {
+        for (Map.Entry<Integer, Integer> e : selections.entrySet()) {
             ToggleFlower tf = flowerIndex.get(e.getKey());
             if (tf == null) continue;
             price += tf.getProduct().getPrice() * e.getValue();
@@ -482,7 +504,7 @@ public class CustomBouquetController {
         }
 
         var items = new ArrayList<CustomBouquetItemDTO>();
-        for (Map.Entry<Integer,Integer> e : selections.entrySet()) {
+        for (Map.Entry<Integer, Integer> e : selections.entrySet()) {
             items.add(new CustomBouquetItemDTO(currentCustomId, e.getKey(), e.getValue()));
         }
 
@@ -509,13 +531,16 @@ public class CustomBouquetController {
         });
     }
 
-    @Subscribe public void onCustomCreated(Msg m) {
-        if ("CREATE_CUSTOM_BOUQUET_OK".equals(m.getAction())) currentCustomId = (Integer)m.getData();
+    // update current id after server confirms create/update
+    @Subscribe
+    public void onCustomCreated(Msg m) {
+        if ("CREATE_CUSTOM_BOUQUET_OK".equals(m.getAction())) currentCustomId = (Integer) m.getData();
     }
 
-    @Subscribe public void onCustomUpdated(Msg m) {
+    @Subscribe
+    public void onCustomUpdated(Msg m) {
         if ("UPDATE_CUSTOM_BOUQUET_OK".equals(m.getAction())) {
-            currentCustomId = (Integer)m.getData();
+            currentCustomId = (Integer) m.getData();
             Platform.runLater(() -> {
                 int idx = existingCombo.getSelectionModel().getSelectedIndex();
                 existingCombo.getItems().set(idx, currentCustomId + ": " + nameField.getText());
@@ -523,7 +548,9 @@ public class CustomBouquetController {
         }
     }
 
-    @FXML private void onAddToBasket(ActionEvent evt) {
+    // add the saved design to basket
+    @FXML
+    private void onAddToBasket(ActionEvent evt) {
         if (currentCustomId == null) return;
         try {
             SimpleClient.getClient().sendToServer(new Msg("ADD_CUSTOM_TO_BASKET",
@@ -535,6 +562,7 @@ public class CustomBouquetController {
         }
     }
 
+    // keep ui consistent when products change
     @Subscribe
     public void onProductUpdated(Msg m) {
         if (!"PRODUCT_UPDATED".equals(m.getAction())) return;
@@ -567,6 +595,8 @@ public class CustomBouquetController {
             updatePrice();
         });
     }
+
+    // update style preview image based on selection
     private void updateStylePreview(String style) {
         String file = null;
         if ("Bridal".equalsIgnoreCase(style)) file = "bridal.png";
@@ -577,9 +607,10 @@ public class CustomBouquetController {
                 new Image(Objects.requireNonNull(getClass().getResourceAsStream("/image/" + file))));
     }
 
-
-    @FXML private void onBack(ActionEvent evt) {
+    // close dialog and unregister events
+    @FXML
+    private void onBack(ActionEvent evt) {
         EventBus.getDefault().unregister(this);
-        ((Stage)backButton.getScene().getWindow()).close();
+        ((Stage) backButton.getScene().getWindow()).close();
     }
 }
