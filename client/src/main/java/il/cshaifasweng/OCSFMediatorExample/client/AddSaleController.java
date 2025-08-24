@@ -19,6 +19,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/*
+ * add sale dialog controller
+ * - lets a manager create different sale types (percentage, fixed, bundle, buy_x_get_y)
+ * - builds the sale dto from ui input and sends it to the server
+ * - includes date and input validation and prevents overlapping sales on same products/type
+ */
 public class AddSaleController {
 
     @FXML private TextField nameField;
@@ -43,13 +49,11 @@ public class AddSaleController {
 
     @FXML
     public void initialize() {
-        discountTypeBox.setItems(FXCollections.observableArrayList(
-                "Percentage", "Fixed", "Bundle", "Buy_X_Get_Y"
-        ));
-
+        // populate sale types and set change handler
+        discountTypeBox.setItems(FXCollections.observableArrayList("Percentage", "Fixed", "Bundle", "Buy_X_Get_Y"));
         discountTypeBox.setOnAction(e -> handleDiscountTypeChange());
 
-        // Date validation: disable past dates
+        // disable past dates for start/end
         LocalDate today = LocalDate.now();
         startDatePicker.setDayCellFactory(picker -> new DateCell() {
             public void updateItem(LocalDate date, boolean empty) {
@@ -64,8 +68,8 @@ public class AddSaleController {
             }
         });
 
+        // wire buttons
         cancelButton.setOnAction(e -> ((Stage) cancelButton.getScene().getWindow()).close());
-
         addButton.setOnAction(e -> {
             Sale newSale = buildSaleFromInputs();
             if (newSale == null) return; // build shows alerts
@@ -86,9 +90,9 @@ public class AddSaleController {
         });
     }
 
+    // switches the dynamic input area based on selected sale type
     private void handleDiscountTypeChange() {
         dynamicContainer.getChildren().clear();
-
         String type = discountTypeBox.getValue();
         if (type == null) return;
 
@@ -99,6 +103,7 @@ public class AddSaleController {
         }
     }
 
+    // ui for a single product discount (percentage/fixed)
     private void showSingleProductDiscount(String type) {
         VBox wrapper = new VBox(10);
         wrapper.setAlignment(Pos.CENTER);
@@ -127,6 +132,7 @@ public class AddSaleController {
         dynamicContainer.getChildren().add(wrapper);
     }
 
+    // ui for buy x get y discount
     private void showBuyXGetY() {
         VBox wrapper = new VBox(10);
         wrapper.setAlignment(Pos.CENTER);
@@ -148,6 +154,7 @@ public class AddSaleController {
         dynamicContainer.getChildren().add(wrapper);
     }
 
+    // ui for bundle discount (two products + value)
     private void showBundleDiscount() {
         VBox wrapper = new VBox(15);
         wrapper.setAlignment(Pos.CENTER_LEFT);
@@ -176,6 +183,7 @@ public class AddSaleController {
         dynamicContainer.getChildren().add(wrapper);
     }
 
+    // product selector with image thumbnails and name/price
     private ComboBox<Product> createProductSelector() {
         ComboBox<Product> selector = new ComboBox<>();
         selector.setPromptText("Select a product");
@@ -210,6 +218,7 @@ public class AddSaleController {
         return selector;
     }
 
+    // helper to create preview imageview
     private ImageView createImageView() {
         ImageView imageView = new ImageView();
         imageView.setFitWidth(100);
@@ -219,6 +228,7 @@ public class AddSaleController {
         return imageView;
     }
 
+    // update the preview image when a product is chosen
     private void updateImage(ComboBox<Product> selector, ImageView imageView) {
         Product selected = selector.getValue();
         if (selected != null && selected.getImage() != null) {
@@ -234,6 +244,7 @@ public class AddSaleController {
         }
     }
 
+    // collect and validate input, then build a sale object; shows alerts on invalid input
     private Sale buildSaleFromInputs() {
         if (!validInput()) return null;
 
@@ -242,11 +253,11 @@ public class AddSaleController {
         String discountTypeStr = discountTypeBox.getValue().toUpperCase();
         Sale.DiscountType discountType = Sale.DiscountType.valueOf(discountTypeStr);
 
-        // Dates
+        // dates
         LocalDateTime startDate = startDatePicker.getValue().atStartOfDay();
         LocalDateTime endDate = endDatePicker.getValue().atTime(23, 59, 59);
 
-        // Products
+        // products
         List<Integer> productIds = new ArrayList<>();
         if (productSelector1 != null && productSelector1.getValue() != null) {
             productIds.add(productSelector1.getValue().getId());
@@ -255,7 +266,7 @@ public class AddSaleController {
             productIds.add(productSelector2.getValue().getId());
         }
 
-        // Parse numeric inputs
+        // parse numeric inputs
         Double discountValue = null;
         Integer buyQty = null;
         Integer getQty = null;
@@ -282,7 +293,7 @@ public class AddSaleController {
             }
         }
 
-        // Type-specific validation (the two checks you asked to add)
+        // type-specific validation
         switch (discountType) {
             case FIXED -> {
                 if (productIds.isEmpty()) {
@@ -315,11 +326,11 @@ public class AddSaleController {
                 }
             }
             case BUNDLE, BUY_X_GET_Y -> {
-                // No extra monetary checks here unless you want bundle cap checks, etc.
+                // no extra monetary checks here unless needed in future
             }
         }
 
-        // Build sale
+        // build sale object
         Sale sale = new Sale();
         sale.setName(name);
         sale.setDescription(description);
@@ -334,6 +345,7 @@ public class AddSaleController {
         return sale;
     }
 
+    // basic ui validation before building the sale
     public boolean validInput() {
         if (nameField.getText().isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Missing Name", "Please enter a name.");
@@ -355,13 +367,12 @@ public class AddSaleController {
             showAlert(Alert.AlertType.WARNING, "Missing End Date", "Please choose an end date.");
             return false;
         }
-        if (startDatePicker.getValue().atStartOfDay()
-                .isAfter(endDatePicker.getValue().atTime(23, 59, 59))) {
+        if (startDatePicker.getValue().atStartOfDay().isAfter(endDatePicker.getValue().atTime(23, 59, 59))) {
             showAlert(Alert.AlertType.WARNING, "Invalid Dates", "Start date should be before end date.");
             return false;
         }
 
-        // Product selection rules
+        // product selection rules
         List<Integer> productIds = new ArrayList<>();
         if (productSelector1 != null && productSelector1.getValue() != null)
             productIds.add(productSelector1.getValue().getId());
@@ -379,13 +390,13 @@ public class AddSaleController {
             return false;
         }
 
-        // For percentage/fixed/bundle types, make sure valueField exists (UI state)
+        // ensure discount value exists for non buy_x_get_y
         if (selectedType != Sale.DiscountType.BUY_X_GET_Y && (valueField == null || valueField.getText().trim().isEmpty())) {
             showAlert(Alert.AlertType.WARNING, "Missing Discount Value", "Please enter a discount value.");
             return false;
         }
 
-        // For buy_x_get_y, make sure fields exist
+        // ensure quantity fields exist for buy_x_get_y
         if (selectedType == Sale.DiscountType.BUY_X_GET_Y && (buyXField == null || getYField == null)) {
             showAlert(Alert.AlertType.WARNING, "Missing Quantities", "Please enter Buy X and Get Y.");
             return false;
@@ -394,9 +405,9 @@ public class AddSaleController {
         return true;
     }
 
+    // check if an equivalent sale already exists for same products/type within overlapping dates
     public boolean saleAlreadyExists(Sale newSale) {
         for (Sale existing : sales) {
-            // Compare types: treat FIXED and PERCENTAGE as equal
             boolean sameType =
                     newSale.getDiscountType() == existing.getDiscountType()
                             || ((newSale.getDiscountType() == Sale.DiscountType.PERCENTAGE || newSale.getDiscountType() == Sale.DiscountType.FIXED)
@@ -404,7 +415,6 @@ public class AddSaleController {
 
             if (!sameType) continue;
 
-            // Compare product IDs: exact match (same elements, order doesn't matter)
             List<Integer> newProducts = new ArrayList<>(newSale.getProductIds());
             List<Integer> existingProducts = new ArrayList<>(existing.getProductIds());
             newProducts.sort(Integer::compareTo);
@@ -412,7 +422,6 @@ public class AddSaleController {
             boolean sameProducts = newProducts.equals(existingProducts);
             if (!sameProducts) continue;
 
-            // Check for date overlap
             boolean datesOverlap = existing.isActiveBetween(newSale.getStartDate(), newSale.getEndDate());
             if (datesOverlap) {
                 return true;
@@ -421,14 +430,17 @@ public class AddSaleController {
         return false;
     }
 
+    // dependency injection from caller: products to choose from
     public void setProducts(List<Product> products) {
         this.products = products;
     }
 
+    // dependency injection from caller: existing sales for overlap checks
     public void setSales(List<Sale> sales) {
         this.sales = sales;
     }
 
+    // generic alert helper
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
