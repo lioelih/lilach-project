@@ -4,17 +4,12 @@ import Events.*;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.*;
 import il.cshaifasweng.OCSFMediatorExample.client.ocsf.AbstractClient;
-import org.greenrobot.eventbus.EventBus;
-import java.util.concurrent.atomic.AtomicBoolean;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import java.io.IOException;
 import java.io.ObjectStreamClass;
-import java.util.List;
+
 
 public class SimpleClient extends AbstractClient {
-
+	private static final java.util.concurrent.atomic.AtomicBoolean FREEZE_HANDLED = new java.util.concurrent.atomic.AtomicBoolean(false);
 	private static SimpleClient client = null;
 
 	public SimpleClient(String host, int port) {
@@ -54,9 +49,12 @@ public class SimpleClient extends AbstractClient {
 			}
 
 			case "LOGIN_SUCCESS", "LOGIN_FAILED" -> {
-				System.out.println("Meow");
+				if ("LOGIN_SUCCESS".equals(massage.getAction())) {
+					FREEZE_HANDLED.set(false);
+				}
 				postFx(new LoginEvent(massage));
 			}
+
 			case "REGISTER_SUCCESS", "REGISTER_FAILED" -> postFx(new RegisterEvent(massage));
 
 			case "FETCH_USER", "PAYMENT_PREFILL",
@@ -71,11 +69,14 @@ public class SimpleClient extends AbstractClient {
 				postFx(massage);
 			}
 
+
 			case "ACCOUNT_FROZEN" -> {
-				postFx(massage);
-				javafx.application.Platform.runLater(() ->
-						SceneController.forceLogoutWithAlert((String) massage.getData())
-				);
+
+				if (FREEZE_HANDLED.compareAndSet(false, true)) {
+					javafx.application.Platform.runLater(() ->
+							SceneController.forceLogoutWithAlert((String) massage.getData())
+					);
+				}
 			}
 
 			case "USER_UPDATED" -> {
