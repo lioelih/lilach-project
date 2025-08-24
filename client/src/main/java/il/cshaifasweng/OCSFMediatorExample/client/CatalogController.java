@@ -98,7 +98,7 @@ public class CatalogController {
                 stage.setScene(scene);
                 stage.show();
             } catch (IOException err) {
-                err.printStackTrace();
+                showAlert(err.getMessage());
             }
         });
 
@@ -116,7 +116,7 @@ public class CatalogController {
                 popup.setMaximized(true);
                 popup.showAndWait();
             } catch (IOException ex) {
-                ex.printStackTrace();
+                showAlert(ex.getMessage());
             }
         });
 
@@ -142,11 +142,18 @@ public class CatalogController {
             }
         });
 
-        logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
-        ImageView iv = new ImageView(new Image(getClass().getResourceAsStream("/image/basket_icon.png")));
+        logoImage.setImage(new Image(
+                Objects.requireNonNull(getClass().getResource("/image/logo.png"), "Logo image not found")
+                        .toExternalForm()
+        ));
+        ImageView iv = new ImageView(new Image(
+                Objects.requireNonNull(getClass().getResource("/image/basket_icon.png"), "Basket icon not found")
+                        .toExternalForm()
+        ));
         iv.setFitWidth(24);
         iv.setPreserveRatio(true);
         basketIcon.setGraphic(iv);
+
 
         branchFilter.setButtonCell(new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
@@ -205,9 +212,7 @@ public class CatalogController {
     @Subscribe
     public void onSalesReceived(SalesEvent event) {
         sales = event.getSales();
-        Platform.runLater(() -> {
-            maybeDisplayProducts(fullCatalog);
-        });
+        Platform.runLater(() -> maybeDisplayProducts(fullCatalog));
     }
 
     //helper func to help avoid sales and catalog event collisions
@@ -227,7 +232,7 @@ public class CatalogController {
             try {
                 SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
             } catch (IOException e) {
-                e.printStackTrace();
+                showAlert(e.getMessage());
             }
         }
     }
@@ -333,7 +338,7 @@ public class CatalogController {
             try {
                 SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", sel.getBranchId()));
             } catch (IOException ex) {
-                ex.printStackTrace();
+                showAlert(ex.getMessage());
             }
         }
     }
@@ -398,7 +403,7 @@ public class CatalogController {
             stage.setScene(scene);
             stage.show();
         } catch (IOException e) {
-            e.printStackTrace();
+            showAlert(e.getMessage());
         }
     }
 
@@ -409,7 +414,7 @@ public class CatalogController {
         try {
             SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername));
         } catch (IOException e) {
-            e.printStackTrace();
+            showAlert(e.getMessage());
         }
     }
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -421,11 +426,10 @@ public class CatalogController {
         isVip = SceneController.isVIP;
         boolean nowWorkerPlus = SceneController.hasPermission(User.Role.WORKER);
 
-        boolean canWorker = nowWorkerPlus;
-        addProductButton.setVisible(canWorker);
-        addProductButton.setManaged(canWorker);
-        viewSalesButton.setVisible(canWorker);
-        viewSalesButton.setManaged(canWorker);
+        addProductButton.setVisible(nowWorkerPlus);
+        addProductButton.setManaged(nowWorkerPlus);
+        viewSalesButton.setVisible(nowWorkerPlus);
+        viewSalesButton.setManaged(nowWorkerPlus);
 
         if (wasVip != isVip || wasWorkerPlus != nowWorkerPlus) {
             try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ignore) {}
@@ -443,11 +447,6 @@ public class CatalogController {
         return SceneController.hasPermission(User.Role.WORKER)
                 || SceneController.hasPermission(User.Role.MANAGER)
                 || SceneController.hasPermission(User.Role.ADMIN);
-    }
-
-    @FXML
-    private void onClose() {
-        EventBus.getDefault().unregister(this);
     }
 
     private void displayProducts(List<Product> productList) {
@@ -498,7 +497,10 @@ public class CatalogController {
             priceFlow.setTextAlignment(TextAlignment.CENTER);
 
             if (isOnSale) {
-                ImageView saleBadge = new ImageView(new Image(getClass().getResourceAsStream("/image/sale_icon.png")));
+                ImageView saleBadge = new ImageView(new Image(
+                        Objects.requireNonNull(getClass().getResource("/image/sale_icon.png"), "sale_icon.png not found")
+                                .toExternalForm()
+                ));
                 saleBadge.setFitWidth(40);
                 saleBadge.setFitHeight(40);
                 StackPane.setAlignment(saleBadge, Pos.TOP_RIGHT);
@@ -541,7 +543,7 @@ public class CatalogController {
                         Msg msg = new Msg("ADD_TO_BASKET", new Object[]{SceneController.loggedUsername, product});
                         SimpleClient.getClient().sendToServer(msg);
                     } catch (IOException ex) {
-                        ex.printStackTrace();
+                        showAlert(ex.getMessage());
                     }
                     List<Sale> productSales = Sale.getProductSales(product, sales);
                     if (productSales != null) {
@@ -552,6 +554,7 @@ public class CatalogController {
                                 alert.setTitle("Bundle Offer");
                                 alert.setHeaderText("Special Bundle Offer!");
                                 alert.setContentText(sale.getDescription());
+                                assert bundledProduct != null;
                                 Image image = new Image(new ByteArrayInputStream(bundledProduct.getImage()));
                                 ImageView alertImageView = new ImageView(image);
                                 alertImageView.setFitWidth(100);
@@ -610,5 +613,11 @@ public class CatalogController {
             card.getChildren().addAll(imageStack, nameLabel, typeLabel, priceFlow, viewButton, addToBasketButton);
             productGrid.getChildren().add(card);
         }
+    }
+
+    private void showAlert(String txt) {
+        Alert alert = new Alert(Alert.AlertType.WARNING, txt, ButtonType.OK);
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 }
