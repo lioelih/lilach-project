@@ -11,19 +11,24 @@ import javafx.stage.Stage;
 
 import java.util.function.BiConsumer;
 
+/*
+ * greeting controller:
+ * - lets the user type a greeting and choose a background color
+ * - enforces a 200-character limit with a live counter
+ * - calls back with the text and hex color when saved
+ */
 public class GreetingController {
 
-    @FXML private TextArea    greetingTextArea;
+    @FXML private TextArea greetingTextArea;
     @FXML private ColorPicker colorPicker;
-    @FXML private Label       charCountLabel;
-    @FXML private Button        saveGreetingBtn;
-    @FXML private Button      cancelGreetingBtn;
-    @FXML private Region      rootPane;
+    @FXML private Label charCountLabel;
+    @FXML private Button saveGreetingBtn;
+    @FXML private Button cancelGreetingBtn;
+    @FXML private Region rootPane;
 
     private BiConsumer<String, String> onSave;
 
-    public void init(String initialText, String initialHex,
-                     BiConsumer<String,String> onSave) {
+    public void init(String initialText, String initialHex, BiConsumer<String, String> onSave) {
         this.onSave = onSave;
 
         // populate text
@@ -42,7 +47,7 @@ public class GreetingController {
             colorPicker.setValue(Color.WHITE);
         }
 
-        // update preview & char count
+        // update preview and character count
         updateBackground();
         updateCharCount();
 
@@ -66,13 +71,13 @@ public class GreetingController {
 
     @FXML
     private void initialize() {
-        // disable Save if over 200 chars
+        // disable save if over 200 chars
         greetingTextArea.textProperty().addListener((obs, old, nw) -> {
             saveGreetingBtn.setDisable(nw.length() > 200);
         });
     }
 
-    // update the greyed‑out remaining‑chars label
+    // update the greyed-out remaining-chars label
     private void updateCharCount() {
         int remaining = 200 - greetingTextArea.getText().length();
         if (remaining < 150) {
@@ -86,10 +91,7 @@ public class GreetingController {
     // paint the popup background to preview the chosen color
     private void updateBackground() {
         Color c = colorPicker.getValue();
-        rootPane.setStyle(String.format(
-                "-fx-background-color: %s; -fx-border-color: #ccc;",
-                toHex(c)
-        ));
+        rootPane.setStyle(String.format("-fx-background-color: %s; -fx-border-color: #ccc;", toHex(c)));
     }
 
     // close this window
@@ -98,12 +100,11 @@ public class GreetingController {
         st.close();
     }
 
-    // helper: convert Color to "#RRGGBB"
+    // helper: convert color to "#rrggbb"
     private String toHex(Color c) {
-        int r = (int) Math.round(c.getRed()   * 255);
+        int r = (int) Math.round(c.getRed() * 255);
         int g = (int) Math.round(c.getGreen() * 255);
-        int b = (int) Math.round(c.getBlue()  * 255);
+        int b = (int) Math.round(c.getBlue() * 255);
         return String.format("#%02X%02X%02X", r, g, b);
     }
-
 }

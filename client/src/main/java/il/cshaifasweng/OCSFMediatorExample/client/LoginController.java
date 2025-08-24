@@ -1,17 +1,24 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import il.cshaifasweng.Msg;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Button;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import il.cshaifasweng.Msg;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
 import java.io.IOException;
 
+/*
+ * login controller:
+ * - validates credentials locally and sends a login request to the server
+ * - ensures the client is connected before sending
+ * - shows user-friendly error messages on failures
+ * - sets the app logo on load
+ */
 public class LoginController {
 
     @FXML private TextField usernameField;
@@ -19,6 +26,8 @@ public class LoginController {
     @FXML private Button submitButton;
     @FXML private Button backButton;
     @FXML private ImageView logoImage;
+
+    /* initialize ui bindings: back navigation, submit action, and logo image */
     @FXML
     public void initialize() {
         backButton.setOnAction(e -> SceneController.switchScene("home"));
@@ -43,6 +52,7 @@ public class LoginController {
         logoImage.setImage(logo);
     }
 
+    /* client-side validation before sending login */
     private boolean isValidInput(String username, String password) {
         if (username.isBlank() || password.isBlank()) {
             showAlert("Username and password are required.");
@@ -59,6 +69,7 @@ public class LoginController {
         return true;
     }
 
+    /* utility: show an error alert on the fx thread */
     private void showAlert(String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);

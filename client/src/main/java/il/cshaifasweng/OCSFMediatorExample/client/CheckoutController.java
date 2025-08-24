@@ -1,6 +1,5 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import Events.*;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OrderDTO;
 import il.cshaifasweng.OCSFMediatorExample.entities.Basket;
@@ -36,43 +35,60 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.IntStream;
 
+/*
+ * checkout controller:
+ * - shows basket lines and live totals (sales, vip, delivery, store credit)
+ * - collects payment/fulfilment/schedule/recipient inputs
+ * - validates inputs with bindings and submits an order dto
+ * - handles server responses (branches, user/card info, order result)
+ */
 public class CheckoutController implements Initializable {
 
+    // ui: basket table
     @FXML private TableView<Basket> basketTable;
     @FXML private TableColumn<Basket, Basket> imgCol;
     @FXML private TableColumn<Basket, String> nameCol;
     @FXML private TableColumn<Basket, Integer> amtCol;
     @FXML private TableColumn<Basket, Double> priceCol;
 
+    // ui: summary
     @FXML private Label totalLabel;
     @FXML private Label discountLabel;
     @FXML private Label totalAfterLabel;
 
+    // ui: vip + delivery rows
     @FXML private HBox vipBox;
     @FXML private Label vipDiscountLabel;
     @FXML private HBox deliveryBox;
     @FXML private Label deliveryFeeLabel;
 
+    // ui: payment
     @FXML private RadioButton savedCardRadio, addCardRadio;
     @FXML private Button addCardButton;
 
+    // ui: fulfilment
     @FXML private RadioButton pickupRadio, deliveryRadio;
     @FXML private ComboBox<Branch> branchCombo;
     @FXML private TextField cityField, streetField, houseField, zipField;
 
+    // ui: timing
     @FXML private RadioButton asapRadio, scheduleRadio;
     @FXML private DatePicker deadlineDatePicker;
     @FXML private ComboBox<Integer> deadlineHourCombo;
     @FXML private HBox scheduleBox;
 
+    // ui: recipient
     @FXML private TextField recipientNameField, recipientPhoneField;
 
+    // ui: compensation
     @FXML private CheckBox useCompensationBox;
     @FXML private Label compBalanceLabel;
 
+    // ui: actions/logo
     @FXML private Button completeBtn;
     @FXML private ImageView logoImage;
 
+    // state
     private final List<Basket> items = new ArrayList<>();
     private final BooleanProperty hasCardProperty = new SimpleBooleanProperty(false);
     private final List<Branch> branchList = new ArrayList<>();
@@ -81,10 +97,14 @@ public class CheckoutController implements Initializable {
     private double saleDiscount;
     private double userCompBalance = 0.0;
 
+
+    // init from basket page: snapshot of items and computed discounts
+
     // address validation regex
     private static final String LETTERS_NO_DIGITS = "^(?!.*\\d).*\\p{L}.*$"; // must contain a letter, no digits allowed
     private static final String HOUSE_REGEX = "^\\d{1,4}$";                  // 1-4 digits
     private static final String ZIP_REGEX = "^\\d{5,7}$";                    // 5-7 digits
+
 
     public void initData(List<Basket> copy, double totalBefore, double discount) {
         this.totalBefore = totalBefore;
@@ -100,8 +120,10 @@ public class CheckoutController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        // logo
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
 
+        // table columns (image/name/qty/price)
         imgCol.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue()));
         imgCol.setCellFactory(col -> new TableCell<>() {
             private final ImageView iv = new ImageView();
@@ -122,7 +144,6 @@ public class CheckoutController implements Initializable {
                 }
             }
         });
-
         nameCol.setCellValueFactory(c -> {
             Basket b = c.getValue();
             return (b.getCustomBouquet() != null)
@@ -132,18 +153,19 @@ public class CheckoutController implements Initializable {
         amtCol.setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(c.getValue().getAmount()).asObject());
         priceCol.setCellValueFactory(c -> new javafx.beans.property.SimpleDoubleProperty(c.getValue().getPrice()).asObject());
 
+        // payment selectors
         ToggleGroup payGrp = new ToggleGroup();
         savedCardRadio.setToggleGroup(payGrp);
         addCardRadio.setToggleGroup(payGrp);
         addCardButton.disableProperty().bind(addCardRadio.selectedProperty().not());
         addCardButton.setOnAction(e -> openPaymentWindow());
 
+        // fulfilment selectors + dependent fields
         ToggleGroup fulGrp = new ToggleGroup();
         pickupRadio.setToggleGroup(fulGrp);
         deliveryRadio.setToggleGroup(fulGrp);
         pickupRadio.selectedProperty().addListener((o, a, b) -> updateSummary());
         deliveryRadio.selectedProperty().addListener((o, a, b) -> updateSummary());
-
         branchCombo.setCellFactory(cb -> new ListCell<>() {
             @Override protected void updateItem(Branch b, boolean empty) {
                 super.updateItem(b, empty);
@@ -157,6 +179,7 @@ public class CheckoutController implements Initializable {
         houseField.disableProperty().bind(deliveryRadio.selectedProperty().not());
         zipField.disableProperty().bind(deliveryRadio.selectedProperty().not());
 
+        // scheduling + constraints (min hour today = now + 3h, business hours 8–20)
         ToggleGroup timeGrp = new ToggleGroup();
         asapRadio.setToggleGroup(timeGrp);
         scheduleRadio.setToggleGroup(timeGrp);
@@ -187,8 +210,10 @@ public class CheckoutController implements Initializable {
         deadlineHourCombo.getItems().clear();
         deadlineDatePicker.setValue(today);
 
+        // store credit toggle re-computes summary
         useCompensationBox.selectedProperty().addListener((o, a, b) -> updateSummary());
 
+        // validation bindings (payment, fulfilment, time)
         BooleanBinding paymentOk = Bindings.or(
                 useCompensationBox.selectedProperty()
                         .and(Bindings.createBooleanBinding(
@@ -199,6 +224,7 @@ public class CheckoutController implements Initializable {
                 savedCardRadio.selectedProperty().and(hasCardProperty)
                         .or(addCardRadio.selectedProperty())
         );
+
 
         // address validation bindings for delivery
         BooleanBinding cityValid = Bindings.createBooleanBinding(
@@ -247,21 +273,26 @@ public class CheckoutController implements Initializable {
                         .and(deadlineDatePicker.valueProperty().isNotNull())
                         .and(deadlineHourCombo.valueProperty().isNotNull()));
 
+        // enable when all constraints pass
         completeBtn.disableProperty().bind(paymentOk.not().or(fulfilOk.not()).or(timeOk.not()));
         completeBtn.setOnAction(e -> submitOrder());
 
+        // initial data fetch
         try { SimpleClient.getClient().sendToServer(new Msg("LIST_BRANCHES", null)); } catch (IOException ex) { ex.printStackTrace(); }
         try { SimpleClient.getClient().sendToServer(new Msg("FETCH_USER", SceneController.loggedUsername)); } catch (IOException ex) { ex.printStackTrace(); }
         try { SimpleClient.getClient().sendToServer(new Msg("HAS_CARD", SceneController.loggedUsername)); } catch (IOException ex) { ex.printStackTrace(); }
 
+        // eventbus registration
         if (!EventBus.getDefault().isRegistered(this)) EventBus.getDefault().register(this);
     }
 
+    // send order dto to server
     private void submitOrder() {
         try { SimpleClient.getClient().sendToServer(new Msg("NEW_ORDER", buildDto())); }
         catch (IOException e) { e.printStackTrace(); }
     }
 
+    // build the order dto from current ui state
     private OrderDTO buildDto() {
         String type = pickupRadio.isSelected() ? "PICKUP" : "DELIVERY";
         String info = type.equals("PICKUP")
@@ -288,6 +319,7 @@ public class CheckoutController implements Initializable {
         );
     }
 
+    // open the add/edit card window and refresh saved-card state
     private void openPaymentWindow() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("payment.fxml"));
@@ -299,6 +331,7 @@ public class CheckoutController implements Initializable {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
+    // central handler for server messages needed in checkout
     @Subscribe
     public void handleServerMsg(Msg m) {
         Platform.runLater(() -> {
@@ -371,6 +404,7 @@ public class CheckoutController implements Initializable {
         });
     }
 
+    // recompute labels, visibility and button text when state changes
     private void updateSummary() {
         double afterSale = totalBefore - saleDiscount;
         double vipDisc = isVipUser ? afterSale * 0.10 : 0.0;
@@ -400,6 +434,7 @@ public class CheckoutController implements Initializable {
         completeBtn.setText(String.format("Complete Order (₪%.2f)", payNow));
     }
 
+    // compute final total (used by bindings to validate payment coverage)
     private double computeFinalTotal() {
         double afterSale = totalBefore - saleDiscount;
         double vipDisc = isVipUser ? afterSale * 0.10 : 0.0;
@@ -418,6 +453,7 @@ public class CheckoutController implements Initializable {
         }
     }
 
+    // tries bytes/url/resource paths; falls back to provided resource
     private Image loadFromProductField(Object raw, String fallbackRes) {
         if (raw instanceof byte[] bytes && bytes.length > 0) return new Image(new ByteArrayInputStream(bytes));
         String s = (raw instanceof String) ? ((String) raw).trim() : null;
@@ -435,12 +471,14 @@ public class CheckoutController implements Initializable {
         return loadRes(fallbackRes);
     }
 
+    // loads a classpath resource or returns a 1x1 empty image
     private Image loadRes(String path) {
         InputStream is = getClass().getResourceAsStream(path);
         if (is != null) return new Image(is);
         return new Image(new ByteArrayInputStream(new byte[0]), 1, 1, true, true);
     }
 
+    // close and unregister
     private void closeWindow() {
         EventBus.getDefault().unregister(this);
         ((Stage) basketTable.getScene().getWindow()).close();

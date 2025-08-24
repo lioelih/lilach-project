@@ -1,5 +1,6 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
+import Events.RegisterEvent;
 import il.cshaifasweng.Msg;
 import il.cshaifasweng.OCSFMediatorExample.entities.Branch;
 import javafx.application.Platform;
@@ -9,11 +10,16 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
-import Events.RegisterEvent;
 
 import java.io.IOException;
 import java.util.List;
 
+/*
+ * register controller
+ * - loads branches and validates user input
+ * - sends a register request and handles success/failure responses
+ * - simple navigation back to home
+ */
 public class RegisterController {
 
     @FXML private TextField usernameField;
@@ -47,13 +53,13 @@ public class RegisterController {
             }
 
             String[] fields = new String[]{
-                    usernameField.getText().trim(),      // f[0] username
-                    emailField.getText().trim(),         // f[1] email
-                    nameField.getText().trim(),          // f[2] full name
-                    phoneNumberField.getText().trim(),   // f[3] phone
-                    idField.getText().trim(),            // f[4] 9-digit ID
-                    passwordField.getText(),             // f[5] password
-                    String.valueOf(selected.getBranchId()) // f[6] branchId
+                    usernameField.getText().trim(),        // f[0] username
+                    emailField.getText().trim(),           // f[1] email
+                    nameField.getText().trim(),            // f[2] full name
+                    phoneNumberField.getText().trim(),     // f[3] phone
+                    idField.getText().trim(),              // f[4] 9-digit id
+                    passwordField.getText(),               // f[5] password
+                    String.valueOf(selected.getBranchId()) // f[6] branch id
             };
 
             if (!isValidInput(fields)) return;
@@ -71,7 +77,7 @@ public class RegisterController {
     }
 
     private boolean isValidInput(String[] f) {
-        // f[0]=username, f[1]=email, f[2]=fullName, f[3]=phone, f[4]=id, f[5]=password, f[6]=branchId
+        // f[0]=username, f[1]=email, f[2]=full name, f[3]=phone, f[4]=id, f[5]=password, f[6]=branch id
 
         // 1) all required
         for (int i = 0; i <= 5; i++) {
@@ -87,19 +93,19 @@ public class RegisterController {
             return false;
         }
 
-        // 3) valid e‑mail
+        // 3) valid email
         if (!f[1].matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,}$")) {
             showAlert("Invalid email format.");
             return false;
         }
 
-        // 4) full name: at least two parts separated by a space, each at least 2 letters
+        // 4) full name: at least two parts, each ≥2 letters
         if (!f[2].matches("^[A-Za-z]{2,}\\s+[A-Za-z]{2,}$")) {
             showAlert("Full Name must include first and last name, each at least 2 letters long.");
             return false;
         }
 
-        // 5) phone: exactly 10 digits, must start with 05
+        // 5) phone: exactly 10 digits, starts with 05
         if (!f[3].matches("^05\\d{8}$")) {
             showAlert("Phone number must be 10 digits starting with 05.");
             return false;

@@ -26,6 +26,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/*
+ * sales controller
+ * - loads catalog and sales from the server
+ * - renders the sales table (including active/inactive highlighting)
+ * - opens the add and edit sale screens
+ */
 public class SalesController {
 
     @FXML private ImageView logoImage;
@@ -60,6 +66,7 @@ public class SalesController {
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
+
         logoImage.setImage(new Image(getClass().getResourceAsStream("/image/logo.png")));
 
         setupTable();
@@ -70,7 +77,7 @@ public class SalesController {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("add_sale_page.fxml"));
                 Scene scene = new Scene(loader.load());
 
-                // Get the controller and pass the product list
+                // inject product and sale lists into the add-sale controller
                 AddSaleController controller = loader.getController();
                 controller.setProducts(products);
                 controller.setSales(sales);
@@ -83,10 +90,12 @@ public class SalesController {
                 err.printStackTrace();
             }
         });
+
         homeButton.setOnAction(e -> {
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
         });
+
         catalogButton.setOnAction(e -> {
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("catalog");
@@ -109,14 +118,11 @@ public class SalesController {
         colGetQty.setCellValueFactory(new PropertyValueFactory<>("getQuantity"));
 
         colProducts.setCellValueFactory(c -> new SimpleStringProperty(
-                c.getValue().getProductIds().stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining(", "))
+                c.getValue().getProductIds().stream().map(String::valueOf).collect(Collectors.joining(", "))
         ));
 
         colActions.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn = new Button("Edit");
-
             {
                 editBtn.getStyleClass().add("plain-button");
                 editBtn.setOnAction(e -> {
@@ -124,7 +130,6 @@ public class SalesController {
                     openEditPopup(selectedSale);
                 });
             }
-
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
@@ -141,9 +146,9 @@ public class SalesController {
                 if (sale == null || empty) {
                     setStyle("");
                 } else if (isSaleActive(sale)) {
-                    setStyle("-fx-background-color: #d4edda;"); // Light green for active
+                    setStyle("-fx-background-color: #d4edda;"); // light green for active
                 } else {
-                    setStyle("-fx-background-color: #f8d7da;"); // Light red for inactive
+                    setStyle("-fx-background-color: #f8d7da;"); // light red for inactive
                 }
             }
         });
@@ -154,7 +159,6 @@ public class SalesController {
         LocalDateTime now = LocalDateTime.now();
         return !sale.getStartDate().isAfter(now) && !sale.getEndDate().isBefore(now);
     }
-
 
     @Subscribe
     public void handleSalesFetched(SalesEvent event) {
@@ -189,5 +193,4 @@ public class SalesController {
             e.printStackTrace();
         }
     }
-
 }
