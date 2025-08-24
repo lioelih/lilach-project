@@ -73,7 +73,6 @@ public class UsersController {
 
         EventBus.getDefault().unregister(this);
         EventBus.getDefault().register(this);
-        try { SimpleClient.getClient().sendToServer("add client"); } catch (IOException ignored) {}
 
         // id (read-only)
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -215,7 +214,6 @@ public class UsersController {
 
         // nav: go home
         goHomeButton.setOnAction(e -> {
-            try { SimpleClient.getClient().sendToServer("remove client"); } catch (IOException ignored) {}
             EventBus.getDefault().unregister(this);
             SceneController.switchScene("home");
         });
