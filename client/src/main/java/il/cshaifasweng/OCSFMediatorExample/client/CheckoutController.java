@@ -81,6 +81,11 @@ public class CheckoutController implements Initializable {
     private double saleDiscount;
     private double userCompBalance = 0.0;
 
+    // address validation regex
+    private static final String LETTERS_NO_DIGITS = "^(?!.*\\d).*\\p{L}.*$"; // must contain a letter, no digits allowed
+    private static final String HOUSE_REGEX = "^\\d{1,4}$";                  // 1-4 digits
+    private static final String ZIP_REGEX = "^\\d{5,7}$";                    // 5-7 digits
+
     public void initData(List<Basket> copy, double totalBefore, double discount) {
         this.totalBefore = totalBefore;
         this.saleDiscount = discount;
@@ -195,14 +200,47 @@ public class CheckoutController implements Initializable {
                         .or(addCardRadio.selectedProperty())
         );
 
-        BooleanBinding fulfilOk = Bindings.or(
-                pickupRadio.selectedProperty().and(branchCombo.valueProperty().isNotNull()),
-                deliveryRadio.selectedProperty()
-                        .and(cityField.textProperty().isNotEmpty())
-                        .and(streetField.textProperty().isNotEmpty())
-                        .and(houseField.textProperty().isNotEmpty())
-                        .and(zipField.textProperty().isNotEmpty())
+        // address validation bindings for delivery
+        BooleanBinding cityValid = Bindings.createBooleanBinding(
+                () -> {
+                    String s = cityField.getText();
+                    return s != null && s.matches(LETTERS_NO_DIGITS);
+                },
+                cityField.textProperty()
         );
+
+        BooleanBinding streetValid = Bindings.createBooleanBinding(
+                () -> {
+                    String s = streetField.getText();
+                    return s != null && s.matches(LETTERS_NO_DIGITS);
+                },
+                streetField.textProperty()
+        );
+
+        BooleanBinding houseValid = Bindings.createBooleanBinding(
+                () -> {
+                    String s = houseField.getText();
+                    return s != null && s.matches(HOUSE_REGEX);
+                },
+                houseField.textProperty()
+        );
+
+        BooleanBinding zipValid = Bindings.createBooleanBinding(
+                () -> {
+                    String s = zipField.getText();
+                    return s != null && s.matches(ZIP_REGEX);
+                },
+                zipField.textProperty()
+        );
+
+        BooleanBinding pickupOk = pickupRadio.selectedProperty().and(branchCombo.valueProperty().isNotNull());
+        BooleanBinding deliveryAddrOk = deliveryRadio.selectedProperty()
+                .and(cityValid)
+                .and(streetValid)
+                .and(houseValid)
+                .and(zipValid);
+
+        BooleanBinding fulfilOk = pickupOk.or(deliveryAddrOk);
 
         BooleanBinding timeOk = asapRadio.selectedProperty()
                 .or(scheduleRadio.selectedProperty()
@@ -369,7 +407,7 @@ public class CheckoutController implements Initializable {
         return afterSale - vipDisc + deliveryFee;
     }
 
-    // Image loader with graceful fallbacks
+    // image loader with graceful fallbacks
     private Image buildImage(Basket b) {
         try {
             if (b.getCustomBouquet() != null) return loadRes("/image/custom.png");

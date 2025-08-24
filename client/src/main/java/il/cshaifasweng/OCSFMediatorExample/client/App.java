@@ -1,6 +1,5 @@
 package il.cshaifasweng.OCSFMediatorExample.client;
 
-import Events.CatalogEvent;
 import Events.LoginEvent;
 import Events.RegisterEvent;
 import Events.WarningEvent;
@@ -15,10 +14,15 @@ import javafx.stage.Stage;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import il.cshaifasweng.LoginUserDTO;
-import il.cshaifasweng.OCSFMediatorExample.entities.User;
 import java.io.IOException;
-import java.util.ArrayList;
 
+/*
+ * app entry point:
+ * - asks for server address, opens the socket, and registers to the event bus
+ * - sets up the main stage via scenecontroller and shows the home scene
+ * - handles login/register/warning events from the server
+ * - ensures clean logout and socket close on exit
+ */
 public class App extends Application {
 
     private static Scene scene;
@@ -26,10 +30,10 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        EventBus.getDefault().register(this); // register first event bus on start
+        EventBus.getDefault().register(this); // register to event bus at startup
 
-        String[] connectionInfo = showConnectionDialog();
-        if (connectionInfo == null) { // if no info was put into connection
+        String[] connectionInfo = showConnectionDialog(); // prompt for ip:port
+        if (connectionInfo == null) { // no valid input -> exit
             System.exit(1);
             return;
         }
@@ -39,13 +43,13 @@ public class App extends Application {
         client.setHost(connectionInfo[0]);
         client.openConnection();
         SimpleClient.setClient(client);
-        client.sendToServer("add client");
+        client.sendToServer("add client"); // subscribe this client on the server
 
         SceneController.setMainStage(stage);
-        SceneController.switchScene("home"); // if we connected, then we switch to home
+        SceneController.switchScene("home"); // connected successfully -> go home
         stage.setMaximized(true);
 
-
+        // on window close, log out (if needed) and unregister the client
         stage.setOnCloseRequest(e -> {
             try {
                 String u = SceneController.loggedUsername;
@@ -58,17 +62,15 @@ public class App extends Application {
                 ex.printStackTrace();
             }
         });
-
-
     }
 
     @Override
     public void stop() throws Exception {
-        EventBus.getDefault().unregister(this);
+        EventBus.getDefault().unregister(this); // stop receiving events
         try {
             String u = SceneController.loggedUsername;
             if (u != null && !u.isBlank()) {
-                SimpleClient.logoutAndClose(u);
+                SimpleClient.logoutAndClose(u); // graceful logout if still logged in
                 SceneController.loggedUsername = null;
             }
         } catch (Exception ignored) {}
@@ -77,16 +79,16 @@ public class App extends Application {
         super.stop();
     }
 
-
     public static void main(String[] args) {
-        launch();
-    } // calls launch function
+        launch(); // launch javafx app
+    }
 
+    // simple input dialog for "ip:port"; returns split pair or null
     private String[] showConnectionDialog() {
         TextInputDialog dialog = new TextInputDialog("localhost:3000");
         dialog.setTitle("Connect to Server");
         dialog.setHeaderText("Enter Server IP and Port (e.g. 127.0.0.1:3000)");
-        dialog.setContentText("Format: ip:port"); // we use a textinputdialog to get the ip and start up the home page
+        dialog.setContentText("Format: ip:port");
 
         return dialog.showAndWait()
                 .map(input -> input.split(":"))
@@ -94,6 +96,7 @@ public class App extends Application {
                 .orElse(null);
     }
 
+    // reacts to login response: on success, store session info and go home; on failure, show error
     @Subscribe
     public void onLoginResponse(LoginEvent event) {
         Msg msg = event.getMsg();
@@ -101,7 +104,6 @@ public class App extends Application {
             if ("LOGIN_SUCCESS".equals(msg.getAction())) {
                 LoginUserDTO u = (LoginUserDTO) msg.getData();
                 SceneController.loggedUsername = u.getUsername();
-
                 SceneController.setCurrentUserRole(User.Role.valueOf(u.getRole()));
                 SceneController.isVIP = u.isVIP();
                 SceneController.switchScene("home");
@@ -116,19 +118,19 @@ public class App extends Application {
         });
     }
 
-
-
-
+    // reacts to register response: on success, navigate to login screen
     @Subscribe
     public void onRegisterResponse(RegisterEvent event) {
         Msg msg = event.getMsg();
         Platform.runLater(() -> {
             if (msg.getAction().equals("REGISTER_SUCCESS")) {
-                SceneController.switchScene("login"); // switches to login once user was created
+                SceneController.switchScene("login");
             }
-            // Do nothing if failed
+            // on failure, do nothing here (the form handles validation)
         });
     }
+
+    // shows server warnings as alerts
     @Subscribe
     public void onWarning(WarningEvent event) {
         Platform.runLater(() -> {
@@ -140,5 +142,3 @@ public class App extends Application {
         });
     }
 }
-
-
