@@ -746,6 +746,9 @@ public class SimpleServer extends AbstractServer {
                             "compensationUsed", compensationUsed
                     );
                     client.sendToClient(new Msg(ok ? "ORDER_OK" : "ORDER_FAIL", result));
+                    if (ok) { // if order failed we wouldnt want to send it
+                        sendToAllClients(new Msg("ORDERS_DIRTY", null));
+                    }
                 }
 
                 // card presence check
@@ -1045,6 +1048,7 @@ public class SimpleServer extends AbstractServer {
                     }
 
                     client.sendToClient(new Msg("MARK_ORDER_RECEIVED_OK", List.of()));
+                    sendToAllClients(new Msg("ORDERS_DIRTY", null));
                 }
 
                 // full order details for receipt view
@@ -1390,6 +1394,7 @@ public class SimpleServer extends AbstractServer {
                                 "refundAmt", refundAmt
                         );
                         client.sendToClient(new Msg("CANCEL_OK", payload));
+                        sendToAllClients(new Msg("ORDERS_DIRTY", null));
 
                     } catch (Exception ex) {
                         ex.printStackTrace();

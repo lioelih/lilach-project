@@ -101,20 +101,6 @@ public class OrdersController {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colUser.setCellValueFactory(new PropertyValueFactory<>("username"));
         colFulfil.setCellValueFactory(new PropertyValueFactory<>("fulfilment"));
-        colStatus.setCellValueFactory(cell -> {
-            OrderDisplayDTO o = cell.getValue();
-            String txt;
-            if (o.isCancelled()) {
-                txt = "Cancelled";
-            } else if (o.isReceived()) {
-                txt = "Received";
-            } else if (o.getFulfilment().startsWith("Delivery")) {
-                txt = "Out for delivery";
-            } else {
-                txt = "Awaiting pickup";
-            }
-            return new SimpleStringProperty(txt);
-        });
         colPrice.setCellValueFactory(new PropertyValueFactory<>("totalPrice"));
         colDeadline.setCellValueFactory(new PropertyValueFactory<>("deadline"));
         colRecipient.setCellValueFactory(new PropertyValueFactory<>("recipient"));
@@ -169,12 +155,16 @@ public class OrdersController {
                 // When the user clicks “Mark Received”, pass the order’s ID, not the DTO!
                 markBtn.setOnAction(e -> {
                     OrderDisplayDTO o = getCurrent();
+                    markBtn.setDisable(true);
+                    cancelBtn.setDisable(true);
                     markAsReceived(o.getId());
                 });
 
                 // confirmCancel knows how to take the whole DTO
                 cancelBtn.setOnAction(e -> {
                     OrderDisplayDTO o = getCurrent();
+                    cancelBtn.setDisable(true);
+                    markBtn.setDisable(true);
                     confirmCancel(o);
                 });
             }
@@ -249,8 +239,12 @@ public class OrdersController {
     public void handleOrdersFetched(Msg msg) {
         if (!"FETCH_ORDERS_OK".equals(msg.getAction())) return;
         List<OrderDisplayDTO> orders = (List<OrderDisplayDTO>) msg.getData();
-        Platform.runLater(() -> ordersTable.getItems().setAll(orders));
+        Platform.runLater(() -> {
+            ordersTable.getItems().setAll(orders);
+            ordersTable.refresh();
+        });
     }
+
 
     private void fetchProductsForOrder(int orderId) {
         try {
@@ -285,7 +279,7 @@ public class OrdersController {
                 alert.showAndWait();
 
                 // Refresh the table after marking as received
-                requestOrders(rbMine.isSelected() ? "MINE" : "ALL");
+                requestOrders(rbMine.isSelected() ? "MINE" : effectiveAllScope());
             });
         }
     }
@@ -300,7 +294,7 @@ public class OrdersController {
                         String.format("Order %d cancelled. ₪%.2f added to your balance.",
                                 data.get("orderId"), data.get("refundAmt")))
                         .showAndWait();
-                requestOrders(rbMine.isSelected() ? "MINE" : "ALL");
+                requestOrders(rbMine.isSelected() ? "MINE" : effectiveAllScope());
             });
         }
         else if ("CANCEL_FAIL".equals(m.getAction())) {
@@ -392,6 +386,12 @@ public class OrdersController {
 
         requestOrders(currentScope);
         ordersTable.refresh();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onOrdersDirty(Msg msg) {
+        if (!"ORDERS_DIRTY".equals(msg.getAction())) return;
+        requestOrders(currentScope);
     }
 
 }
