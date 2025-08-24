@@ -1,32 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml/1"
+            xmlns="http://javafx.com/javafx/21.0.1"
             fx:controller="il.cshaifasweng.OCSFMediatorExample.client.CustomBouquetController"
             stylesheets="@homepage.css">
 
+    <!-- TOP BAR (now same as Catalog style, logo 100x100) -->
     <top>
-        <StackPane styleClass="top-bar" prefHeight="70">
+        <StackPane prefHeight="70" styleClass="top-bar">
             <children>
                 <HBox alignment="CENTER_LEFT" spacing="15" styleClass="top-bar">
                     <padding>
                         <Insets top="0" right="20" bottom="0" left="80"/>
                     </padding>
-                    <ImageView fx:id="logoImage" fitHeight="40" fitWidth="40"/>
-                    <Button fx:id="backButton" text="← Back" onAction="#onBack" styleClass="nav-button"/>
-                    <Label text="Custom Bouquet" styleClass="header-title"/>
-                    <Pane HBox.hgrow="ALWAYS"/>
-                    <Button fx:id="addToBasketButton" text="Add to Basket" onAction="#onAddToBasket"
-                            disable="true"
-                            style="-fx-background-color:#16a34a; -fx-text-fill:white; -fx-background-radius:10; -fx-padding:8 16;"/>
+                    <children>
+                        <ImageView fx:id="logoImage" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true"/>
+                        <Button fx:id="backButton" text="← Back" onAction="#onBack" styleClass="nav-button"/>
+                        <Label text="Custom Bouquet" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #0f172a;"/>
+                        <Pane prefHeight="100.0" prefWidth="625.0" HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="addToBasketButton" text="Add to Basket" onAction="#onAddToBasket"
+                                disable="true"
+                                style="-fx-background-color:#16a34a; -fx-text-fill:white; -fx-background-radius:10; -fx-padding:8 16;"/>
+                    </children>
                 </HBox>
             </children>
         </StackPane>
     </top>
 
+    <!-- CENTER (your original content unchanged) -->
     <center>
         <ScrollPane fitToWidth="true"
                     hbarPolicy="NEVER"
