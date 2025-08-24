@@ -9,24 +9,28 @@ import javafx.scene.input.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-
 import il.cshaifasweng.OCSFMediatorExample.entities.Product;
 import javafx.stage.Stage;
 
+/*
+ * controller for the "add product" dialog:
+ * - supports drag & drop of a png image
+ * - validates name/type/price inputs
+ * - sends the new product to the server
+ */
 public class AddProductController {
 
-    @FXML public Button cancelButton;
     @FXML private TextField nameField;
     @FXML private TextField typeField;
     @FXML private TextField priceField;
     @FXML private Button addButton;
     @FXML private ImageView imageDrop;
 
-    private File droppedImageFile = null; // holds the file temporarily (image)
+    private File droppedImageFile = null; // temporary holder for the dropped image file
 
     @FXML
     public void initialize() {
-        imageDrop.setImage(new Image("/image/drag_drop.png")); // placeholder image
+        imageDrop.setImage(new Image("/image/drag_drop.png")); // placeholder shown before an image is dropped
         imageDrop.setOnDragOver(event -> {
             if (event.getGestureSource() != imageDrop && event.getDragboard().hasFiles()) {
                 File file = event.getDragboard().getFiles().get(0);
@@ -39,7 +43,6 @@ public class AddProductController {
         imageDrop.setOnDragDropped(event -> {
             Dragboard db = event.getDragboard();
             boolean success = false;
-
             if (db.hasFiles()) {
                 File file = db.getFiles().get(0);
                 if (file.getName().toLowerCase().endsWith(".png")) {
@@ -53,8 +56,6 @@ public class AddProductController {
             event.setDropCompleted(success);
             event.consume();
         });
-
-        cancelButton.setOnAction(e -> ((Stage) cancelButton.getScene().getWindow()).close());
         addButton.setOnAction(event -> handleAddProduct());
     }
 
@@ -62,12 +63,11 @@ public class AddProductController {
         String name = nameField.getText().trim();
         String type = typeField.getText().trim();
         String priceStr = priceField.getText().trim();
-
-        if (name.isEmpty() || type.isEmpty() || priceStr.isEmpty()) { // Must surpass all necessary checks before input
+        if (name.isEmpty() || type.isEmpty() || priceStr.isEmpty()) { // validate required fields
             showAlert("Please fill in all fields.");
             return;
         }
-        if (droppedImageFile == null) {
+        if (droppedImageFile == null) { // ensure an image was provided
             showAlert("Please drag and drop a PNG image.");
             return;
         }

@@ -27,6 +27,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/*
+ * basket controller:
+ * - displays basket items with image, name, quantity, price, and a remove action
+ * - keeps totals up to date (sales + optional vip discount)
+ * - opens the checkout flow and syncs changes with the server
+ */
 public class BasketController {
 
     @FXML private TableView<Basket> basketTable;
@@ -51,6 +57,7 @@ public class BasketController {
 
     @FXML
     public void initialize() {
+        // subscribe to events and set up table
         try { EventBus.getDefault().unregister(this); } catch (Exception ignored) {}
         EventBus.getDefault().register(this);
 
@@ -69,6 +76,7 @@ public class BasketController {
         addRemoveButtonToTable();
         basketItems = new ArrayList<>();
 
+        // initial data fetch
         try {
             SimpleClient.getClient().ensureConnected();
             SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername));
@@ -77,6 +85,7 @@ public class BasketController {
             }
         } catch (IOException e) { e.printStackTrace(); }
 
+        // enable inline quantity editing and persist on commit
         basketTable.setEditable(true);
         amountColumn.setEditable(true);
         amountColumn.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
@@ -84,7 +93,7 @@ public class BasketController {
             Basket item = event.getRowValue();
             int newAmt = event.getNewValue() < 1 ? 1 : event.getNewValue();
             if (event.getNewValue() < 1) {
-                new Alert(Alert.AlertType.WARNING,"Quantity must be at least 1. Resetting to 1.").showAndWait();
+                new Alert(Alert.AlertType.WARNING, "Quantity must be at least 1. Resetting to 1.").showAndWait();
             }
             item.setAmount(newAmt);
             double unitPrice = (item.getProduct() != null) ? item.getProduct().getPrice() : item.getCustomBouquet().getTotalPrice();
@@ -94,6 +103,7 @@ public class BasketController {
             try { SimpleClient.getClient().sendToServer(new Msg("UPDATE_BASKET_AMOUNT", item)); } catch (IOException ex) { ex.printStackTrace(); }
         });
 
+        // open checkout and pass current basket snapshot
         confirmButton.setOnAction(e -> {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("checkout.fxml"));
@@ -116,7 +126,6 @@ public class BasketController {
                 st.setY(vb.getMinY() + (vb.getHeight() - 600) / 2);
                 st.setMaximized(true);
 
-
                 confirmButton.setDisable(true);
                 st.setOnHidden(ev -> confirmButton.setDisable(basketItems.isEmpty()));
 
@@ -125,23 +134,20 @@ public class BasketController {
                 ex.printStackTrace();
             }
         });
-
     }
 
+    // resolves the image to show for a basket row (product image or a generic custom icon)
     private ImageView buildImage(Basket b) {
         Image img;
         try {
-            // If it's a custom bouquet, show the generic icon
             if (b.getCustomBouquet() != null) {
                 img = new Image(getClass().getResourceAsStream("/image/custom.png"));
             } else {
                 Object raw = (b.getProduct() != null) ? b.getProduct().getImage() : null;
-
                 if (raw instanceof byte[] bytes && bytes.length > 0) {
                     img = new Image(new java.io.ByteArrayInputStream(bytes));
                 } else {
                     String path = (raw instanceof String) ? ((String) raw).trim() : null;
-
                     if (path != null && !path.isEmpty()) {
                         if (path.startsWith("http://") || path.startsWith("https://")) {
                             img = new Image(path, true);
@@ -167,22 +173,22 @@ public class BasketController {
         return iv;
     }
 
-
+    // when user info arrives, cache vip/branch info and (if needed) ask for stock view
     @Subscribe
     public void onUserFetched(Msg m) {
         if (!"FETCH_USER".equals(m.getAction())) return;
         User me = (User) m.getData();
 
-        isVip         = me.isVIP();
-        boolean isPrivileged = isVip
-                || SceneController.hasPermission(User.Role.WORKER);
-        userBranchId  = me.getBranch().getBranchId();
+        isVip = me.isVIP();
+        boolean isPrivileged = isVip || SceneController.hasPermission(User.Role.WORKER);
+        userBranchId = me.getBranch().getBranchId();
 
         if (!isPrivileged) {
-            try { SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", userBranchId)); } catch(IOException ex) { ex.printStackTrace(); }
+            try { SimpleClient.getClient().sendToServer(new Msg("STOCK_BY_BRANCH", userBranchId)); } catch (IOException ex) { ex.printStackTrace(); }
         }
     }
 
+    // refresh table from server basket payload
     @Subscribe
     public void handleBasketFetched(Msg m) {
         if (!"BASKET_FETCHED".equals(m.getAction())) return;
@@ -190,12 +196,14 @@ public class BasketController {
         Platform.runLater(() -> { refreshTable(); updateTotal(); });
     }
 
+    // on basket mutation, re-fetch to stay in sync
     @Subscribe
     public void onBasketUpdated(Msg m) {
         if (!"BASKET_UPDATED".equals(m.getAction())) return;
         try { SimpleClient.getClient().sendToServer(new Msg("FETCH_BASKET", SceneController.loggedUsername)); } catch (IOException ex) { ex.printStackTrace(); }
     }
 
+    // injects a "remove" button into each row and syncs removal to the server
     private void addRemoveButtonToTable() {
         removeColumn.setCellFactory(tv -> new TableCell<>() {
             private final Button btn = new Button("Remove");
@@ -215,10 +223,12 @@ public class BasketController {
         });
     }
 
+    // pushes current list into the tableview
     private void refreshTable() {
         basketTable.setItems(FXCollections.observableList(basketItems));
     }
 
+    // recalculates subtotal, sales discount, vip discount, and final total
     private void updateTotal() {
         double subtotal = basketItems.stream().mapToDouble(Basket::getPrice).sum();
         List<Basket> productLines = basketItems.stream().filter(b -> b.getProduct() != null).toList();
@@ -234,8 +244,10 @@ public class BasketController {
         confirmButton.setDisable(basketItems.isEmpty());
     }
 
+    // receives active sales from the outside (needed for discount math)
     public void setSales(List<Sale> sales) { this.sales = sales; }
 
+    // when a user entity is updated, refetch both user and basket
     @Subscribe
     public void onUserUpdated(Msg m) {
         if (!"USER_UPDATED".equals(m.getAction())) return;
