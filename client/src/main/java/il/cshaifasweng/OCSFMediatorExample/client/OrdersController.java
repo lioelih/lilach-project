@@ -167,8 +167,6 @@ public class OrdersController {
                 // cancel: confirm, then send cancel for the selected order
                 cancelBtn.setOnAction(e -> {
                     OrderDisplayDTO o = getCurrent();
-                    cancelBtn.setDisable(true);
-                    markBtn.setDisable(true);
                     confirmCancel(o);
                 });
             }

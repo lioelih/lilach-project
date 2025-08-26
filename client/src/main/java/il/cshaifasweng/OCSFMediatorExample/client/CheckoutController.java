@@ -102,7 +102,7 @@ public class CheckoutController implements Initializable {
 
     // address validation regex
     private static final String LETTERS_NO_DIGITS = "^(?!.*\\d).*\\p{L}.*$"; // must contain a letter, no digits allowed
-    private static final String HOUSE_REGEX = "^\\d{1,4}$";                  // 1-4 digits
+    private static final String HOUSE_REGEX = "^(?:[1-9]\\d{0,3})$";                  // 1-4 digits
     private static final String ZIP_REGEX = "^\\d{5,7}$";                    // 5-7 digits
 
 
